@@ -1,8 +1,8 @@
 "use client";
 // Screen 16 — What We Understand About Your Business.
-// The structured Business Brain summary with provenance on every fact.
-
-import React from "react";
+// Renders the AI-extracted Business Brain model from the checkup conversation
+// (store.checkup.facts) with provenance on every fact. Falls back to the
+// workspace-setup-only view when no checkup facts exist yet.
 import { ArrowRight, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { ProvenanceBadge } from "@/components/shared/badges";
 import { ProvenanceLegend } from "@/components/shared/evidence";
 import type { ScreenProps } from "../view-types";
 import { useBizz } from "@/lib/store";
+import type { CheckupFact } from "@/lib/checkup";
 import type { Provenance } from "@/lib/types";
 
 interface Fact {
@@ -24,9 +25,31 @@ interface Fact {
 export default function BusinessUnderstanding(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const userWorkspace = useBizz((s) => s.userWorkspace);
+  const checkupFacts = useBizz((s) => s.checkup.facts);
   const businessName = userWorkspace?.name ?? "Your business";
 
-  const facts: Fact[] = [
+  // The AI-built model from the checkup conversation — the owner's answers,
+  // as understood by the engine. Workspace setup supplies the first row.
+  const aiFacts: Fact[] | null = checkupFacts
+    ? [
+        {
+          section: "Business",
+          value: `${businessName} — a ${checkupFacts.businessType} business in ${userWorkspace?.country ?? "Nigeria"}`,
+          provenance: "user-supplied",
+          source: "Workspace setup",
+        } as Fact,
+        ...checkupFacts.facts
+          .filter((f: CheckupFact) => f.section !== "Business")
+          .map((f: CheckupFact) => ({
+            section: f.section,
+            value: f.value,
+            provenance: f.provenance,
+            source: f.source,
+          })),
+      ]
+    : null;
+
+  const facts: Fact[] = aiFacts ?? [
     {
       section: "Business",
       value: `${businessName} — a service business in ${userWorkspace?.country ?? "Nigeria"}`,
@@ -35,45 +58,21 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
     },
     {
       section: "What you sell",
-      value: "Cleaning packages for homes and small offices",
+      value: "Complete the private checkup so the Context Engine can build this from your answers",
       provenance: "ai-interpretation",
-      source: "Interpreted from your checkup conversation",
+      source: "Waiting for your checkup conversation",
     },
     {
       section: "Primary goal",
-      value: "Convert more of the enquiries you already generate",
+      value: "Collected during the private checkup",
       provenance: "ai-interpretation",
-      source: "Interpreted from your checkup conversation",
-    },
-    {
-      section: "Customers",
-      value: "Households and small offices, mostly found via Instagram and referrals",
-      provenance: "user-supplied",
-      source: "Your checkup conversation",
-    },
-    {
-      section: "Customer journey",
-      value: "Discovery → Website / WhatsApp → Enquiry → Quote → Customer",
-      provenance: "ai-interpretation",
-      source: "Proposed in the journey you reviewed",
+      source: "Waiting for your checkup conversation",
     },
     {
       section: "Acquisition channels",
-      value: "Instagram, Google Search, Referrals",
+      value: "Collected during the private checkup",
       provenance: "user-supplied",
-      source: "Your checkup conversation",
-    },
-    {
-      section: "Known performance changes",
-      value: "Enquiries up about 50% last month; customers up only slightly; revenue roughly flat",
-      provenance: "estimated",
-      source: "Your directional estimates",
-    },
-    {
-      section: "Known recent changes",
-      value: "Instagram ad spend increased; no other major changes reported",
-      provenance: "user-supplied",
-      source: "Your checkup conversation",
+      source: "Waiting for your checkup conversation",
     },
   ];
 
@@ -82,7 +81,9 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
       <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Business Brain — first pass</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">What we understand about your business</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        This is the working model the AI reasons over. Every fact carries its source — correct anything that looks wrong.
+        {aiFacts
+          ? "Built by the Context Engine from your checkup answers — the working model the AI reasons over. Every fact carries its source; correct anything that looks wrong."
+          : "This is the working model the AI reasons over. Complete the private checkup so every fact is built from your answers."}
       </p>
 
       <Card className="mt-6 p-0">

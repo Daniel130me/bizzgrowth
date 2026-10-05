@@ -304,3 +304,22 @@ Work Log:
 Stage Summary:
 - src/app/layout.tsx <body> now has suppressHydrationWarning; Grammarly-induced hydration mismatch resolved
 - bizzGrowth landing page verified working end-to-end in browser
+
+---
+Task ID: ai-intelligence-1
+Agent: Z.ai Code (main)
+Task: Replace prototype canned intelligence with real AI so user answers influence outcomes
+
+Work Log:
+- Audited app: 114-screen clickable prototype, zero AI, zero API usage, user answers discarded
+- Created shared contract src/lib/checkup.ts (BusinessFacts, DiagnosisContent, ImprovedDiagnosis, AskAnswerContent, extractJson)
+- Created server helper src/lib/ai.ts (z-ai-web-dev-sdk, backend only)
+- API routes: POST /api/checkup/extract (transcript → structured business facts + ack, with deterministic fallback), /api/checkup/diagnosis (facts → personalized first diagnosis), /api/checkup/improve (owner channel counts → deterministic conversion math + AI narrative), /api/ask (question + workspace snapshot → grounded answer with provenance; retry-once + larger maxTokens after truncation 502)
+- Store: added checkup state (transcript/facts/diagnosis/improved) persisted to localStorage "bizzgrowth-checkup-v1"; createWorkspace resets it; facts sync businessType back into workspace
+- Wired screens: onboarding-chat (intro + final extraction via LLM, regex fallback, offline facts), journey-confirm (AI journey prefill + edits SAVED to store), business-understanding (renders AI facts w/ provenance), first-diagnosis (AI-generated on first visit w/ loading state; improved variant w/ real banner), first-diagnosis-evidence (Know/Think/Unknown from owner's own answers), improve-diagnosis (channels from facts, real computed conversions in toast + stored), ask (real grounded answers; user-workspace offline fallback built from owner's facts, demo fallback only for sample businesses)
+
+Stage Summary:
+- E2E verified in browser with a NOVEL business (mobile car detailing, Abuja, TikTok+WhatsApp): extract produced chips impossible under old regex ("Channel: TikTok"), AI journey "Discovery via TikTok → WhatsApp enquiry → Quote → Customer", AI diagnosis named the business + hypothesized price-increase constraint, improve computed real conversions (TikTok 6.0% vs WhatsApp 45.0%) confidence 62→82, Ask answered grounded in owner's numbers with honest limitations; demo businesses stay grounded in measured dataset
+- Persistence verified across reload (workspace + facts + improved diagnosis survive)
+- Known remaining demo-data area: home metric tiles for user workspaces still show template-shaped metric history (documented, honest in UI)
+- tsc clean (src/), eslint clean, dev.log no runtime errors

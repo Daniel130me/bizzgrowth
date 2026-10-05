@@ -1,7 +1,8 @@
 "use client";
 // Screens 48–49 — Ask Your Business + Conversation History.
-// Answers are canned but always grounded in the shared dataset numbers,
-// with AI interpretation explicitly labelled (Ask principle).
+// Questions go to the real analyst (POST /api/ask) with a snapshot of the
+// workspace data; the answer is grounded, labelled with provenance and shows
+// its limitations. The canned matcher below remains as an offline fallback.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -33,6 +34,7 @@ import { PageHeader } from "@/components/shared/layout";
 import { ProvenanceBadge } from "@/components/shared/badges";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
+import type { AskWorkspaceContext } from "@/lib/checkup";
 import type { BusinessType, Provenance } from "@/lib/types";
 import type { ViewMap } from "../view-types";
 
@@ -264,12 +266,15 @@ type ThreadItem = ThreadQuestion | ThreadAnswer;
 function AskScreen() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
+  const checkupFacts = useBizz((s) => s.checkup.facts);
+  const checkupImproved = useBizz((s) => s.checkup.improved);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);
 
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [thread, setThread] = useState<ThreadItem[]>([]);
+  const threadRef = useRef<ThreadItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -278,6 +283,70 @@ function AskScreen() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  /** Snapshot of the workspace the server-side analyst reasons over. */
+  function buildContext(): AskWorkspaceContext {
+    if (businessId === "user-workspace") {
+      // The owner's own workspace: no connected platform data yet — be honest about it.
+      return {
+        name: business.name,
+        type: business.type,
+        location: business.location,
+        currency: "₦",
+        isUserWorkspace: true,
+        hasMeasuredData: false,
+        periodLabel: "Last full month (your own estimates)",
+        channelCounts: checkupImproved?.channelRows ?? undefined,
+        userFacts: checkupFacts
+          ? {
+              whatTheySell: checkupFacts.whatTheySell,
+              primaryGoal: checkupFacts.primaryGoal,
+              customers: checkupFacts.customers,
+              channels: checkupFacts.channels,
+              trends: checkupFacts.trends,
+              recentChanges: checkupFacts.recentChanges,
+            }
+          : null,
+      };
+    }
+    const monthly = business.monthly;
+    const last = monthly[monthly.length - 1];
+    const prev = monthly[monthly.length - 2];
+    return {
+      name: business.name,
+      type: business.type,
+      location: business.location,
+      currency: "₦",
+      isUserWorkspace: false,
+      hasMeasuredData: true,
+      periodLabel: `${last.label} 2026`,
+      metrics: {
+        spend: last.spend,
+        enquiries: last.enquiries || undefined,
+        customers: last.customers || undefined,
+        orders: last.orders,
+        traffic: last.traffic,
+        revenue: last.revenue,
+        prev: {
+          spend: prev.spend,
+          enquiries: prev.enquiries || undefined,
+          customers: prev.customers || undefined,
+          orders: prev.orders,
+          traffic: prev.traffic,
+          revenue: prev.revenue,
+        },
+      },
+      channels: business.channels.map((c) => ({
+        name: c.name,
+        enquiries: c.enquiries,
+        customers: c.customers,
+        conversion: c.conversion,
+        cac: c.cac,
+        spend: c.spend,
+      })),
+      userFacts: null,
+    };
+  }
 
   const suggestions =
     business.type === "service"
@@ -296,6 +365,70 @@ function AskScreen() {
           "What have we tried before?",
         ];
 
+  /** Offline fallback for the owner's own workspace — built from THEIR facts,
+   *  never from the demo dataset, so numbers stay honest. */
+  function userFallbackAnswer(q: string): AnswerContent {
+    const rows = checkupImproved?.channelRows ?? [];
+    const best = rows.length > 0 ? rows.reduce((a, b) => (b.conversion > a.conversion ? b : a)) : null;
+    const worst = rows.length > 0 ? rows.reduce((a, b) => (b.conversion < a.conversion ? b : a)) : null;
+    const trendLine = checkupFacts
+      ? `What you reported so far: enquiries ${checkupFacts.trends.enquiries.toLowerCase()}, customers ${checkupFacts.trends.customers.toLowerCase()}, revenue ${checkupFacts.trends.revenue.toLowerCase()}.`
+      : "This workspace has no checkup answers recorded yet.";
+    const countsLine =
+      best && worst
+        ? `From the counts you entered: ${worst.name} converts at ${worst.conversion.toFixed(1)}% (${worst.customers} of ${worst.enquiries}) while ${best.name} converts at ${best.conversion.toFixed(1)}%.`
+        : "No channel counts have been entered yet, so channel conversion cannot be compared.";
+    const grounded = [
+      `${business.name}: ${checkupFacts?.whatTheySell ?? "business details pending"}. ${trendLine}`,
+      `${countsLine} ${checkupFacts ? `Your stated goal: ${checkupFacts.primaryGoal.toLowerCase()}.` : ""}`.trim(),
+    ];
+    const evidence = [
+      ...(rows.length > 0
+        ? rows.slice(0, 2).map((r) => ({
+            label: `${r.name} conversion`,
+            value: `${r.conversion.toFixed(1)}%`,
+            provenance: "user-supplied" as Provenance,
+            source: "Counts you entered",
+          }))
+        : [
+            {
+              label: "Channel conversion",
+              value: "Not available yet",
+              provenance: "estimated" as Provenance,
+              source: "Waiting for your counts or connections",
+            },
+          ]),
+      {
+        label: "Enquiries (your estimate)",
+        value: checkupFacts?.trends.enquiries ?? "Unknown",
+        provenance: "estimated" as Provenance,
+        source: "Your checkup answers",
+      },
+    ];
+    return {
+      grounded,
+      interpretation:
+        best && worst && worst.name !== best.name
+          ? `Based on your own numbers, start with ${worst.name}: same effort there converts ${Math.max(1, Math.round(best.conversion / Math.max(0.1, worst.conversion)))}x worse than ${best.name}. Fastest test: speed and quality of first response on ${worst.name} for two weeks.`
+          : "Run the Improve diagnosis step or connect a source so this answer can be based on measured numbers instead of directions.",
+      limitations: [
+        "No platform accounts are connected yet — answers rely on what you reported.",
+        "Response times and lead quality are not recorded, so causes cannot be separated yet.",
+      ],
+      evidence,
+      referencedPeriod: "Your reported trends (last full month)",
+    } satisfies AnswerContent as AnswerContent;
+  }
+
+  function pushAnswer(question: string, content: AnswerContent) {
+    setThread((t) => {
+      const next: ThreadItem[] = [...t, { kind: "answer" as const, question, content }];
+      threadRef.current = next;
+      return next;
+    });
+    setTyping(false);
+  }
+
   function ask(raw: string) {
     const q = raw.trim();
     if (!q) {
@@ -304,12 +437,38 @@ function AskScreen() {
     }
     if (typing) return;
     setInput("");
-    setThread((t) => [...t, { kind: "question", text: q }]);
+    setThread((t) => {
+      const next: ThreadItem[] = [...t, { kind: "question" as const, text: q }];
+      threadRef.current = next;
+      return next;
+    });
     setTyping(true);
-    timerRef.current = setTimeout(() => {
-      setTyping(false);
-      setThread((t) => [...t, { kind: "answer", question: q, content: answerFor(q, business.type) }]);
-    }, 1000);
+    void (async () => {
+      try {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: q,
+            history: threadRef.current
+              .filter((item): item is ThreadAnswer => item.kind === "answer")
+              .slice(-3)
+              .map((item) => ({ question: item.question, summary: item.content.grounded.join(" ").slice(0, 200) })),
+            workspace: buildContext(),
+          }),
+        });
+        const data = (await res.json()) as { ok?: boolean; answer?: AnswerContent };
+        if (data?.ok && data.answer && Array.isArray(data.answer.grounded) && data.answer.grounded.length > 0) {
+          pushAnswer(q, data.answer);
+          return;
+        }
+        throw new Error("no answer");
+      } catch {
+        // Offline fallback — the owner's own facts for user workspaces,
+        // canned demo-dataset answers for the sample businesses.
+        pushAnswer(q, businessId === "user-workspace" ? userFallbackAnswer(q) : answerFor(q, business.type));
+      }
+    })();
   }
 
   return (
@@ -370,7 +529,7 @@ function AskScreen() {
           </div>
         </div>
         <p className="px-6 py-3 text-xs text-muted-foreground">
-          Answers are grounded in your workspace data and marked with sources. AI interpretation is labelled as such.
+          Answers are written for this workspace from its recorded data and your checkup answers, marked with sources. AI interpretation is labelled as such.
         </p>
       </Card>
 

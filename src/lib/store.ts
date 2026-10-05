@@ -15,6 +15,16 @@ import type {
   NotificationItem,
 } from "./types";
 import type { UserWorkspaceMeta, WorkspaceId } from "./data/businesses";
+import type { BusinessFacts, DiagnosisContent, ImprovedDiagnosis, TranscriptTurn } from "./checkup";
+
+export interface CheckupState {
+  transcript: TranscriptTurn[];
+  facts: BusinessFacts | null;
+  diagnosis: DiagnosisContent | null;
+  improved: ImprovedDiagnosis | null;
+}
+
+const EMPTY_CHECKUP: CheckupState = { transcript: [], facts: null, diagnosis: null, improved: null };
 
 export interface BizzUser {
   name: string;
@@ -46,6 +56,7 @@ interface BizzState {
   recommendationState: Record<string, "open" | "dismissed" | "saved">;
   settings: BizzSettings;
   pendingInvite: { business: string; inviter: string; role: string; expires: string } | null;
+  checkup: CheckupState;
 
   navigate: (path: string) => void;
   setBusiness: (id: WorkspaceId) => void;
@@ -68,6 +79,10 @@ interface BizzState {
   setRecommendationState: (id: string, state: "open" | "dismissed" | "saved") => void;
 
   createWorkspace: (meta: UserWorkspaceMeta) => void;
+  setCheckupFacts: (facts: BusinessFacts, transcript: TranscriptTurn[]) => void;
+  setCheckupJourney: (journey: string[]) => void;
+  setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
+  setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   updateSettings: (patch: Partial<BizzSettings>) => void;
   updateProfile: (patch: Partial<BizzUser>) => void;
   sendInvite: (email: string, role: string) => void;
@@ -77,6 +92,16 @@ interface BizzState {
 const DEFAULT_NOTIFICATIONS: NotificationItem[] = [];
 
 const SETTINGS_KEY = "bizzgrowth-settings-v1";
+const CHECKUP_KEY = "bizzgrowth-checkup-v1";
+
+function persistCheckup(state: { userWorkspace: UserWorkspaceMeta | null; checkup: CheckupState }) {
+  try {
+    localStorage.setItem(
+      CHECKUP_KEY,
+      JSON.stringify({ userWorkspace: state.userWorkspace, checkup: state.checkup }),
+    );
+  } catch {}
+}
 
 export const useBizz = create<BizzState>((set, get) => ({
   hydrated: false,
@@ -90,6 +115,7 @@ export const useBizz = create<BizzState>((set, get) => ({
   goals: [],
   connections: { "meta-ads": "connected", "google-ads": "connected", shopify: "error", manual: "connected" },
   recommendationState: {},
+  checkup: EMPTY_CHECKUP,
   settings: {
     businessName: "SwiftHaul Logistics",
     currency: "₦ (Nigerian Naira)",
@@ -204,8 +230,38 @@ export const useBizz = create<BizzState>((set, get) => ({
   },
 
   createWorkspace: (meta) => {
-    set({ userWorkspace: meta, businessId: "user-workspace" });
+    set({ userWorkspace: meta, businessId: "user-workspace", checkup: { ...EMPTY_CHECKUP } });
+    persistCheckup({ userWorkspace: meta, checkup: EMPTY_CHECKUP });
     toast.success("Workspace created", { description: `${meta.name} is ready for its private checkup.` });
+  },
+  setCheckupFacts: (facts, transcript) => {
+    const s = get();
+    // The conversation can reveal the real business type — keep the workspace in sync.
+    const userWorkspace = s.userWorkspace && s.userWorkspace.type !== facts.businessType
+      ? { ...s.userWorkspace, type: facts.businessType }
+      : s.userWorkspace;
+    const checkup: CheckupState = { transcript, facts, diagnosis: s.checkup.diagnosis, improved: null };
+    set({ checkup, userWorkspace });
+    persistCheckup({ userWorkspace, checkup });
+  },
+  setCheckupJourney: (journey) => {
+    const s = get();
+    if (!s.checkup.facts) return;
+    const checkup: CheckupState = { ...s.checkup, facts: { ...s.checkup.facts, journey } };
+    set({ checkup });
+    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+  },
+  setCheckupDiagnosis: (diagnosis) => {
+    const s = get();
+    const checkup: CheckupState = { ...s.checkup, diagnosis };
+    set({ checkup });
+    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+  },
+  setImprovedDiagnosis: (improved) => {
+    const s = get();
+    const checkup: CheckupState = { ...s.checkup, improved };
+    set({ checkup });
+    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
   },
   updateSettings: (patch) => {
     set((s) => ({ settings: { ...s.settings, ...patch } }));
@@ -232,8 +288,20 @@ export const useBizz = create<BizzState>((set, get) => ({
       const raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        set({ settings: { ...get().settings, ...parsed.settings }, user: { ...get().user, ...parsed.user }, hydrated: true });
-        return;
+        set({ settings: { ...get().settings, ...parsed.settings }, user: { ...get().user, ...parsed.user } });
+      }
+    } catch {}
+    try {
+      const raw = localStorage.getItem(CHECKUP_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { userWorkspace?: UserWorkspaceMeta | null; checkup?: CheckupState };
+        if (parsed.checkup && parsed.checkup.facts) {
+          set({
+            userWorkspace: parsed.userWorkspace ?? get().userWorkspace,
+            checkup: { ...EMPTY_CHECKUP, ...parsed.checkup },
+            businessId: parsed.userWorkspace ? "user-workspace" : get().businessId,
+          });
+        }
       }
     } catch {}
     set({ hydrated: true });

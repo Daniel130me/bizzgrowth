@@ -1,13 +1,15 @@
 "use client";
 // Screen 14 — Conversational onboarding: the Business Context Engine.
-// A scripted branching conversation that visibly "learns" the business.
-// All state is local to this screen — nothing persists.
-
+// The opening answer and the closing extraction hit a real LLM
+// (POST /api/checkup/extract); regex parsers remain as offline fallback.
+// Extracted facts persist to the store (localStorage) and drive the
+// business-understanding, diagnosis and Ask screens.
 import React, { useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleDashed, Lock, SendHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBizz } from "@/lib/store";
+import type { BusinessFacts, TranscriptTurn } from "@/lib/checkup";
 import { cn } from "@/lib/utils";
 import type { ScreenProps } from "../view-types";
 
@@ -56,6 +58,8 @@ function extractFromIntro(text: string): string[] {
 
 export default function OnboardingChat(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
+  const setCheckupFacts = useBizz((s) => s.setCheckupFacts);
+  const userWorkspace = useBizz((s) => s.userWorkspace);
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [chips, setChips] = useState<string[]>([]);
@@ -68,6 +72,7 @@ export default function OnboardingChat(_props: ScreenProps) {
   const idRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const transcriptRef = useRef<TranscriptTurn[]>([]);
 
   const nextId = () => {
     idRef.current += 1;
@@ -79,10 +84,60 @@ export default function OnboardingChat(_props: ScreenProps) {
     setChips([]);
     window.setTimeout(() => {
       setTyping(false);
+      transcriptRef.current.push({ role: "ai", text });
       setMessages((m) => [...m, { id: nextId(), role: "ai", text, chips: opts?.chips }]);
       setChips([]);
       opts?.then?.();
     }, opts?.delay ?? 900);
+  }
+
+  /** Call the real Context Engine. Returns facts + optional ack, or null when offline. */
+  async function extractFacts(): Promise<{ facts: BusinessFacts; ack: string | null } | null> {
+    try {
+      const res = await fetch("/api/checkup/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceName: userWorkspace?.name ?? "Your business",
+          country: userWorkspace?.country ?? "Nigeria",
+          transcript: transcriptRef.current,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; facts?: BusinessFacts; ack?: string | null };
+      if (data?.ok && data?.facts) return { facts: data.facts, ack: data.ack ?? null };
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Client-side minimal facts if the engine is unreachable — the journey never blocks. */
+  function offlineFacts(): BusinessFacts {
+    const userText = transcriptRef.current
+      .filter((t) => t.role === "user")
+      .map((t) => t.text)
+      .join(" ");
+    const chips = extractFromIntro(userText);
+    return {
+      businessType: chips.some((c) => c.startsWith("Ecommerce")) ? "ecommerce" : "service",
+      whatTheySell: chips[0] ?? "Described during the checkup",
+      primaryGoal: "Understand why growth is slow and what to fix next",
+      customers: "Described during the checkup",
+      channels: chips.filter((c) => c.startsWith("Channel:")).map((c) => c.replace("Channel: ", "")),
+      journey: [],
+      trends: {
+        enquiries: parseTrend(userText),
+        customers: parseTrend(userText),
+        revenue: parseTrend(userText),
+      },
+      recentChanges: ["Reported during the checkup"],
+      chips,
+      facts: [
+        { section: "Business", value: `${userWorkspace?.name ?? "Your business"} — described in your checkup conversation`, provenance: "user-supplied", source: "Workspace setup" },
+        { section: "Acquisition channels", value: chips.filter((c) => c.startsWith("Channel:")).map((c) => c.replace("Channel: ", "")).join(", ") || "Not specified yet", provenance: "user-supplied", source: "Your checkup conversation" },
+      ],
+      confidence: 55,
+    };
   }
 
   // Opening question — "Tell me about your business..."
@@ -102,20 +157,30 @@ export default function OnboardingChat(_props: ScreenProps) {
   }, [messages, typing, chips]);
 
   function onIntroAnswer(text: string) {
-    const extracted = extractFromIntro(text);
-    const ig = extracted.some((c) => c.startsWith("Channel: Instagram"));
-    const ref = extracted.includes("Channel: Referrals");
-    const confirm = ig && ref ? "I understand that most customers find you through Instagram and referrals." : "I understand — I have noted what you do, where customers come from, and what you want to improve.";
-    aiSay(confirm, {
-      chips: extracted,
-      then: () => {
-        setStage("enquiry");
-        aiSay(
-          "Compared with the previous month, did the number of enquiries increase, decrease, or stay roughly the same?",
-          { then: () => setChips(TREND_CHIPS) },
-        );
-      },
-    });
+    const fallbackChips = extractFromIntro(text);
+    const ig = fallbackChips.some((c) => c.startsWith("Channel: Instagram"));
+    const ref = fallbackChips.includes("Channel: Referrals");
+    const fallbackAck = ig && ref
+      ? "I understand that most customers find you through Instagram and referrals."
+      : "I understand — I have noted what you do, where customers come from, and what you want to improve.";
+
+    // Real extraction — the acknowledgement and chips come from the LLM reading
+    // the owner's own words. Regex is only the offline fallback.
+    setTyping(true);
+    setChips([]);
+    void (async () => {
+      const result = await extractFacts();
+      const ack = result?.ack ?? fallbackAck;
+      const chips = result?.facts.chips.length ? result.facts.chips : fallbackChips;
+      setTyping(false);
+      transcriptRef.current.push({ role: "ai", text: ack });
+      setMessages((m) => [...m, { id: nextId(), role: "ai", text: ack, chips }]);
+      setStage("enquiry");
+      aiSay(
+        "Compared with the previous month, did the number of enquiries increase, decrease, or stay roughly the same?",
+        { then: () => setChips(TREND_CHIPS) },
+      );
+    })();
   }
 
   function onEnquiryAnswer(text: string) {
@@ -172,19 +237,30 @@ export default function OnboardingChat(_props: ScreenProps) {
     setStage("done");
     setSignalsDone(true);
     setChangesDone(true);
-    aiSay(
-      "I have enough to produce your first diagnosis. I have also mapped the buying journey I believe your customers use — review it and correct anything before it is used.",
-      {
-        then: () => {
-          setMessages((m) => [...m, { id: nextId(), role: "ai", text: "", cta: true }]);
+    // Final extraction: the full transcript becomes the persistent business model
+    // used by business-understanding, first-diagnosis and Ask.
+    setTyping(true);
+    setChips([]);
+    void (async () => {
+      const result = await extractFacts();
+      const facts = result?.facts ?? offlineFacts();
+      setCheckupFacts(facts, [...transcriptRef.current]);
+      setTyping(false);
+      aiSay(
+        "I have enough to produce your first diagnosis. I have also mapped the buying journey I believe your customers use — review it and correct anything before it is used.",
+        {
+          then: () => {
+            setMessages((m) => [...m, { id: nextId(), role: "ai", text: "", cta: true }]);
+          },
         },
-      },
-    );
+      );
+    })();
   }
 
   function send(raw?: string) {
     const text = (raw ?? input).trim();
     if (!text || typing || stage === "done") return;
+    transcriptRef.current.push({ role: "user", text });
     setMessages((m) => [...m, { id: nextId(), role: "user", text }]);
     setInput("");
     if (stage === "intro") onIntroAnswer(text);
@@ -348,7 +424,7 @@ export default function OnboardingChat(_props: ScreenProps) {
             </ul>
             <div className="mt-5 rounded-lg border border-violet-100 bg-white p-3">
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                The engine fills a hidden structured model of your business and stops asking once it has enough evidence for a first diagnosis.
+                The engine reads your own words, fills a structured model of your business, and stops asking once it has enough evidence for a first diagnosis. Your answers drive every screen that follows.
               </p>
             </div>
           </aside>

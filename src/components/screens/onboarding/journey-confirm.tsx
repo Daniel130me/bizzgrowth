@@ -1,6 +1,8 @@
 "use client";
 // Screen 15 — Business model / buying journey confirmation.
-// Shows what the engine believes; the user can edit, add, remove and reorder steps.
+// Shows the journey the Context Engine proposed from the checkup conversation
+// (store.checkup.facts.journey when available); the user can edit, add, remove
+// and reorder steps — and the result is SAVED back to the business model.
 
 import React, { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Pencil, Plus, X } from "lucide-react";
@@ -38,12 +40,28 @@ type Model = "service" | "ecommerce" | "both";
 
 export default function JourneyConfirm(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
+  const checkupFacts = useBizz((s) => s.checkup.facts);
+  const setCheckupJourney = useBizz((s) => s.setCheckupJourney);
 
-  const [model, setModel] = useState<Model>("service");
-  const [steps, setSteps] = useState<Step[]>(SERVICE_STEPS.map((s, i) => ({ ...s, id: i + 1 })));
+  const aiJourney: Step[] | null =
+    checkupFacts && checkupFacts.journey.length >= 3
+      ? checkupFacts.journey.map((label, i) => ({ id: i + 1, label }))
+      : null;
+
+  const [model, setModel] = useState<Model>(checkupFacts?.businessType ?? "service");
+  const [steps, setSteps] = useState<Step[]>(
+    () =>
+      aiJourney ??
+      (checkupFacts?.businessType === "ecommerce" ? ECOMMERCE_STEPS : SERVICE_STEPS).map((s, i) => ({ ...s, id: i + 1 })),
+  );
   const [editing, setEditing] = useState(false);
   const [newStep, setNewStep] = useState("");
   const idRef = useRef(steps.length);
+
+  /** Persist the reviewed journey into the stored business model. */
+  function saveJourney(current: Step[]) {
+    if (checkupFacts) setCheckupJourney(current.map((s) => s.label));
+  }
 
   function switchModel(next: Model) {
     setModel(next);
@@ -190,7 +208,13 @@ export default function JourneyConfirm(_props: ScreenProps) {
       </Card>
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Button onClick={() => navigate("business-understanding")} className="w-full sm:w-auto">
+        <Button
+          onClick={() => {
+            saveJourney(steps);
+            navigate("business-understanding");
+          }}
+          className="w-full sm:w-auto"
+        >
           <Check className="size-4" aria-hidden />
           Yes, continue
         </Button>
@@ -200,7 +224,9 @@ export default function JourneyConfirm(_props: ScreenProps) {
         </Button>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        The journey is only a working model — it improves as connections and data are added later.
+        {aiJourney
+          ? "Proposed by the Context Engine from your answers. Edits are saved into your business model."
+          : "The journey is only a working model — it improves as connections and data are added later."}
       </p>
     </div>
   );
