@@ -287,3 +287,20 @@ Stage Summary:
 - bizzGrowth prototype COMPLETE: all 114 screens/states implemented and reachable (natural navigation + #/prototype-index reviewer map).
 - Single Next route (/) with hash-based SPA navigation; two coherent demo workspaces (SwiftHaul service / KoraHome ecommerce) sharing one dataset.
 - Product loop demonstrable end-to-end: Understand → Measure → Diagnose → Recommend → Act → Measure again.
+
+---
+Task ID: fix-hydration-1
+Agent: Z.ai Code (main)
+Task: Fix React hydration mismatch error on bizzGrowth landing page
+
+Work Log:
+- Diagnosed hydration error: attributes data-gr-ext-installed, data-new-gr-c-s-check-loaded, data-new-gr-c-s-loaded injected into <body> by the Grammarly browser extension before React hydration
+- Confirmed root cause is external (browser extension), not an app bug
+- Applied standard fix: added suppressHydrationWarning to <body> in src/app/layout.tsx (html tag already had it)
+- Dev server recompiled cleanly (✓ Compiled in 136ms, GET / 200)
+- Verified with agent-browser: page loads with correct title, zero console errors, zero page errors, full snapshot rendered (nav, hero, sections)
+- Screenshot /tmp/bizzgrowth-verify.png confirms visual rendering
+
+Stage Summary:
+- src/app/layout.tsx <body> now has suppressHydrationWarning; Grammarly-induced hydration mismatch resolved
+- bizzGrowth landing page verified working end-to-end in browser
