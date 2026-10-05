@@ -1,0 +1,188 @@
+     1→# bizzGrowth — Build Worklog
+     2→
+     3→Product: **bizzGrowth** — AI Business Growth Operating System (complete clickable MVP prototype, 114 screens).
+     4→Source spec: `/home/z/my-project/upload/Pasted Content_1791189560358.txt`
+     5→
+     6→## Architecture (agreed foundation — read before working)
+     7→
+     8→- **Single route app.** The Next.js app exposes ONLY `src/app/page.tsx`. All navigation is client-side hash routing: `#/view-id`, `#/view-id/:param` (e.g. `#/metric/revenue`, `#/insights/ins-sh-1`). No other Next routes may be created.
+     9→- Entry: `src/app/page.tsx` (server) → `src/components/app-root.tsx` (client SPA: hash router + layout shell + view registry).
+    10→- **Layout groups** resolved in app-root: Public pages (landing/auth) → PublicLayout; onboarding (screens 11–20) → OnboardingLayout; `admin/*` → AdminShell; `state/404`, `state/session-expired`, `prototype-index` → bare; everything else → AppShell (sidebar + header).
+    11→- **State**: Zustand store `src/lib/store.ts` (current business, date range, notifications, actions/experiments/goals mutations, connections, settings). Toasts via `sonner` (`toast.success(...)` etc.).
+    12→- **Data**: coherent shared datasets in `src/lib/data/*` — SwiftHaul Logistics (service, Sep 2026 vs Aug 2026) and KoraHome Store (ecommerce, Shopify). All screens MUST use these numbers (consistency requirement #46).
+    13→- **Design system**: Tailwind + shadcn/ui. Semantic colors: blue-600 = data/primary actions, violet-600 = AI/intelligence, emerald-500 = positive, amber-500 = attention/opportunity, red-500 = risk. 70–80% neutral slate. Provenance badges everywhere (Measured / User supplied / Estimated / AI interpretation). Confidence language High/Medium/Low. No dead primary buttons (navigate, open dialog, or toast).
+    14→- **View registry**: each screen group owns a directory `src/components/screens/<group>/` with an `index.tsx` exporting a `ViewMap` (`Record<string, ScreenComponent>`). `src/components/screens/registry.ts` holds all 114 screen metadata for the Prototype Map.
+    15→
+    16→## Task IDs
+    17→
+    18→- **1** — Foundation (tokens, layout, router, store, data layer, shells, shared components, registry, stubs, API guide) — orchestrator.
+    19→- **2-a** — Screens 1–10: Landing, Pricing, Auth (public group).
+    20→- **2-b** — Screens 11–20: Onboarding + first diagnosis flow.
+    21→- **2-c** — Screens 21–31: Home, Health detail, Metric drill-down, Performance section.
+    22→- **2-d** — Screens 32–37: Insights feed, Diagnosis detail, Opportunity, Alerts.
+    23→- **2-e** — Screens 38–47: Action Centre, Recommendation detail, Start action, Experiments, Outcome, Timeline, change confirm.
+    24→- **2-f** — Screens 48–64: Ask Your Business + Data Centre.
+    25→- **2-g** — Screens 65–76: Goals, Weekly brief, Monthly review, Reports, Business Brain.
+    26→- **2-h** — Screens 77–94: Team, Notifications, Settings, Billing, Help, Feedback.
+    27→- **2-i** — Screens 95–104: System states + `prototype-index`.
+    28→- **2-j** — Screens 105–114: Internal admin console.
+    29→- **3** — Integration, lint, dev-server + Agent Browser E2E verification, coverage check — orchestrator.
+    30→
+    31→---
+    32→
+    33→---
+    34→Task ID: 1
+    35→Agent: orchestrator (Z.ai Code)
+    36→Task: Build the full foundation for the bizzGrowth prototype.
+    37→
+    38→Work Log:
+    39→- Wrote design tokens (globals.css: blue/violet/emerald/amber/red semantics, Inter font, 8px radius base, custom scrollbars).
+    40→- layout.tsx with Inter + sonner Toaster; page.tsx renders client SPA.
+    41→- src/lib/types.ts — full type system (Business, Insight, Recommendation, Action, Experiment, Alert, Goal, Integration, ProvenanceFact, Brief, Admin*, ...).
+    42→- src/lib/format.ts — ₦/number/percent formatters + goodnessFor(metric, direction).
+    43→- src/lib/router.ts — hash router (useHashRoute + navigate).
+    44→- src/lib/store.ts — zustand store (business switcher, date range, notifications, actions/experiments/goals mutations, connections, settings, toasts via sonner).
+    45→- src/lib/data/businesses.ts — SWIFTHAUL + KORAHOME coherent datasets (8 months Feb–Sep 2026, channels, funnels, services/products, website, retention, dataCoverage, health) + getBusiness/getPeriod/DATE_RANGES.
+    46→- src/lib/data/intelligence.ts — 10 insights, 6 recommendations, 4 actions, 3 experiments (incl. outcome), 8 alerts + selectors.
+    47→- src/lib/data/operations.ts — notifications, goals, team, integrations, data-quality, provenance facts, manual entries, timeline, weekly brief + monthly review + archive.
+    48→- src/lib/data/admin.ts — admin businesses/users/subscriptions/sync health/jobs/AI audit/support tickets/system events.
+    49→- src/components/shell/shell.tsx — AppShell (sidebar+header+workspace switcher+date range+notifications+user menu), AdminShell (dark), OnboardingLayout, PublicLayout, BareLayout.
+    50→- src/components/shared/* — badges (Provenance/Confidence/Trend/Status/Severity/Impact/Effort/Execution), cards (Metric/Insight/Recommendation/Action/Alert/GoalProgress), charts (recharts wrappers + ExperimentProgressChart), evidence (KnowThinkUnknown/EvidencePanel/ConfidencePanel/RootCauseTree/ProvenanceLegend), funnel (FunnelView), states (Empty/NoData/Error/Loading), layout primitives (PageHeader/Breadcrumbs/SectionCard/KeyValue/SettingsShell/IntelligenceDetail/InfoBanner).
+    51→- src/components/screens/registry.ts — all 114 screens with routes + groups; view-types.ts (ScreenProps/ViewMap); stub index.tsx in 16 screen dirs exporting `views: ViewMap`.
+    52→- src/components/app-root.tsx — hash route matcher (exact + :param patterns), layout resolver (public/onboarding/app/admin/bare), scroll reset.
+    53→- src/lib/API-GUIDE.md — the screen-builder contract.
+    54→
+    55→Stage Summary:
+    56→- Foundation compiles: dev server on :3000 returns 200; `bun run lint` clean.
+    57→- All 10 screen groups can now be built independently against the registry + API guide.
+    58→- IMPORTANT for later agents: never edit foundation files; register screens in your own group's index.tsx (export `views`).
+    59→
+    60→---
+    61→Task ID: 2-b
+    62→Agent: onboarding
+    63→Task: Screens 11-20 (onboarding group + first diagnosis flow)
+    64→
+    65→Work Log:
+    66→- Built all 10 onboarding screens in `src/components/screens/onboarding/` (no other directories touched); registered exact view keys in `index.tsx` ViewMap: welcome, create-workspace, checkup-intro, onboarding-chat, journey-confirm, business-understanding, first-diagnosis, first-diagnosis-evidence, improve-diagnosis, setup-complete.
+    67→- Added `parts.tsx` (local-only shared bits): `openSampleBusiness()` (setBusiness swifthaul + navigate home), `ScreenIntro`, `TrustRow` (privacy ladder: private workspace / exact figures optional / connect accounts later), `DemoBusinessButton`.
+    68→- welcome (11): "How would you like to start?" — recommended checkup card (→ create-workspace, or checkup-intro if userWorkspace exists), sample-business card (→ swifthaul demo), conditional Resume setup card, "How the private checkup works" trust panel; keyboard-accessible option cards.
+    69→- create-workspace (12): business name (required, inline error), country select (Nigeria default; currency auto-follows until user touches it), currency select (₦ default), optional website; submit → `createWorkspace({name, type:'service', ...})` → checkup-intro; "We only ask for what we need" note.
+    70→- checkup-intro (13): expectation-setting bullets (few minutes / exact figures optional / estimates acceptable / connections later / purpose = useful insight), CTA "Start checkup" → onboarding-chat, secondary "Use sample business".
+    71→- onboarding-chat (14): signature Business Context Engine — violet product header ("Private checkup — nothing is shared"), scripted branching conversation (intro free-text with keyword extraction → enquiry trend → customers trend → revenue with privacy reassurance → recent changes → STOP "I have enough to produce your first diagnosis"), ~900ms typing indicator, violet "Understood as" extraction chips inside AI bubbles, quick-reply chips (Increased/Decreased/About the same/Don't know + starter chips), side panel "What I'm learning" with live checklist (Business type/Goal/Customer journey/Performance signals/Recent changes — done · learning · pending), final in-thread CTA "Review my business journey" → journey-confirm; chat thread auto-scrolls, side panel stacks below on mobile, all state local useState.
+    72→- journey-confirm (15): "Does this look right?" believed journey as vertical numbered steps (Discovery → Website/WhatsApp → Enquiry → Quote → Customer), Service/Ecommerce/Both segmented control (switching presets the matching journey), Edit mode with add-step input, remove, move up/down; "Yes, continue" → business-understanding.
+    73→- business-understanding (16): 8 structured fact rows (Business / What you sell / Primary goal / Customers / Customer journey / Acquisition channels / Known performance changes / Known recent changes) each with ProvenanceBadge + source line + ProvenanceLegend; Edit → toast "Editing opens the Business Brain after setup"; "Looks right, continue" → first-diagnosis.
+    74→- first-diagnosis (17): WOW hero — violet-tinted intelligence surface (blurred violet blobs, not a dashboard), eyebrow "Your first diagnosis", H1 "We found the first thing worth investigating.", diagnosis quote, 4 delta stat blocks (Spend +40% neutral / Enquiries +50% good / Customers +4% / Revenue +3% muted with TrendBadge + captions telling the mismatch story), "What this means" / "Why it matters" / "Recommended next investigation" (violet panel), AI-interpretation provenance note; "See the evidence" + "Improve this diagnosis"; amber "Diagnosis improved" banner via one-shot sessionStorage flag.
+    75→- first-diagnosis-evidence (18): KnowThinkUnknown (know/think/unknown incl. lead quality, response time, channel-level conversion, pricing, follow-up), EvidencePanel with 4 facts (spend user-supplied, enquiries measured, customers/revenue user-supplied), ConfidencePanel (medium, 62%, coverage 45% with sources + missing data), "Improve diagnosis" + "Continue with current understanding" → setup-complete.
+    76→- improve-diagnosis (19): option cards (a) Enter a few numbers — expands inline mini-form with Instagram/Google Search/Referral enquiry+customer inputs prefilled 184/11, 62/24, 31/14 → toast "Diagnosis improved — confidence increased to 82%" → first-diagnosis (banner shown); (b) Upload CSV/Excel → toast → setup-complete; (c) Connect a source (read-only) → toast → setup-complete; (d) Continue for now → setup-complete; each card states what it unlocks.
+    77→- setup-complete (20): "Your workspace is ready." summary card (Business profile ✓ / Initial diagnosis ✓ / Goal configured ✓ / Data coverage 42% with Progress bar + "Connections raise this over time"), CTA "Enter Business Overview" → home, secondary "Explore sample business", violet "What happens next" panel.
+    78→- All numbers consistent with the shared dataset (₦370k spend, 277 vs 185 enquiries, 49 vs 47 customers, ₦6.0m revenue; Instagram 184→11, Google 62→24, Referral 31→14).
+    79→
+    80→Stage Summary:
+    81→- Screens 11–20 complete and registered; onboarding group passes `bunx eslint src/components/screens/onboarding/` clean and has zero tsc errors in its files.
+    82→- Full-project lint has 1 remaining pre-existing error in `src/components/screens/insights/alert-detail.tsx` (agent 2-d's file — setState in effect) — NOT touched by this agent per scope rules.
+    83→- Flow is fully connected end-to-end: welcome → create-workspace → checkup-intro → onboarding-chat → journey-confirm → business-understanding → first-diagnosis → evidence → improve → setup-complete → home, plus sample-business escape hatches at every stage; trust proposition ("connect accounts later", "estimates fine") visible throughout via TrustRow and OnboardingLayout footer.
+    84→
+    85→---
+    86→Task ID: 2-a
+    87→Agent: public-auth
+    88→Task: Screens 1-10 (public group: landing, pricing, auth, legal)
+    89→
+    90→Work Log:
+    91→- Created `src/components/screens/public/auth-shared.tsx` — AuthShell (centered max-w-md card, logo on top), Field with inline validation errors, PasswordField with visibility toggle, SubmitButton with simulated loading, DemoHint prototype notes, isEmail helper, `pendingSignup` draft (passes entered email/name from signup to verify-email).
+    92→- Created `legal-shared.tsx` — LegalLayout with sticky left anchor nav (desktop), IntersectionObserver active-section tracking, smooth scroll, shared doc chrome for both legal pages.
+    93→- Screen 1 `landing.tsx` — 8 sections: hero (exact spec headline/supporting copy; primary CTA → signup; secondary → setBusiness("swifthaul") + home), problem section with example questions + scattered-signals visual, how-it-works loop (Understand → Measure → Diagnose → Recommend → Act → Measure again), example diagnosis card (numbers pulled live from SwiftHaul dataset via getPeriod: spend +40%, enquiries +50%, customers +4%, revenue +3% → "Your immediate growth constraint may not be lead generation." with AI interpretation badge + Medium confidence), Service/Ecommerce/Both journey cards, 5-step progressive privacy ladder (Demo → Anonymous trends → Aggregate numbers → Read-only integrations → Optional execution permissions) with "You share" chips, 3 Nigerian SMB pilot-participant testimonials, dark final CTA band. Mobile stacks; white/slate surfaces with restrained blue/violet accents only.
+    94→- Screen 2 `pricing.tsx` — amber "Pricing to be confirmed at general availability" banner, 3 plan cards (Private Beta/Join pilot → toast + signup; Growth/Choose plan → toast + signup; Team/Contact → toast + feedback) with highlighted Growth card, capability comparison table (workspaces, sources, members, reporting, data history, intelligence depth, price row), 4-item FAQ accordion. No invented prices.
+    95→- Screen 3 `signup.tsx` — name/email/password + terms-privacy checkbox (links to terms/privacy-policy), inline touched-field validation, disabled submit until valid, simulated loading → toast.success → verify-email; syncs name/email into store via useBizz.setState for onboarding continuity.
+    96→- Screen 4 `verify-email.tsx` — shows entered email (pendingSignup fallback to store user), Open email (toast), Resend with 30s countdown state, Change email → signup, primary "I've verified — continue setup" → welcome.
+    97→- Screen 5 `signin.tsx` — email/password validation, Remember me, Forgot password link, create-account link, submit → toast → welcome with "Demo: enters setup" prototype note (new→setup, existing→Home framing).
+    98→- Screen 6 `forgot-password.tsx` — email form → success state (reset-link expiry copy, resend with countdown, use-different-email, back to sign in).
+    99→- Screen 7 `reset-password.tsx` — new/confirm password with live requirement checklist (8+ chars, match), submit → toast → signin.
+   100→- Screen 8 `accept-invite.tsx` — reads store pendingInvite (business/inviter/role/expiry), invitation card with role capability note, "you'll create your account first" info banner, Accept → toast + signup, Decline → toast + clears invite + graceful declined state; graceful no-invite state too.
+   101→- Screen 9 `privacy-policy.tsx` — 7 anchored sections (collection, use, AI processing, provenance, retention, rights incl. NDPA 2023 mention, contact), realistic beta-appropriate copy.
+   102→- Screen 10 `terms.tsx` — 10 anchored sections (acceptance, service scope, account, data ownership, acceptable use, AI outputs disclaimer, availability, liability, governing law Nigeria, contact).
+   103→- Registered all 10 exact view keys (`landing`, `pricing`, `signup`, `verify-email`, `signin`, `forgot-password`, `reset-password`, `accept-invite`, `privacy-policy`, `terms`) in the group's `index.tsx` ViewMap. No other directories touched.
+   104→
+   105→Stage Summary:
+   106→- All 10 public screens implemented; every primary button navigates or toasts (no dead ends); all copy calm, emoji-free, no lorem ipsum.
+   107→- Landing diagnosis numbers read from the shared SwiftHaul dataset (never hardcoded contrary values) — spend ₦370k +40%, enquiries 277 +50%, customers 49 +4%, revenue ₦6.0m +3%.
+   108→- `bun run lint` clean project-wide; `tsc --noEmit` reports zero errors in `src/components/screens/public/` (remaining tsc errors are pre-existing in examples/, skills/ and foundation data files owned by other agents).
+   109→- GET / returns 200 on the auto dev server; only transient Fast Refresh warnings from mid-edit saves, final compiles clean.
+   110→
+   111→---
+   112→
+   113→Task ID: 2-d
+   114→Agent: insights-alerts
+   115→Task: Screens 32-37 (insights group — Insights Feed, Intelligence Detail 33+34+35, Alerts Centre, Alert Detail)
+   116→
+   117→Work Log:
+   118→- Replaced stub `src/components/screens/insights/index.tsx` with the group ViewMap: `insights`, `insights/:id`, `alerts`, `alerts/:id`.
+   119→- `parts.tsx` (local helpers): insight type presentation (eyebrow/classes), importance labels + feed sorting (importance → newest), conservative evidence→provenance-fact linker (`evidenceWithFacts`, token-overlap match against PROVENANCE_FACTS so Screen 35 provenance records are openable), metric drill-down slug mapper (`metricSlugFor`: conversion/cac/revenue/enquiries/customers, null → toast), alert severity accents (colour+icon+label), shared BackLink.
+   120→- Screen 32 `insights-feed.tsx`: PageHeader + AI InfoBanner strip (exact spec copy); Tabs All/Problems/Opportunities/Improvements/Watch each with live count; importance Select filter (all/critical/high/medium/low); count line "Showing X of Y insights · September 2026"; responsive InsightCard grid (1/2/3 cols) sorted by importance; card click → `insights/:id`; EmptyState for workspaces with no data (Connect data → integrations, Enter manually) and per-filter empty state with Clear filters.
+   121→- Screens 33+34+35 `insight-detail.tsx`: resolves `insightById(params.id)` (missing → ErrorState with back to insights). IntelligenceDetail with type eyebrow (Problem violet / Opportunity amber / Improvement emerald / Watch slate), meta = date + ConfidenceBadge + importance + AI-interpretation provenance badge; summary; "What happened" (measured changes); "Where it happened — reasoning chain" RootCauseTree + mandatory caption (hypotheses, not certainties) with per-step explain toast; Evidence table with live provenance-record links → `provenance/:factId` (verified: Revenue row opens prov-sh-revenue); KnowThinkUnknown (meaning = "what we think"; Improve → `data` + toast "Add data to strengthen this diagnosis"); ConfidencePanel (level/value, coverage = current business.dataCoverage.overall, unique evidence sources, missingToImprove); opportunity extras (Screen 34): amber Potential impact (linked rec.expectedImpact) / Effort badge / What would strengthen blocks; "Recommended next action" violet card → recommendationId present: View recommendation → `recommendations/:id` + Start action → `action-start/:id`; absent: Create action → toast guard + `action-start/rec-<insightId>`; related metric chip → `metric/<slug>` or explanatory toast.
+   122→- Screen 36 `alerts-centre.tsx`: back link, PageHeader, InfoBanner strip (exact spec copy); Tabs Critical/Warning/Opportunity/Information/Resolved with counts; AlertCard list → `alerts/:id`; resolved/dismissed alerts flagged with StatusBadge in any tab; per-tab calm empty-state copy; workspace-empty state with connect/enter actions.
+   123→- Screen 37 `alert-detail.tsx`: resolves `alertById(params.id)` (missing → ErrorState). Severity eyebrow + SeverityBadge + session-local StatusBadge + time + "Affected" metric chip; three labelled blocks (What happened / Why it matters / What to do) with left-border severity accents (icon+label, never colour alone); EvidencePanel with provenance links; Historical context via TrendLineChart — "Blended CAC"/"Marketing cost per customer" → blended CAC per month computed from business.monthly (spend ÷ customers, ₦ compact), "Mobile checkout completion"/"Payment failure rate" → checkout completion by device from connected website data (Aug vs Sep, mobile/desktop), otherwise an explanatory no-history note (never bare "No data"); Related diagnosis card → `insights/:id`; Recommended response card with Resolve (session-local status override map + success toast), Dismiss (toast, reopenable), Investigate (related diagnosis → else metric slug → else explanatory toast); Reopen replaces Resolve/Dismiss after resolve/dismiss so no dead primary buttons.
+   124→- Workspace adaptation verified for both SwiftHaul (service) and KoraHome (ecommerce) datasets via workspace switcher.
+   125→
+   126→Verification (agent-browser on dev server):
+   127→- `#/insights`: tabs All 5 / Problems 2 / Opportunities 1 / Improvements 1 / Watch 1 (SwiftHaul) and 3/1/0/1 split (KoraHome); filters reflow grid; empty filter state works.
+   128→- `#/insights/ins-sh-1`: full chain, provenance link navigates to `#/provenance/prov-sh-revenue`; `#/insights/ins-sh-3` shows amber opportunity blocks; `#/insights/ins-kh-5` shows Create-action guard path; unknown id → ErrorState.
+   129→- `#/alerts/al-sh-1`: 8-month Blended CAC line chart; `#/alerts/al-kh-2`: mobile/desktop checkout chart + related diagnosis link; Resolve → Reopen toggle works; unknown id → ErrorState.
+   130→- `bun run lint`: clean (project-wide). TypeScript: no errors in `screens/insights`.
+   131→
+   132→Out-of-scope hotfix (flagging for orchestrator):
+   133→- `src/components/shared/states.tsx` was missing `import { cn } from "@/lib/utils"` (foundation bug) — EmptyState/NoDataYetState/SkeletonCards crashed at runtime with "cn is not defined", which breaks Screens 32/36. Added the single missing import line. Other foundation TS errors remain (ProvenanceLegend exported from evidence.tsx not badges.tsx; intelligence.ts outcome secondary shape) — left for owners.
+   134→
+   135→Stage Summary:
+   136→- Screens 32–37 implemented and verified: the intelligence loop (insight → diagnosis/opportunity → evidence → provenance → action) and the alert loop (alert → context → diagnosis → response) are fully navigable with no dead primary buttons, spec-exact strips/captions, provenance + confidence transparency, and calm no-causation copy.
+   137→- Navigation contracts honoured by other groups: `recommendations/:id`, `action-start/:id`, `metric/:id` (slugs revenue/customers/enquiries/cac/conversion), `provenance/:factId`, `data`, `integrations`, `manual-entry`.
+   138→
+   139→---
+   140→Task ID: 2-e
+   141→Agent: actions-experiments
+   142→Task: Screens 38-47 (actions group — Action Centre, Recommendations, Actions, Experiments, Outcomes, Timeline)
+   143→
+   144→Work Log:
+   145→- Registered 9 view keys in `src/components/screens/actions/index.tsx`: `actions`, `recommendations/:id`, `action-start/:id`, `actions/:id`, `experiment-setup/:id`, `experiments/:id`, `outcome/:id`, `timeline`, `change-add` (screen 47 lives as a Dialog state on `timeline` per registry route).
+   146→- `helpers.ts` — category map by recommendationId (rec-sh-1 High priority, rec-sh-2 Growth, rec-sh-3 Data, rec-kh-1 High priority, rec-kh-2 Performance, rec-kh-3 Growth) + category chips; `useCombinedActions`/`useCombinedExperiments` merge store records with static data (`[...store.filter(businessId), ...actionsFor(businessId)]`); experiment helpers (metric label/formatter by scale, days-remaining label, window progress %); ask-tip copy.
+   147→- Screen 38 Action Centre: Tabs Recommended / In progress / Measuring / Completed / All with counts; RecommendationCards honour store `recommendationState` (dismissed filtered into a "Dismissed" section with Restore, saved labelled); ActionCards grouped by status with category chip + originating-recommendation link; experiments section listing combined experiments → `experiments/:id`; "Business timeline" button → `timeline`.
+   148→- Screen 39 Recommendation Detail: IntelligenceDetail + SectionCards — Problem / Evidence (EvidencePanel with provenance fact links) / Diagnosis (AI-interpretation badge) / Recommendation / Expected impact / Impact+Effort+Confidence badges / Measurement plan (primary metric, period, execution type) / Suggested tasks. Buttons: Start action → `action-start/:id`; Ask about this → `ask` + toast tip ("Tip: ask why Instagram enquiries are not converting" for SwiftHaul, checkout tip for KoraHome); Dismiss / Save for later → setRecommendationState + status badge updates; Restore when dismissed.
+   149→- Screen 40 Start Action: prefills from rec (title, approach = tasks as lines, metric, period); Owner select from TEAM; due date; "Create as experiment" checkbox (default on; off for the Data recommendation); on submit → startAction, seeds metric + checklist via updateAction, navigates to `experiment-setup/:newId` or `actions/:newId`. Generic form fallback when rec unknown. Minimal validation (title/owner/due required, submit disabled).
+   150→- Screen 41 Action Detail: status StatusBadge + details (owner/started/target/metric); interactive checklist (toggleChecklist, progress bar, "Add suggested steps" from rec when empty); Notes + "Add note" inline input → addActionActivity; Evidence from originating recommendation (→ `provenance/:id` links); Recommendation origin card; activity history (max-h-96 scroll). Buttons: Update status (Select → updateAction + toast), Mark implemented (status measuring + toast "Measurement window started — track it in Experiments"), Create experiment → `experiment-setup/:id` (or View experiment when one is linked).
+   151→- Screen 42 Experiment Setup: prefills from action/rec/existing experiment (name, hypothesis, change, baseline/target from dataset pairs rec-sh-1 6.0%→10%, rec-kh-1 48%→65%); window 14/21/30 days, start date, owner; "Other metrics to watch" checkbox chips (service/ecommerce candidate lists, existing metrics preserved); helper banner "We watch for other changes during the window so results are interpreted honestly."; submit → createExperiment → `experiments/:newId`.
+   152→- Screen 43 Experiment Tracking: resolves combined experiments (static exp-sh-0/1, exp-kh-1 + store-created); stat row (current/baseline/target MetricCards); ExperimentProgressChart (₦ formatter for naira-scale baselines); setup panel with window progress + days remaining; amber "Other changes may affect attribution" InfoBanner; watch-metric chips; originating action link; "View outcome" when complete; other experiments for the business listed below.
+   153→- Screen 44 Outcome Detail: exp-sh-0 before 38.7% → after 44.1% → delta +5.4 pts with goodness colours; secondary metrics table (colour+icon+label pills); "Other changes during the period"; Attribution confidence panel (medium + "The timing suggests the intervention may have contributed, although other changes occurred in the same window."); quoted AI interpretation + conclusion; decision buttons Keep change ("Change kept — timeline updated") / Revert / Run longer (toasts) / Run another experiment → `experiment-setup/:actionId`. No-outcome experiments show "Measurement in progress — N days remaining" + trend preview + tracking-page button; unknown id → ErrorState → actions.
+   154→- Screen 45 Timeline: filters All / Actions / External changes / Recommendations / Experiments (incl. outcomes) / Data events; vertical change-ledger timeline (date, coloured type chip, provenance badge, title, description, source); ProvenanceLegend + change-ledger principle banner; "Add business change" → `change-add`; "Review detected change" opens Screen 47 Dialog ("We noticed something changed." — SwiftHaul: Instagram spend +~10% (₦200k Sept) vs faster-follow-up experiment; KoraHome: Kora Rattan Lounge Chair ₦35,000 → ₦32,000 vs Recommendation #284) with Yes/No/Partly/Not sure + optional note → toast "Thanks — this helps us interpret results correctly."
+   155→- Screen 46 Add Business Change: What changed / Category (7 options) / Date / Before / After / Notes / Related recommendation select (or None) → toast "Change recorded — your timeline and experiment attribution now account for it." → `timeline`.
+   156→
+   157→Stage Summary:
+   158→- All 10 screens (38–47) implemented in `src/components/screens/actions/`; no other directories touched.
+   159→- `bun run lint` clean; `tsc --noEmit` shows zero errors in this group (remaining tsc notes are pre-existing in foundation/other dirs: examples/, skills/, src/lib/data/intelligence.ts Outcome.secondary `value` excess property — foundation files, left untouched per instructions).
+   160→- Dev server compiles the group cleanly; `GET /` returns 200.
+   161→- Store mutations used exactly as contracted: startAction, updateAction, toggleChecklist, addActionActivity, createExperiment, setRecommendationState.
+   162→- Note for later agents: user-created actions carry metric/checklist only when provided at start; unknown `:id`s render ErrorState or generic fallbacks; experiment ids from the store resolve on tracking/outcome pages.
+   163→
+   164→---
+   165→
+   166→Task ID: 2-f
+   167→Agent: ask-data
+   168→Task: Screens 48-64
+   169→
+   170→Work Log:
+   171→- `src/components/screens/ask/index.tsx` — Screen 48 (Ask Your Business): violet-accented hero "Ask anything about your business…" with large input + Ask button, 5 suggestion chips (service/ecommerce first chip adapts by business.type), thread state (question bubbles + answer cards), ~1s typing indicator ("Reviewing your workspace data…"). Five keyword-matched canned answers for service (enquiries-vs-customers, focus, channel, changed-this-month, tried-before) using exact dataset numbers (Instagram 184→11 6.0%, Google 62→24 38.7%, Referral 31→14 45.2%, spend ₦370k +40%, revenue ₦6.0m +3%, Google reallocation test 38.7%→44.1% medium attribution) plus korahome variants for orders/checkout/payment/traffic keywords (traffic 18,430 +24%, orders 740 −8%, mobile checkout 71%→48%, payment failures +31%). Free text falls back to the focus answer. Every answer shows "AI interpretation" label, "What we don't know yet" limitations, inline evidence cards with ProvenanceBadge (fact cards link to provenance/:id) and buttons View supporting data → data, Create action → actions, Ask follow-up (focuses input). Side note on grounding + provenance labelling. Screen 49 (Conversation History): search input + type filter Select (7 types), 5 seeded entries per business type (title, date, summary, referenced period), click → toast "Conversation view opens in Ask" + navigate("ask"), EmptyState when no matches.
+   172→- `src/components/screens/data/session.ts` — sessionStorage helper for "bizz-pending-connection" (the only cross-screen state in the connect → syncing → source-settings flow).
+   173→- `src/components/screens/data/coverage.tsx` — Screen 50 (Data Coverage Overview, signature screen): big overall % (62 / 58) with banded Progress + "…of the information needed for confident diagnosis is available" line, clickable mini-stats (connected sources, open data issues, facts with provenance), CTAs Improve coverage → integrations / Enter totals manually → manual-entry / Upload CSV → csv-upload, area cards grid (Revenue/Marketing/Sales funnel/Website/Customers — or korahome variants) each with What we know / What's missing / What additional data would unlock, footer links to data-quality and provenance/all.
+   174→- `src/components/screens/data/sources.tsx` — Screens 51–56. 51 Sources Library grouped by category (Website analytics / Advertising / Ecommerce / Payments / Manual & import) with capability badges (Read/Observe/Write) and status overlay from store connections (Connect / Manage / View sync / Fix connection per status), prototype-state banner. 52 Integration Detail (provides, unlocks, read/cannot permissions, current status; unknown id redirects to integrations). 53 Permission Review trust screen (why we need access, what we will read, what we cannot do, how to disconnect "one click — retained 30 days", what this unlocks incl. which insights improve; Continue with read-only connection → setConnection(id,"syncing") + sessionStorage pending id + syncing; secondary Enter totals manually). 54 Connection Success / Initial Sync: success banner, 6 steps (Authorizing ✓ → … → Updating diagnosis) driven by ~2s timers (≈12s), progress bar, Continue in background → data + toast; on finish setConnection(connected) + toast.success("<name> connected — first insights arriving") → source-settings/:id. 55 Connection Error: shopify Authorization-expired definition in red banner + What happened / What data is affected / How to resolve cards, Reconnect → syncing, Review source settings. 56 Connected Source Settings: account name ("SwiftHaul — Meta Business" style), connected since/last/next sync, permissions, data types, health StatusBadge; Sync now (2s spinner → toast), Reconnect, Disconnect (AlertDialog → setConnection available + toast → integrations).
+   175→- `src/components/screens/data/manual.tsx` — Screen 57 Manual Data Entry: period select (Sep/Aug/Jul 2026, September prefilled from dataset), service fields (spend/enquiries/customers/revenue) vs ecommerce (traffic/orders/revenue/spend), per-field precision select (Exact/Approximate/Range) when value present, "Estimates are fine — they're labelled in analysis", save → toast "<period> totals recorded — diagnosis updated" → manual-history. Screen 58 Manual Data History: table (Period / Metrics / Updated by / Last modified / Status) from MANUAL_ENTRIES scoped by businessId, View dialog (metrics + user-supplied provenance note), Edit → manual-entry + toast, Delete with AlertDialog → local removal + toast, Add entry; empty state for workspaces without entries.
+   176→- `src/components/screens/data/csv.tsx` — Screens 59–62. 59 Upload: drag-and-drop dashed zone (onDragOver/onDrop + hidden file input, keyboard accessible), supported datasets examples, Download sample template (toast), Browse files, "Try with sample file" reviewer shortcut. 60 Column Mapping: file name by type (swifthaul-lead-log-sep.csv / korahome-sales-log-sep.csv), 92-rows banner, mapping table Date/Lead Source/Enquiries/Customers/Revenue/Notes → targets with sensible defaults + Ignore, validation warnings for duplicate/missing core targets, 4 realistic preview rows (2026-09-03, Instagram, 14, 1, 45000 …). 61 Import Review: stat cards (92 rows, Sep 1–30, 2 duplicates, 6 missing Revenue), mapped fields chips, warnings, highlighted duplicate rows, Import 92 rows (1.5s loading). 62 Import Result: 90 success / 2 skipped (duplicates) / 0 failed cards, import notes, Download error report (toast), View imported data → manual-history, Import another file.
+   177→- `src/components/screens/data/quality.tsx` — Screen 63: DATA_QUALITY scoped by businessId, severity badges (error→critical), title/detail, "Why it matters" impact box, Resolve dialog with resolution text + Mark resolved toast, connection issues route to connection-error instead, open-issues summary strip, resolved state dimming, EmptyState for workspaces with no issues.
+   178→- `src/components/screens/data/provenance.tsx` — Screen 64: fact detail (label, big value, ProvenanceBadge + what-the-label-means explainer, Source / Entered by / Date / Precision / ConfidenceBadge, note banner, Dependencies list with deep links to recommendations/insights/actions/experiments where ids appear), "Other facts" list; unknown id (or provenance/all) → all facts for the workspace + warning banner, EmptyState when none.
+   179→- `src/components/screens/data/index.tsx` — group ViewMap aggregating all 15 views; verified registry keys match routes (integrations/:id, connect/:id, source-settings/:id, provenance/:id are pattern routes).
+   180→
+   181→Verification:
+   182→- Runtime-tested via agent-browser on :3000: ask flow (chip → typing indicator → grounded answer → evidence card → provenance detail), data overview, connect google-analytics → syncing (~12s) → auto source-settings, Sync now + Disconnect (AlertDialog) → integrations, csv-mapping → csv-review (1.5s import) → csv-result, manual-history table, data-quality list, ask/history (5 entries). No page errors.
+   183→- `bunx eslint src/components/screens/ask/ src/components/screens/data/` clean; full `bun run lint` exits 0.
+   184→
+   185→Stage Summary:
+   186→- Screens 48–64 complete in `screens/ask/` and `screens/data/`; no dead buttons; numbers strictly from the shared dataset; provenance/confidence language used throughout; sessionStorage used only for the pending connection id.
+   187→- Cross-group links used: actions, data, recommendations/:id, insights/:id, experiments/:id, actions/:id (owned by other groups — implemented routes per registry).
+   188→

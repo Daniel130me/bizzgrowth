@@ -1,0 +1,563 @@
+     1→// Operations data — notifications, goals, team, integrations, data quality,
+     2→// provenance records, manual entries, timeline (change ledger), briefs.
+     3→import type {
+     4→  Brief,
+     5→  DataQualityIssue,
+     6→  GoalRecord,
+     7→  IntegrationDef,
+     8→  ManualEntry,
+     9→  NotificationItem,
+    10→  ProvenanceFact,
+    11→  TeamMember,
+    12→  TimelineEvent,
+    13→} from "../types";
+    14→
+    15→export const NOTIFICATIONS: NotificationItem[] = [
+    16→  { id: "n-1", businessId: "swifthaul", category: "alert", title: "New warning alert: CAC increased 34%", body: "Blended CAC rose to ₦7,551 in September. Review before adding budget.", time: "09:04", read: false, targetRoute: "alerts/al-sh-1" },
+    17→  { id: "n-2", businessId: "swifthaul", category: "assignment", title: "Tunde updated your assigned action", body: "Faster Instagram enquiry follow-up — 3 of 5 checklist items complete.", time: "08:40", read: false, targetRoute: "actions/act-sh-1" },
+    18→  { id: "n-3", businessId: "swifthaul", category: "report", title: "Your weekly business brief is ready", body: "Sep 21–27 brief: enquiries up 9%, conversion still the constraint.", time: "07:30", read: false, targetRoute: "brief/weekly" },
+    19→  { id: "n-4", businessId: "swifthaul", category: "experiment", title: "Measurement complete: Google budget reallocation test", body: "Outcome available — conversion improved; attribution confidence medium.", time: "Sep 10", read: true, targetRoute: "outcome/exp-sh-0" },
+    20→  { id: "n-5", businessId: "swifthaul", category: "connection", title: "Meta Ads connected (read-only)", body: "Instagram spend data now feeds marketing analysis.", time: "Sep 5", read: true, targetRoute: "source-settings/meta-ads" },
+    21→  { id: "n-6", businessId: "swifthaul", category: "goal", title: "Goal check-in: 60 customers by Oct 31", body: "49 of 60 so far. Conversion improvement is the fastest path.", time: "Sep 28", read: true, targetRoute: "goals/goal-sh-1" },
+    22→  { id: "n-7", businessId: "swifthaul", category: "team", title: "Ngozi accepted your invitation", body: "Ngozi Eze joined as Member (Marketing).", time: "Sep 2", read: true, targetRoute: "team" },
+    23→  { id: "n-8", businessId: "swifthaul", category: "report", title: "September monthly review is ready", body: "Executive summary, marketing analysis and next-month priorities.", time: "Oct 1", read: false, targetRoute: "brief/monthly" },
+    24→  { id: "n-9", businessId: "korahome", category: "alert", title: "New critical alert: Shopify stopped syncing", body: "Connection inactive for 3 hours. Shopify-sourced data may be stale.", time: "14:05", read: false, targetRoute: "alerts/al-kh-1" },
+    25→  { id: "n-10", businessId: "korahome", category: "alert", title: "Mobile checkout completion dropped below 50%", body: "Completion fell 71% → 48%. Diagnosis and action available.", time: "09:02", read: false, targetRoute: "alerts/al-kh-2" },
+    26→  { id: "n-11", businessId: "korahome", category: "experiment", title: "Checkout recovery test — 12 days remaining", body: "Mobile completion tracking 54% vs 48% baseline.", time: "Sep 30", read: false, targetRoute: "experiments/exp-kh-1" },
+    27→  { id: "n-12", businessId: "korahome", category: "assignment", title: "Emeka updated the checkout action", body: "Payment failure logs reviewed — 62% transient failures.", time: "Sep 30", read: true, targetRoute: "actions/act-kh-1" },
+    28→];
+    29→
+    30→export const GOALS: GoalRecord[] = [
+    31→  {
+    32→    id: "goal-sh-1",
+    33→    businessId: "swifthaul",
+    34→    title: "Increase monthly paying customers",
+    35→    metric: "New customers per month",
+    36→    baseline: 49,
+    37→    target: 60,
+    38→    current: 49,
+    39→    unit: "customers",
+    40→    deadline: "2026-10-31",
+    41→    owner: "Amara Okafor",
+    42→    priority: "high",
+    43→    status: "active",
+    44→    contributing: ["Enquiry → customer conversion", "Instagram enquiry → customer conversion", "Enquiry volume"],
+    45→    relatedRecommendations: ["rec-sh-1", "rec-sh-2"],
+    46→    risks: "Conversion constraint must improve first; buying more enquiries alone will not reach the target.",
+    47→    summary: "To reach 60 customers, September performance requires approximately 11 additional customers. The fastest path is lifting Instagram conversion while protecting efficient Google and Referral volume.",
+    48→  },
+    49→  {
+    50→    id: "goal-kh-1",
+    51→    businessId: "korahome",
+    52→    title: "Recover mobile checkout completion",
+    53→    metric: "Mobile checkout completion",
+    54→    baseline: 48,
+    55→    target: 65,
+    56→    current: 54,
+    57→    unit: "% completion",
+    58→    deadline: "2026-10-31",
+    59→    owner: "Emeka Obi",
+    60→    priority: "high",
+    61→    status: "at-risk",
+    62→    contributing: ["Payment failure recovery rate", "Checkout completion by device", "Orders"],
+    63→    relatedRecommendations: ["rec-kh-1", "rec-kh-2", "rec-kh-3"],
+    64→    risks: "Payment retry rollout must complete before the measurement window closes.",
+    65→    summary: "Checkout completion is tracking 54% against a 65% target. Recovering to 65% would restore roughly 180–200 orders per month at current traffic.",
+    66→  },
+    67→  {
+    68→    id: "goal-sh-0",
+    69→    businessId: "swifthaul",
+    70→    title: "Launch interstate delivery service",
+    71→    metric: "Service live",
+    72→    baseline: 0,
+    73→    target: 1,
+    74→    current: 1,
+    75→    unit: "",
+    76→    deadline: "2026-08-31",
+    77→    owner: "Amara Okafor",
+    78→    priority: "medium",
+    79→    status: "completed",
+    80→    contributing: [],
+    81→    relatedRecommendations: [],
+    82→    summary: "Launched Aug 31. Interstate Delivery produced ₦1.98m revenue in its first full month.",
+    83→  },
+    84→];
+    85→
+    86→export const TEAM: TeamMember[] = [
+    87→  { id: "mem-1", name: "Amara Okafor", email: "amara@swifthaul.ng", role: "owner", jobTitle: "Founder / CEO", status: "active", lastActive: "Active now", assignedActions: 3 },
+    88→  { id: "mem-2", name: "Tunde Bakare", email: "tunde@swifthaul.ng", role: "admin", jobTitle: "Sales Manager", status: "active", lastActive: "2 hours ago", assignedActions: 5 },
+    89→  { id: "mem-3", name: "Ngozi Eze", email: "ngozi@swifthaul.ng", role: "member", jobTitle: "Marketing", status: "active", lastActive: "1 day ago", assignedActions: 2 },
+    90→  { id: "mem-4", name: "Emeka Obi", email: "emeka@swifthaul.ng", role: "member", jobTitle: "Operations", status: "active", lastActive: "3 days ago", assignedActions: 1 },
+    91→  { id: "mem-5", name: "Chioma Ade", email: "chioma@swifthaul.ng", role: "member", jobTitle: "Customer Service", status: "invited", lastActive: "Invitation sent — expires in 6 days", assignedActions: 0 },
+    92→];
+    93→
+    94→export const INTEGRATIONS: IntegrationDef[] = [
+    95→  {
+    96→    id: "meta-ads",
+    97→    name: "Meta Ads",
+    98→    category: "Advertising",
+    99→    description: "Instagram and Facebook advertising spend and delivery data.",
+   100→    provides: ["Channel spend", "Reach and frequency", "Ad set level spend"],
+   101→    unlocks: "Campaign-level marketing efficiency and creative diagnosis.",
+   102→    permissions: { read: ["Ad account spend", "Campaign structure", "Delivery metrics"], cannot: ["Modify campaigns", "Change budgets", "Publish content"] },
+   103→    badge: "Read",
+   104→    status: "connected",
+   105→    businessId: "swifthaul",
+   106→    connectedSince: "2026-09-05",
+   107→    lastSync: "12 minutes ago",
+   108→    nextSync: "in 48 minutes",
+   109→  },
+   110→  {
+   111→    id: "google-ads",
+   112→    name: "Google Ads",
+   113→    category: "Advertising",
+   114→    description: "Search advertising spend and performance data.",
+   115→    provides: ["Campaign spend", "Clicks and impressions", "Search terms"],
+   116→    unlocks: "Search efficiency analysis and impression-share-aware budget guidance.",
+   117→    permissions: { read: ["Ad account spend", "Campaign metrics"], cannot: ["Modify campaigns", "Change bids"] },
+   118→    badge: "Read",
+   119→    status: "connected",
+   120→    businessId: "swifthaul",
+   121→    connectedSince: "2026-09-05",
+   122→    lastSync: "26 minutes ago",
+   123→    nextSync: "in 34 minutes",
+   124→  },
+   125→  {
+   126→    id: "google-analytics",
+   127→    name: "Google Analytics",
+   128→    category: "Website analytics",
+   129→    description: "Website traffic, sessions, pages and on-site conversion behaviour.",
+   130→    provides: ["Traffic and sessions", "Device mix", "Top landing pages", "Visitor → enquiry conversion"],
+   131→    unlocks: "Website conversion analysis and upstream funnel diagnosis (what happens before enquiries).",
+   132→    permissions: { read: ["Analytics reporting data"], cannot: ["Modify your website", "Change tags or settings"] },
+   133→    badge: "Read",
+   134→    status: "available",
+   135→  },
+   136→  {
+   137→    id: "shopify",
+   138→    name: "Shopify",
+   139→    category: "Ecommerce",
+   140→    description: "Orders, revenue and full click-funnel behaviour for Shopify stores.",
+   141→    provides: ["Orders and revenue", "Product views, carts, checkouts", "Device-level checkout completion"],
+   142→    unlocks: "Ecommerce funnel diagnosis, product performance and checkout analysis.",
+   143→    permissions: { read: ["Orders and checkout analytics", "Product catalogue"], cannot: ["Modify your store", "Edit products or prices"] },
+   144→    badge: "Read",
+   145→    status: "error",
+   146→    businessId: "korahome",
+   147→    connectedSince: "2026-08-02",
+   148→    lastSync: "3 hours ago (failed)",
+   149→    nextSync: "paused",
+   150→    error: {
+   151→      title: "Authorization expired",
+   152→      detail: "The access token Shopify issued expired during the 14:00 sync attempt. Historical data is retained.",
+   153→      affected: "Orders, revenue, funnel and checkout analytics after 11:02 today.",
+   154→      resolution: "Reconnect the Shopify source to refresh authorization and backfill the gap.",
+   155→      time: "2026-09-30 14:03",
+   156→    },
+   157→  },
+   158→  {
+   159→    id: "woocommerce",
+   160→    name: "WooCommerce",
+   161→    category: "Ecommerce",
+   162→    description: "Orders and revenue for WooCommerce stores.",
+   163→    provides: ["Orders and revenue", "Product performance"],
+   164→    unlocks: "Ecommerce funnel and product analysis for WooCommerce stores.",
+   165→    permissions: { read: ["Orders", "Products"], cannot: ["Modify your store"] },
+   166→    badge: "Read",
+   167→    status: "available",
+   168→  },
+   169→  {
+   170→    id: "paystack",
+   171→    name: "Paystack",
+   172→    category: "Payments",
+   173→    description: "Payment success, failures and settlement data.",
+   174→    provides: ["Transaction success/failure", "Failure reasons", "Settlement totals"],
+   175→    unlocks: "Payment-reliability diagnosis (critical for checkout analysis).",
+   176→    permissions: { read: ["Transaction metadata"], cannot: ["Refund or move money", "Change account settings"] },
+   177→    badge: "Read",
+   178→    status: "connected",
+   179→    businessId: "korahome",
+   180→    connectedSince: "2026-08-02",
+   181→    lastSync: "3 hours ago (via Shopify window)",
+   182→    nextSync: "paused",
+   183→  },
+   184→  {
+   185→    id: "flutterwave",
+   186→    name: "Flutterwave",
+   187→    category: "Payments",
+   188→    description: "Payment success, failures and settlement data.",
+   189→    provides: ["Transaction success/failure", "Failure reasons"],
+   190→    unlocks: "Payment-reliability diagnosis across gateways.",
+   191→    permissions: { read: ["Transaction metadata"], cannot: ["Refund or move money"] },
+   192→    badge: "Read",
+   193→    status: "available",
+   194→  },
+   195→  {
+   196→    id: "csv",
+   197→    name: "CSV / Excel upload",
+   198→    category: "Manual / import",
+   199→    description: "Import spreadsheets of enquiries, orders, spend or revenue.",
+   200→    provides: ["Any tabular monthly or daily data"],
+   201→    unlocks: "Immediate aggregate-level intelligence without integrations.",
+   202→    permissions: { read: ["Uploaded files only"], cannot: ["Access any external account"] },
+   203→    badge: "Observe",
+   204→    status: "available",
+   205→  },
+   206→  {
+   207→    id: "manual",
+   208→    name: "Manual data entry",
+   209→    category: "Manual / import",
+   210→    description: "Enter monthly totals directly — exact values, approximations or ranges.",
+   211→    provides: ["Spend, enquiries, customers, revenue (or traffic/orders for ecommerce)"],
+   212→    unlocks: "A Level-2 baseline diagnosis with zero connections.",
+   213→    permissions: { read: ["What you enter"], cannot: ["Anything else"] },
+   214→    badge: "Observe",
+   215→    status: "connected",
+   216→  },
+   217→];
+   218→
+   219→export function integrationsFor(businessId: string): IntegrationDef[] {
+   220→  return INTEGRATIONS.filter((i) => !i.businessId || i.businessId === businessId || i.status === "available");
+   221→}
+   222→export function integrationById(id: string): IntegrationDef | undefined {
+   223→  return INTEGRATIONS.find((i) => i.id === id);
+   224→}
+   225→
+   226→export const DATA_QUALITY: DataQualityIssue[] = [
+   227→  {
+   228→    id: "dq-1",
+   229→    businessId: "swifthaul",
+   230→    severity: "warning",
+   231→    title: "23% of September customers have no recorded acquisition source",
+   232→    detail: "12 of 49 new customers did not state how they found SwiftHaul.",
+   233→    impact: "Channel conversion analysis is slightly less precise; Instagram's weak conversion could be marginally overstated.",
+   234→    resolution: "Ask the team to record source for every new customer, or connect a CRM source.",
+   235→  },
+   236→  {
+   237→    id: "dq-2",
+   238→    businessId: "swifthaul",
+   239→    severity: "info",
+   240→    title: "August and September revenue were entered manually",
+   241→    detail: "Revenue totals were submitted by the workspace owner and cannot be verified against an accounting source.",
+   242→    impact: "Revenue trend confidence is 'user-supplied' rather than 'measured'.",
+   243→    resolution: "Connect a payments or accounting source to upgrade provenance.",
+   244→  },
+   245→  {
+   246→    id: "dq-3",
+   247→    businessId: "swifthaul",
+   248→    severity: "warning",
+   249→    title: "Website analytics not connected",
+   250→    detail: "Visitor behaviour before enquiries is not observable.",
+   251→    impact: "The diagnosis cannot distinguish weak traffic quality from weak enquiry handling.",
+   252→    resolution: "Connect Google Analytics (read-only) or enter monthly website totals.",
+   253→  },
+   254→  {
+   255→    id: "dq-4",
+   256→    businessId: "korahome",
+   257→    severity: "error",
+   258→    title: "Shopify sync stopped 3 hours ago",
+   259→    detail: "Authorization token expired during the 14:00 sync attempt.",
+   260→    impact: "All Shopify-sourced analyses may be stale.",
+   261→    resolution: "Reconnect Shopify from Data Centre → Connected sources.",
+   262→  },
+   263→  {
+   264→    id: "dq-5",
+   265→    businessId: "swifthaul",
+   266→    severity: "warning",
+   267→    title: "2 duplicate rows detected in the last CSV import",
+   268→    detail: "The September 12 referral import contained 2 duplicate enquiry rows.",
+   269→    impact: "Referral enquiries may be overcounted by 2 (31 → possibly 29).",
+   270→    resolution: "Review the import result report; duplicates were excluded from analysis pending confirmation.",
+   271→  },
+   272→];
+   273→
+   274→export const PROVENANCE_FACTS: ProvenanceFact[] = [
+   275→  {
+   276→    id: "prov-sh-revenue",
+   277→    businessId: "swifthaul",
+   278→    label: "Revenue (September)",
+   279→    value: "₦6,000,000",
+   280→    provenance: "user-supplied",
+   281→    source: "Manual monthly submission",
+   282→    enteredBy: "Amara Okafor (Workspace owner)",
+   283→    date: "2026-09-30",
+   284→    precision: "Exact",
+   285→    confidence: "high",
+   286→    dependencies: ["Revenue change +3%", "Revenue ÷ spend ratio ₦16.2"],
+   287→  },
+   288→  {
+   289→    id: "prov-sh-instagram-enquiries",
+   290→    businessId: "swifthaul",
+   291→    label: "Instagram enquiries (September)",
+   292→    value: "184",
+   293→    provenance: "measured",
+   294→    source: "Meta Ads integration + manual reconciliation",
+   295→    enteredBy: "System",
+   296→    date: "2026-09-30",
+   297→    precision: "Exact",
+   298→    confidence: "high",
+   299→    dependencies: ["Instagram conversion 6.0%", "Insight: conversion bottleneck"],
+   300→  },
+   301→  {
+   302→    id: "prov-sh-referral",
+   303→    businessId: "swifthaul",
+   304→    label: "Referral enquiries → customers",
+   305→    value: "31 → 14",
+   306→    provenance: "user-supplied",
+   307→    source: "Entered by Tunde Bakare (Sales Manager)",
+   308→    enteredBy: "Tunde Bakare",
+   309→    date: "2026-09-30",
+   310→    precision: "Exact",
+   311→    confidence: "medium",
+   312→    note: "2 possible duplicate rows excluded pending confirmation (see Data Quality).",
+   313→    dependencies: ["Referral conversion 45.2%", "Referral CAC ₦1,429"],
+   314→  },
+   315→  {
+   316→    id: "prov-sh-cac-instagram",
+   317→    businessId: "swifthaul",
+   318→    label: "Instagram CAC (September)",
+   319→    value: "₦18,182",
+   320→    provenance: "estimated",
+   321→    source: "Calculated: ₦200,000 spend ÷ 11 customers",
+   322→    date: "2026-09-30",
+   323→    precision: "Calculated",
+   324→    confidence: "high",
+   325→    dependencies: ["Marketing efficiency score 61/100"],
+   326→  },
+   327→  {
+   328→    id: "prov-sh-diagnosis",
+   329→    businessId: "swifthaul",
+   330→    label: "Diagnosis: conversion is the constraint",
+   331→    value: "Confidence 82%",
+   332→    provenance: "ai-interpretation",
+   333→    source: "Reasoning over channel and monthly data",
+   334→    date: "2026-09-30",
+   335→    precision: "Interpretation",
+   336→    confidence: "medium",
+   337→    note: "This is an AI interpretation, not measured data. It can be improved with response-time and lead-quality data.",
+   338→    dependencies: ["Recommendation rec-sh-1"],
+   339→  },
+   340→  {
+   341→    id: "prov-kh-checkout",
+   342→    businessId: "korahome",
+   343→    label: "Mobile checkout completion (September)",
+   344→    value: "48% (Aug: 71%)",
+   345→    provenance: "measured",
+   346→    source: "Shopify checkout analytics",
+   347→    date: "2026-09-30 11:02",
+   348→    precision: "Exact",
+   349→    confidence: "high",
+   350→    note: "Sync currently delayed — data reflects the last successful sync at 11:02.",
+   351→    dependencies: ["Insight ins-kh-2", "Recommendation rec-kh-1"],
+   352→  },
+   353→  {
+   354→    id: "prov-kh-payment-failures",
+   355→    businessId: "korahome",
+   356→    label: "Payment failures (September)",
+   357→    value: "+31% vs August",
+   358→    provenance: "measured",
+   359→    source: "Paystack summary via Shopify",
+   360→    date: "2026-09-30 11:02",
+   361→    precision: "Exact",
+   362→    confidence: "medium",
+   363→    dependencies: ["Insight ins-kh-3", "Recommendation rec-kh-2"],
+   364→  },
+   365→];
+   366→
+   367→export function provenanceFor(businessId: string): ProvenanceFact[] {
+   368→  return PROVENANCE_FACTS.filter((p) => p.businessId === businessId);
+   369→}
+   370→export function provenanceById(id: string): ProvenanceFact | undefined {
+   371→  return PROVENANCE_FACTS.find((p) => p.id === id);
+   372→}
+   373→
+   374→export const MANUAL_ENTRIES: ManualEntry[] = [
+   375→  {
+   376→    id: "me-1",
+   377→    businessId: "swifthaul",
+   378→    period: "September 2026",
+   379→    metrics: [
+   380→      { label: "Marketing spend", value: "₦370,000", precision: "exact" },
+   381→      { label: "Enquiries", value: "277", precision: "exact" },
+   382→      { label: "Customers", value: "49", precision: "exact" },
+   383→      { label: "Revenue", value: "₦6,000,000", precision: "exact" },
+   384→    ],
+   385→    updatedBy: "Amara Okafor",
+   386→    lastModified: "2026-09-30 18:12",
+   387→    status: "verified",
+   388→  },
+   389→  {
+   390→    id: "me-2",
+   391→    businessId: "swifthaul",
+   392→    period: "August 2026",
+   393→    metrics: [
+   394→      { label: "Marketing spend", value: "₦265,000", precision: "exact" },
+   395→      { label: "Enquiries", value: "185", precision: "exact" },
+   396→      { label: "Customers", value: "47", precision: "exact" },
+   397→      { label: "Revenue", value: "₦5,830,000", precision: "exact" },
+   398→    ],
+   399→    updatedBy: "Amara Okafor",
+   400→    lastModified: "2026-09-01 09:41",
+   401→    status: "verified",
+   402→  },
+   403→  {
+   404→    id: "me-3",
+   405→    businessId: "swifthaul",
+   406→    period: "July 2026",
+   407→    metrics: [
+   408→      { label: "Marketing spend", value: "~₦250,000", precision: "approximate" },
+   409→      { label: "Enquiries", value: "168", precision: "exact" },
+   410→      { label: "Customers", value: "44", precision: "exact" },
+   411→      { label: "Revenue", value: "₦5.4m (range ₦5.2–5.6m)", precision: "range" },
+   412→    ],
+   413→    updatedBy: "Amara Okafor",
+   414→    lastModified: "2026-08-02 15:20",
+   415→    status: "unverified",
+   416→  },
+   417→];
+   418→
+   419→export const TIMELINE: TimelineEvent[] = [
+   420→  { id: "te-sh-1", businessId: "swifthaul", date: "2026-09-30", type: "data", title: "September monthly totals recorded", description: "Spend ₦370,000 · 277 enquiries · 49 customers · ₦6.0m revenue entered by Amara Okafor.", source: "Manual entry", provenance: "user-supplied" },
+   421→  { id: "te-sh-2", businessId: "swifthaul", date: "2026-09-28", type: "action", title: "Action started: Faster Instagram enquiry follow-up", description: "Owner Tunde Bakare. 30-minute response rule adopted; follow-up sequence activated Oct 1.", source: "From recommendation rec-sh-1", provenance: "measured" },
+   422→  { id: "te-sh-3", businessId: "swifthaul", date: "2026-09-24", type: "external", title: "Instagram advertising spend increased ~10%", description: "Detected from Meta Ads sync. Confirmation requested — may affect experiment attribution.", source: "Meta Ads (detected)", provenance: "measured" },
+   423→  { id: "te-sh-4", businessId: "swifthaul", date: "2026-09-20", type: "experiment", title: "Measurement window opened: Faster follow-up experiment", description: "30-day window; baseline Instagram conversion 6.0%; target 10%.", source: "Experiment exp-sh-1", provenance: "measured" },
+   424→  { id: "te-sh-5", businessId: "swifthaul", date: "2026-09-12", type: "recommendation", title: "New recommendation: Improve Instagram enquiry qualification", description: "Issued after channel-level data was added. Confidence 82%.", source: "Diagnosis engine", provenance: "ai-interpretation" },
+   425→  { id: "te-sh-6", businessId: "swifthaul", date: "2026-09-10", type: "outcome", title: "Outcome recorded: Google budget reallocation test", description: "Google conversion 38.7% → 44.1%. Attribution confidence medium. Decision: keep change.", source: "Experiment exp-sh-0", provenance: "estimated" },
+   426→  { id: "te-sh-7", businessId: "swifthaul", date: "2026-09-05", type: "data", title: "Meta Ads connected (read-only)", description: "Instagram spend now flows into marketing analysis weekly.", source: "Integration", provenance: "measured" },
+   427→  { id: "te-sh-8", businessId: "swifthaul", date: "2026-08-28", type: "external", title: "Pricing review completed — no changes", description: "Team confirmed pricing unchanged for Q4 planning.", source: "Recorded by Amara Okafor", provenance: "user-supplied" },
+   428→  { id: "te-kh-1", businessId: "korahome", date: "2026-09-30", type: "external", title: "Shopify connection stopped syncing", description: "Authorization expired at 14:03. Reconnection required to resume data flow.", source: "Sync monitor", provenance: "measured" },
+   429→  { id: "te-kh-2", businessId: "korahome", date: "2026-09-22", type: "experiment", title: "Measurement window opened: Mobile checkout recovery test", description: "30-day window; baseline mobile completion 48%; target 65%.", source: "Experiment exp-kh-1", provenance: "measured" },
+   430→  { id: "te-kh-3", businessId: "korahome", date: "2026-09-18", type: "external", title: "Payment failure spike detected", description: "Failed attempts +31% vs August. Correlates with mobile checkout completion decline.", source: "Paystack summary", provenance: "measured" },
+   431→  { id: "te-kh-4", businessId: "korahome", date: "2026-09-12", type: "recommendation", title: "New recommendation: Investigate mobile checkout before buying traffic", description: "Confidence 78%. Demand healthy, checkout failing.", source: "Diagnosis engine", provenance: "ai-interpretation" },
+   432→  { id: "te-kh-5", businessId: "korahome", date: "2026-10-01", type: "action", title: "Recovery flow activated: abandoned checkout WhatsApp messages", description: "Messages send 1 hour after abandonment. Early recovery ~11%.", source: "Action act-kh-2", provenance: "measured" },
+   433→];
+   434→
+   435→export function timelineFor(businessId: string): TimelineEvent[] {
+   436→  return TIMELINE.filter((t) => t.businessId === businessId).sort((a, b) => b.date.localeCompare(a.date));
+   437→}
+   438→
+   439→export const WEEKLY_BRIEF: Brief = {
+   440→  id: "brief-sh-week-38",
+   441→  businessId: "swifthaul",
+   442→  kind: "weekly",
+   443→  period: "September 21–27, 2026",
+   444→  title: "Weekly business brief",
+   445→  sections: [
+   446→    {
+   447→      heading: "This week",
+   448→      metrics: [
+   449→        { label: "Revenue", value: "₦1.42m", goodness: "good", note: "+2% vs previous week" },
+   450→        { label: "New customers", value: "12", goodness: "neutral", note: "+1 vs previous week" },
+   451→        { label: "Enquiries", value: "71", goodness: "good", note: "+9% vs previous week" },
+   452→        { label: "Marketing spend", value: "₦96,000", goodness: "neutral", note: "+11% vs previous week" },
+   453→      ],
+   454→    },
+   455→    {
+   456→      heading: "What changed",
+   457→      paragraphs: [
+   458→        "Enquiry volume continued to grow faster than customer growth, consistent with the September pattern. The 30-minute response rule took full effect on Wednesday; early Instagram conversion is tracking above baseline within the running experiment.",
+   459→      ],
+   460→    },
+   461→    {
+   462→      heading: "Pay attention to this",
+   463→      paragraphs: [
+   464→        "Instagram enquiries converted at roughly 5.2% this week — still far below Google (36%+) and Referral (45%). The follow-up experiment has 18 days remaining; avoid changing pricing or budgets in the meantime so the measurement stays clean.",
+   465→      ],
+   466→    },
+   467→    {
+   468→      heading: "Opportunity",
+   469→      paragraphs: [
+   470→        "Google Search continues to convert at 6× Instagram's rate at one third of the CAC. If search demand supports it, a modest budget shift remains the most efficient lever while conversion work is in progress.",
+   471→      ],
+   472→    },
+   473→    {
+   474→      heading: "Recommended action",
+   475→      paragraphs: ["Continue the Faster Instagram follow-up experiment unchanged. Complete the remaining checklist items: track lead status and record lost reasons."],
+   476→    },
+   477→    {
+   478→      heading: "Goal progress",
+   479→      paragraphs: ["49 of 60 monthly customers (goal deadline Oct 31). Conversion improvement is the fastest path to the remaining 11."],
+   480→    },
+   481→  ],
+   482→};
+   483→
+   484→export const MONTHLY_REVIEW: Brief = {
+   485→  id: "brief-sh-sep",
+   486→  businessId: "swifthaul",
+   487→  kind: "monthly",
+   488→  period: "September 2026",
+   489→  title: "Monthly business review",
+   490→  sections: [
+   491→    {
+   492→      heading: "Executive summary",
+   493→      paragraphs: [
+   494→        "September produced significantly more interest but barely more business. Marketing spend rose 40% and enquiries rose 50%, yet customers grew 4% and revenue 3%. The evidence points to conversion — not demand generation — as the immediate constraint.",
+   495→      ],
+   496→      bullets: [
+   497→        "Revenue ₦6.0m (+3%)",
+   498→        "New customers 49 (+4%)",
+   499→        "Enquiries 277 (+50%)",
+   500→        "Marketing spend ₦370,000 (+40%)",
+   501→        "Blended CAC ₦7,551 (+34%)",
+   502→      ],
+   503→    },
+   504→    {
+   505→      heading: "Revenue",
+   506→      paragraphs: ["Revenue reached ₦6.0m, the strongest month to date, but revenue per naira of marketing spend fell from ₦22.0 to ₦16.2. Corporate Logistics remains the largest revenue line (₦2.57m)."],
+   507→    },
+   508→    {
+   509→      heading: "Sales",
+   510→      paragraphs: ["277 enquiries produced 120 qualified leads, 77 quotes and 49 customers. The enquiry→customer conversion fell from 25.4% to 17.7%."],
+   511→    },
+   512→    {
+   513→      heading: "Marketing",
+   514→      paragraphs: ["Instagram produced the most enquiries (184) but the weakest conversion (6.0%). Google Search delivered 24 customers at ₦6,250 CAC; Referral delivered 14 at ₦1,429."],
+   515→    },
+   516→    {
+   517→      heading: "Customers",
+   518→      paragraphs: ["Customer acquisition grew marginally. 23% of new customers lack a recorded acquisition source — an ongoing data-quality item."],
+   519→    },
+   520→    {
+   521→      heading: "What worked",
+   522→      bullets: ["Google Search efficiency (16.7× ROAS)", "Referral conversion at 45.2%", "Corporate Logistics revenue growth"],
+   523→    },
+   524→    {
+   525→      heading: "What did not",
+   526→      bullets: ["Instagram conversion (6.0%)", "Marketing efficiency overall (revenue ÷ spend fell 26%)"],
+   527→    },
+   528→    {
+   529→      heading: "Likely explanations",
+   530→      paragraphs: ["The largest conversion gap appears among Instagram enquiries. Lead quality, response time and follow-up consistency are the leading hypotheses — none can be isolated yet with current data."],
+   531→    },
+   532→    {
+   533→      heading: "Biggest opportunity",
+   534→      paragraphs: ["Lifting Instagram conversion toward even 10% adds roughly 7 customers/month at zero extra spend. The faster-follow-up experiment is tracking toward 8–9%."],
+   535→    },
+   536→    {
+   537→      heading: "Biggest risk",
+   538→      paragraphs: ["Continued spend increases while conversion is depressed will keep eroding efficiency (CAC +34% this month)."],
+   539→    },
+   540→    {
+   541→      heading: "Actions completed",
+   542→      bullets: ["Google budget reallocation (15%) — outcome: Google conversion 38.7% → 44.1% (attribution medium)"],
+   543→    },
+   544→    {
+   545→      heading: "Results measured",
+   546→      paragraphs: ["One completed experiment (budget reallocation) and one in flight (faster follow-up, 18 days remaining)."],
+   547→    },
+   548→    {
+   549→      heading: "Priorities for next month",
+   550→      bullets: ["Complete the follow-up experiment and record lost reasons", "Decide on budget reallocation based on experiment outcome", "Connect Google Analytics to unlock upstream funnel visibility", "Close the customer-source data gap (23% unattributed)"],
+   551→    },
+   552→  ],
+   553→};
+   554→
+   555→export const BRIEF_ARCHIVE = [
+   556→  { id: "br-1", kind: "Weekly", period: "Sep 21–27, 2026", route: "brief/weekly", status: "Ready" },
+   557→  { id: "br-2", kind: "Weekly", period: "Sep 14–20, 2026", route: "brief/weekly", status: "Ready" },
+   558→  { id: "br-3", kind: "Monthly", period: "September 2026", route: "brief/monthly", status: "Ready" },
+   559→  { id: "br-4", kind: "Weekly", period: "Sep 7–13, 2026", route: "brief/weekly", status: "Ready" },
+   560→  { id: "br-5", kind: "Monthly", period: "August 2026", route: "brief/monthly", status: "Ready" },
+   561→  { id: "br-6", kind: "Weekly", period: "Aug 31 – Sep 6, 2026", route: "brief/weekly", status: "Ready" },
+   562→] as const;
+   563→

@@ -1,0 +1,5458 @@
+# MASTER BUILD PROMPT
+
+## Business Intelligence / AI Growth Operating System — Complete Clickable MVP Prototype
+
+You are an expert product designer, UX architect, SaaS product strategist, and frontend engineer.
+
+Your task is to create a **complete, high-fidelity, interactive prototype** of a new AI-powered Business Intelligence and Growth Operating System for growing small and medium-sized businesses.
+
+This is NOT a landing-page-only exercise.
+
+This is NOT a collection of disconnected dashboard mockups.
+
+This must be a **deep, realistic, clickable end-to-end product prototype** that can be shown to:
+
+- potential customers,
+- business owners,
+- investors,
+- advisors,
+- product reviewers,
+- development teams,
+- stakeholders considering whether the product should be built.
+
+The people reviewing the prototype should be able to click through the product and understand how the proposed MVP works without anyone explaining every screen to them.
+
+---
+
+# 1. CRITICAL INSTRUCTION
+
+Build the entire MVP experience.
+
+Do not simplify this into 10–20 screens.
+
+There are **114 required product views/states** described below.
+
+Some are full pages.
+
+Some are detail views.
+
+Some are tabs.
+
+Some are drawers.
+
+Some are dialogs.
+
+Some are system states.
+
+Some are internal administrative screens.
+
+They do not all need separate navigation items, but they MUST all exist and be demonstrable.
+
+Do not omit boring screens such as:
+
+- connection errors,
+- CSV mapping,
+- insufficient-data states,
+- permissions,
+- team invitation,
+- billing,
+- stale-data states,
+- change confirmation,
+- experiment tracking,
+- action outcomes,
+- AI audit screens,
+- support screens.
+
+These are part of the MVP.
+
+Create reusable layouts/components rather than making 114 unrelated designs.
+
+---
+
+# 2. WHAT THE PRODUCT IS
+
+The product is best understood as an:
+
+> **AI Business Growth Operating System**
+
+Its job is to understand a business, observe its performance, identify problems and opportunities, explain why something may be happening, recommend what the business should do next, help the business track those actions, and measure what happened afterward.
+
+The central product loop is:
+
+**Understand → Measure → Diagnose → Recommend → Act → Measure again**
+
+Another way to express it is:
+
+**Connect → Understand → Measure → Diagnose → Recommend → Execute → Measure again**
+
+Everything in the prototype must support this loop.
+
+This is much more than:
+
+- analytics,
+- dashboards,
+- SEO software,
+- AI chat,
+- website analytics,
+- CRM reporting,
+- marketing reporting.
+
+The product connects business information together and translates it into decisions.
+
+The central promise is:
+
+> **Understand what is happening in your business, why it is happening, and what you should do next.**
+
+---
+
+# 3. THE PROBLEM BEING SOLVED
+
+Many growing businesses already have:
+
+- customers,
+- sales,
+- marketing,
+- websites,
+- Instagram/Facebook activity,
+- Google activity,
+- WhatsApp enquiries,
+- payment platforms,
+- ecommerce stores,
+- spreadsheets,
+- reports,
+- advertising campaigns.
+
+Their problem is not necessarily lack of data.
+
+Their problem is:
+
+> **“We have information everywhere, but we don't know what it means.”**
+
+Typical questions include:
+
+> Why did sales fall this month?
+
+> Which marketing channel is actually producing customers?
+
+> We generated more enquiries, so why didn't revenue grow?
+
+> Is our website helping or hurting us?
+
+> What should we work on next?
+
+> Where are potential customers being lost?
+
+> Are we spending too much to acquire customers?
+
+> Which products or services are actually driving growth?
+
+> We implemented something last month. Did it actually help?
+
+The product should answer questions like these.
+
+---
+
+# 4. PRIMARY CUSTOMER
+
+Design around:
+
+> **Growing small-to-medium-sized businesses that already acquire customers digitally but do not clearly understand what is driving revenue, what is underperforming, or what they should improve next.**
+
+The primary person using the product is often:
+
+- founder,
+- business owner,
+- CEO,
+- growth decision-maker,
+- marketing manager.
+
+They are NOT data scientists.
+
+They should not need to understand complicated analytics terminology before gaining value.
+
+Use simple business language:
+
+- sales,
+- revenue,
+- customers,
+- enquiries,
+- orders,
+- leads,
+- marketing spend,
+- conversion,
+- opportunities,
+- risks.
+
+Technical concepts can exist, but they should be explained.
+
+---
+
+# 5. BUSINESS TYPES SUPPORTED IN THE MVP
+
+The MVP supports TWO primary business archetypes through ONE shared intelligence system.
+
+Do not build two separate applications.
+
+## Archetype A — Service Business
+
+Examples:
+
+- logistics company,
+- law firm,
+- clinic,
+- real estate business,
+- training company,
+- school,
+- consultant,
+- software company,
+- cleaning business,
+- travel agency,
+- professional services business.
+
+Typical funnel:
+
+**Instagram / Google / Referral  
+→ Website / WhatsApp / Call  
+→ Enquiry  
+→ Qualified lead  
+→ Proposal/Quote  
+→ Customer  
+→ Revenue**
+
+Important metrics include:
+
+- enquiries,
+- qualified leads,
+- customers,
+- enquiry-to-customer conversion,
+- proposal conversion,
+- lead source,
+- revenue,
+- CAC,
+- marketing efficiency.
+
+---
+
+## Archetype B — Digitally Active Product / Ecommerce Business
+
+Examples:
+
+- Shopify stores,
+- WooCommerce stores,
+- online retailers,
+- Instagram shops,
+- consumer brands,
+- digital product businesses.
+
+Typical funnel:
+
+**Instagram / Google / Referral  
+→ Website  
+→ Product view  
+→ Add to cart  
+→ Checkout  
+→ Purchase  
+→ Repeat purchase  
+→ Revenue**
+
+Important metrics include:
+
+- traffic,
+- product views,
+- add-to-cart rate,
+- checkout rate,
+- purchase conversion,
+- orders,
+- average order value,
+- repeat purchases,
+- revenue,
+- CAC,
+- marketing efficiency.
+
+---
+
+## Hybrid businesses
+
+The model may eventually support businesses with both service and product revenue.
+
+For this prototype it is enough to demonstrate that the architecture can understand:
+
+**Service**
+
+**Product/Ecommerce**
+
+**Both**
+
+---
+
+# 6. PRODUCT PHILOSOPHY
+
+The software must always distinguish between:
+
+### What happened
+
+Measured business information.
+
+### What it may mean
+
+Interpretation or diagnosis.
+
+### What could be done
+
+Recommendation.
+
+### What actually changed
+
+Action/change event.
+
+### What happened afterward
+
+Outcome.
+
+This distinction is extremely important.
+
+Do NOT design the platform as if AI magically knows everything.
+
+---
+
+# 7. TRUST AND EVIDENCE
+
+This is one of the most important product principles.
+
+Every important conclusion should make it possible to see:
+
+- what data supports it,
+- where the data came from,
+- whether it is exact or approximate,
+- whether it was entered by a user,
+- whether it came from an integration,
+- whether it is an estimate,
+- whether it is AI interpretation,
+- how confident the system is.
+
+Use provenance labels throughout the product.
+
+### Measured
+
+Information directly retrieved from a source.
+
+### User supplied
+
+Information manually provided.
+
+### Estimated
+
+Approximate/calculated information.
+
+### AI interpretation
+
+A conclusion produced by reasoning over the available evidence.
+
+Never visually treat these four categories as identical.
+
+---
+
+# 8. PROGRESSIVE INTELLIGENCE
+
+Do NOT require a business to connect everything before receiving value.
+
+The product should become more intelligent as more information becomes available.
+
+Think of the progression as:
+
+**Level 0 — Demo**
+
+No information required.
+
+**Level 1 — Private Diagnostic**
+
+Business context + rough trends.
+
+**Level 2 — Aggregate Data**
+
+Monthly/weekly totals.
+
+**Level 3 — Read-only Connections**
+
+Connected analytics, marketing, sales or ecommerce sources.
+
+**Level 4 — Deeper Intelligence**
+
+Multiple sources allow better root-cause analysis.
+
+**Level 5 — Actions and Change History**
+
+The system observes what the business changed.
+
+**Level 6 — Outcome Learning**
+
+The platform begins understanding what historically works for this particular business.
+
+This progression should be visible throughout the UX.
+
+---
+
+# 9. TRUST LADDER
+
+Do not ask a new user for highly sensitive access immediately.
+
+The experience should progress approximately:
+
+**Demo**
+
+↓
+
+**Anonymous / approximate business trends**
+
+↓
+
+**Aggregate numbers**
+
+↓
+
+**Read-only integrations**
+
+↓
+
+**Optional execution permissions later**
+
+Read access must never automatically imply write access.
+
+Whenever an integration is being connected, clearly communicate:
+
+### Why we need it
+
+Example:
+
+“To compare website activity with customer acquisition.”
+
+### What we can access
+
+Example:
+
+“Traffic, sessions and conversions.”
+
+### What we cannot do
+
+Example:
+
+“We cannot modify your website.”
+
+### What this unlocks
+
+Example:
+
+“Website conversion analysis and better diagnosis.”
+
+Provide an alternative such as:
+
+**Enter monthly totals instead**
+
+where appropriate.
+
+---
+
+# 10. CONVERSATIONAL BUSINESS ONBOARDING
+
+The onboarding experience should NOT be a rigid 12-step questionnaire.
+
+The core concept is a conversational Business Context Engine.
+
+The AI manages conversation.
+
+Structured application logic manages the truth.
+
+The conversational interface should progressively understand:
+
+- business type,
+- business model,
+- what the company sells,
+- who it sells to,
+- primary goal,
+- acquisition channels,
+- buying journey,
+- marketing trend,
+- enquiry/traffic trend,
+- customer/order trend,
+- revenue trend where available,
+- major recent business changes.
+
+The system should act as though it is filling a hidden structured model.
+
+The AI should ask:
+
+> **What is the minimum next question that would increase useful understanding the most?**
+
+Do not ask something the user has already answered indirectly.
+
+Example conversation:
+
+AI:
+
+“Tell me briefly about your business and what you're trying to improve.”
+
+User:
+
+“We run a cleaning company in Lagos. Most customers come through Instagram and referrals. We've been spending more on Instagram lately but I don't think we're getting more customers.”
+
+The system should understand:
+
+- business = cleaning/service,
+- location = Lagos,
+- acquisition sources = Instagram + referrals,
+- issue = possible marketing efficiency/conversion problem.
+
+It should NOT then ask:
+
+“What channels do customers come from?”
+
+Instead ask something useful such as:
+
+“Compared with the previous month, did the number of enquiries increase, decrease or stay roughly the same?”
+
+If user refuses exact revenue:
+
+“That's fine. I don't need the actual amount. Would you say revenue increased, decreased or stayed roughly the same?”
+
+The system should know when enough evidence exists for a preliminary diagnosis and STOP asking questions.
+
+---
+
+# 11. FIRST WOW MOMENT
+
+The first wow moment must NOT be:
+
+“Here is your dashboard.”
+
+The wow moment is:
+
+> **“We noticed something about your business.”**
+
+Example:
+
+Marketing spend:
+
+**↑ 40%**
+
+Enquiries:
+
+**↑ 50%**
+
+Customers:
+
+**↑ 5%**
+
+Revenue:
+
+**↑ 3%**
+
+Diagnosis:
+
+> **Your immediate growth constraint may not be lead generation.**
+
+> Marketing activity and enquiries increased significantly, but customers barely increased. The biggest opportunity may be between enquiry and customer rather than simply increasing advertising spend.
+
+Then show:
+
+### What we know
+
+Marketing ↑  
+Enquiries ↑  
+Customers almost unchanged  
+Revenue almost unchanged
+
+### What we think
+
+The bottleneck likely occurs after enquiry generation.
+
+### What we don't yet know
+
+Whether the issue is:
+
+- lead quality,
+- response time,
+- pricing,
+- follow-up,
+- sales process.
+
+### Unlock a better answer
+
+Add channel-level enquiry/customer totals or connect a marketing/sales source.
+
+This concept should appear throughout the product.
+
+---
+
+# 12. PROTOTYPE DATA
+
+Do not use random values on every page.
+
+Use a coherent shared dataset.
+
+Create TWO fictional demo businesses.
+
+---
+
+## DEMO BUSINESS A — SwiftHaul Logistics
+
+Type:
+
+Service business
+
+Location:
+
+Lagos, Nigeria
+
+Model:
+
+B2B + B2C logistics
+
+Primary goal:
+
+Increase paying customers without wasting marketing spend.
+
+Customer journey:
+
+**Google / Instagram / Referral  
+→ Website / WhatsApp  
+→ Enquiry  
+→ Quote  
+→ Customer**
+
+Current reporting period:
+
+September 2026
+
+Previous period:
+
+August 2026
+
+### August
+
+Marketing spend:
+
+₦265,000
+
+Enquiries:
+
+185
+
+Customers:
+
+47
+
+Revenue:
+
+₦5.83m
+
+### September
+
+Marketing spend:
+
+₦370,000
+
+Enquiries:
+
+277
+
+Customers:
+
+49
+
+Revenue:
+
+₦6.0m
+
+This produces approximately:
+
+Marketing spend:
+
+**+40%**
+
+Enquiries:
+
+**+50%**
+
+Customers:
+
+**+4–5%**
+
+Revenue:
+
+**+3%**
+
+The business is generating significantly more interest without producing proportional customer/revenue growth.
+
+---
+
+## September channel breakdown
+
+### Instagram
+
+Spend:
+
+₦200,000
+
+Enquiries:
+
+184
+
+Customers:
+
+11
+
+Revenue:
+
+₦1.8m
+
+Customer conversion:
+
+approximately 6%
+
+CAC:
+
+approximately ₦18,182
+
+### Google Search
+
+Spend:
+
+₦150,000
+
+Enquiries:
+
+62
+
+Customers:
+
+24
+
+Revenue:
+
+₦2.5m
+
+Customer conversion:
+
+approximately 38.7%
+
+CAC:
+
+₦6,250
+
+### Referral
+
+Spend:
+
+₦20,000
+
+Enquiries:
+
+31
+
+Customers:
+
+14
+
+Revenue:
+
+₦1.7m
+
+Customer conversion:
+
+approximately 45%
+
+CAC:
+
+approximately ₦1,429
+
+The major insight should therefore be:
+
+> Instagram produces the most enquiries but the weakest enquiry-to-customer conversion.
+
+Do not automatically claim Instagram itself is the cause.
+
+Say instead:
+
+> The largest conversion gap appears among Instagram enquiries. More information about lead quality and follow-up would strengthen this diagnosis.
+
+---
+
+# 13. SAMPLE RECOMMENDATION STORY
+
+Use the following story across several screens so reviewers can experience the complete product loop.
+
+### Problem
+
+Marketing activity increased significantly without proportional customer growth.
+
+### Evidence
+
+Instagram:
+
+184 enquiries → 11 customers
+
+Google:
+
+62 enquiries → 24 customers
+
+Referral:
+
+31 enquiries → 14 customers
+
+### Diagnosis
+
+The immediate bottleneck appears to be conversion rather than generating additional enquiries.
+
+### Recommendation
+
+**Improve qualification and follow-up for Instagram enquiries before increasing Instagram advertising spend.**
+
+Impact:
+
+High
+
+Effort:
+
+Medium
+
+Confidence:
+
+82%
+
+Primary metric:
+
+Instagram enquiry → customer conversion
+
+Measurement window:
+
+30 days
+
+Execution type:
+
+Human / guided action
+
+Suggested tasks:
+
+- create simple enquiry qualification questions,
+- respond to new enquiries faster,
+- introduce follow-up sequence,
+- track lead status,
+- record reason for lost leads.
+
+Allow the user to:
+
+**Start action**
+
+Assign owner:
+
+Sales Manager
+
+Set target date.
+
+Create experiment.
+
+Mark implementation complete.
+
+Monitor results.
+
+View outcome.
+
+---
+
+# 14. SAMPLE EXPERIMENT
+
+Experiment:
+
+**Faster Instagram enquiry follow-up**
+
+Hypothesis:
+
+Responding to qualified Instagram enquiries within 30 minutes will improve enquiry-to-customer conversion.
+
+Baseline:
+
+Instagram conversion:
+
+6.0%
+
+Target:
+
+10%
+
+Measurement:
+
+30 days
+
+Other changes detected during measurement window:
+
+- Instagram spend +10%
+- pricing unchanged
+- website unchanged
+
+Outcome example:
+
+Instagram conversion:
+
+6.0% → 9.1%
+
+Customers:
+
+11 → 17
+
+Attribution confidence:
+
+Medium
+
+Conclusion:
+
+> Conversion improved after the new follow-up process. The timing suggests the intervention may have contributed, although Instagram spend also increased during the period.
+
+Never say:
+
+“The recommendation caused the improvement.”
+
+unless the evidence supports causation.
+
+---
+
+# 15. DEMO BUSINESS B — KoraHome Store
+
+Type:
+
+Product / Ecommerce
+
+Platform:
+
+Shopify
+
+Location:
+
+Nigeria
+
+Customer journey:
+
+**Google / Instagram  
+→ Website  
+→ Product page  
+→ Add to cart  
+→ Checkout  
+→ Purchase  
+→ Repeat purchase**
+
+Use this business to demonstrate that the same product adapts to ecommerce.
+
+Sample problem:
+
+Traffic:
+
+**+24%**
+
+Orders:
+
+**-8%**
+
+Revenue:
+
+**-8%**
+
+Mobile checkout completion:
+
+**71% → 49%**
+
+Payment failures:
+
+**+31%**
+
+Diagnosis:
+
+> Demand appears relatively healthy. The largest performance deterioration occurs during mobile checkout.
+
+Recommendation:
+
+> Investigate mobile checkout and payment failures before increasing traffic acquisition.
+
+This sample workspace should be selectable from the workspace/demo switcher.
+
+---
+
+# 16. PROTOTYPE IMPLEMENTATION REQUIREMENTS
+
+This is a PROTOTYPE.
+
+Do not spend time building production integrations or backend infrastructure.
+
+However, it must FEEL like a working product.
+
+Use realistic mock data and simulated asynchronous behaviour.
+
+If generating code, preferably use:
+
+- React or Next.js,
+- TypeScript,
+- Tailwind CSS,
+- reusable component architecture,
+- Lucide icons,
+- a chart library such as Recharts,
+- local application state,
+- localStorage where useful.
+
+If the builder uses another frontend stack, reproduce equivalent behaviour.
+
+No backend is required.
+
+No real OAuth is required.
+
+No real AI API is required.
+
+No real payment processing is required.
+
+No real external integration is required.
+
+Simulate them convincingly.
+
+---
+
+# 17. INTERACTION REQUIREMENTS
+
+There must be NO dead primary buttons.
+
+Important interactions must work.
+
+Examples:
+
+Click metric → metric drill-down.
+
+Click insight → diagnosis detail.
+
+Click recommendation → recommendation detail.
+
+Click Start Action → implementation setup.
+
+Submit setup → action appears in Action Centre.
+
+Mark action complete → start measurement state.
+
+Create experiment → experiment tracking.
+
+Finish measurement → outcome screen.
+
+Click evidence → evidence panel.
+
+Click source badge → provenance detail.
+
+Click health dimension → health detail.
+
+Click channel → channel detail.
+
+Click notification → related object.
+
+Click alert → alert detail.
+
+Click Connect → permission review.
+
+Confirm connection → syncing state.
+
+Sync finishes → connected state.
+
+Trigger failure → reconnect state.
+
+Upload CSV → mapping → validation → result.
+
+Create goal → goal detail.
+
+Invite user → pending team member.
+
+Change role → permissions update.
+
+Ask suggested AI question → simulated data-grounded answer.
+
+Change date range → update visible data.
+
+Switch business → interface changes between service/ecommerce terminology.
+
+Save settings → persist in prototype.
+
+Use drawers, dialogs and toasts where appropriate.
+
+---
+
+# 18. PROTOTYPE-ONLY REVIEWER MODE
+
+Create a hidden prototype route such as:
+
+`/prototype-index`
+
+or a small unobtrusive “Prototype Map” available only in demo mode.
+
+This is NOT a production feature.
+
+It is for reviewers.
+
+It must list:
+
+Screen 1 → Screen 114
+
+with:
+
+- screen number,
+- screen name,
+- category,
+- button to open it,
+- implementation status.
+
+This allows reviewers to inspect every required screen/state without manually reproducing every condition.
+
+At completion, every item must say:
+
+**Implemented**
+
+---
+
+# 19. GLOBAL PRODUCT NAVIGATION
+
+Customer application sidebar:
+
+**Home**
+
+**Performance**
+
+**Insights**
+
+**Actions**
+
+**Ask**
+
+**Data**
+
+**Goals**
+
+**Reports**
+
+Settings contains:
+
+**Business**
+
+**Team**
+
+**Billing**
+
+**Account**
+
+**Privacy**
+
+Notifications and alerts live primarily in the header.
+
+Integrations are accessible through Data.
+
+Do NOT create a 20-item sidebar.
+
+---
+
+# 20. GLOBAL APP SHELL
+
+Desktop-first application.
+
+Use:
+
+**Left sidebar + top header + content area**
+
+Header should contain:
+
+- workspace/business switcher,
+- reporting date range,
+- optional “Data updated X minutes ago” indicator,
+- notifications,
+- help,
+- user avatar/menu.
+
+Support responsive layouts.
+
+Primary prototype target:
+
+1440px desktop.
+
+Also ensure reasonable usability around:
+
+1024px tablet/laptop
+
+and mobile width.
+
+---
+
+# 21. DESIGN PERSONALITY
+
+The product should feel like:
+
+**Modern + Intelligent + Business-facing + Trustworthy + Action-oriented**
+
+Use inspiration from the clarity of products such as:
+
+- Stripe,
+- Linear,
+- Notion,
+- HubSpot,
+- modern AI products.
+
+Do NOT copy any product.
+
+Do NOT make this look like:
+
+- an accounting package,
+- an old enterprise dashboard,
+- a crypto dashboard,
+- a playful consumer AI chatbot,
+- a spreadsheet with cards,
+- a template full of random gradients.
+
+The product should feel premium enough that someone could believe this is an emerging serious SaaS company.
+
+---
+
+# 22. DESIGN SYSTEM — SEMANTIC COLOUR
+
+Colour communicates meaning.
+
+## Blue — Data / Truth / Measurement
+
+Primary:
+
+`#2563EB`
+
+Dark:
+
+`#1D4ED8`
+
+Light:
+
+`#60A5FA`
+
+Tint:
+
+`#EFF6FF`
+
+Use blue for:
+
+- measured data,
+- normal metrics,
+- primary actions,
+- selected navigation,
+- trusted product functions.
+
+---
+
+## Purple — AI / Intelligence / Interpretation
+
+Primary:
+
+`#7C3AED`
+
+Secondary:
+
+`#8B5CF6`
+
+Tint:
+
+`#F5F3FF`
+
+Use purple for:
+
+- AI insights,
+- diagnosis,
+- Ask Your Business,
+- AI interpretation,
+- root-cause analysis,
+- intelligent explanations.
+
+Purple should NOT be randomly used as another chart colour.
+
+---
+
+## Green — Positive Outcome
+
+Primary:
+
+`#10B981`
+
+Tint:
+
+`#ECFDF5`
+
+Use for:
+
+- healthy outcome,
+- successful connection,
+- completed action,
+- improvement,
+- achieved goal.
+
+Green means positive.
+
+It does NOT automatically mean “the number increased.”
+
+Example:
+
+Revenue ↑ = positive/green.
+
+CAC ↑ = negative/red.
+
+Refund rate ↓ = positive/green.
+
+---
+
+## Amber — Opportunity / Attention / Investigation
+
+Primary:
+
+`#F59E0B`
+
+Tint:
+
+`#FFFBEB`
+
+Use for:
+
+- opportunities,
+- warnings,
+- incomplete data,
+- medium-confidence findings,
+- things worth investigating,
+- things requiring attention.
+
+Amber does NOT mean failure.
+
+---
+
+## Red — Risk / Negative / Urgency
+
+Primary:
+
+`#EF4444`
+
+Tint:
+
+`#FEF2F2`
+
+Use carefully for:
+
+- significant decline,
+- integration failure,
+- dangerous anomaly,
+- destructive action,
+- errors,
+- business risk.
+
+---
+
+## Neutral
+
+Primary text:
+
+`#0F172A`
+
+Secondary:
+
+`#475569`
+
+Muted:
+
+`#64748B`
+
+Border:
+
+`#E2E8F0`
+
+App background:
+
+`#F8FAFC`
+
+Surface:
+
+`#FFFFFF`
+
+Subtle surface:
+
+`#F1F5F9`
+
+Approximately 70–80% of the UI should remain neutral.
+
+Semantic colours become powerful because they are not overused.
+
+---
+
+# 23. BRAND EXPRESSION
+
+Primary brand relationship:
+
+**Blue + Purple**
+
+Blue represents:
+
+**Data**
+
+Purple represents:
+
+**Intelligence**
+
+Together:
+
+**Data + Intelligence**
+
+Secondary semantic language:
+
+Green:
+
+**What is working**
+
+Amber:
+
+**What needs attention / opportunity**
+
+Red:
+
+**What requires intervention**
+
+---
+
+# 24. TYPOGRAPHY
+
+Use:
+
+**Inter**
+
+Fallback:
+
+`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+
+Approximate scale:
+
+Display:
+
+48–56px / bold
+
+H1:
+
+36–40px / 700
+
+H2:
+
+28–32px / 700
+
+H3:
+
+22–24px / 600
+
+H4:
+
+18–20px / 600
+
+Body:
+
+14–16px
+
+Caption:
+
+12px
+
+Business metrics should use visually strong numbers and tabular numerals where possible.
+
+---
+
+# 25. SPACING AND COMPONENT STYLE
+
+Use 4px spacing foundation.
+
+Typical spacing:
+
+4, 8, 12, 16, 24, 32, 40, 48, 64.
+
+Typical radii:
+
+Inputs:
+
+8px
+
+Buttons:
+
+8px
+
+Cards:
+
+12px
+
+AI/feature cards:
+
+16px
+
+Hero moments:
+
+20–24px.
+
+Prefer subtle borders over excessive shadows.
+
+Avoid making every component a pill.
+
+---
+
+# 26. CHART PRINCIPLES
+
+Charts support the explanation.
+
+They are NOT the product.
+
+Every chart should answer one clear question.
+
+Avoid placing 8 unrelated metrics into one graph.
+
+Good:
+
+**Revenue vs marketing spend**
+
+then:
+
+> Revenue increased while marketing spend increased significantly faster.
+
+Use:
+
+Blue = measured/current.
+
+Slate = comparison.
+
+Purple dashed = forecast/AI estimate.
+
+Green = positive result.
+
+Red = negative/risk.
+
+Amber = opportunity/attention.
+
+Always interpret whether change is good or bad based on the metric.
+
+---
+
+# 27. CORE COMPONENT LIBRARY
+
+Create reusable components for:
+
+Navigation:
+
+- sidebar,
+- header,
+- breadcrumbs,
+- tabs,
+- command/search.
+
+Inputs:
+
+- text,
+- textarea,
+- select,
+- date/date range,
+- search,
+- filters,
+- checkbox,
+- radio,
+- toggle,
+- slider.
+
+Business components:
+
+- MetricCard,
+- TrendIndicator,
+- GoalProgress,
+- HealthIndicator,
+- Funnel,
+- ChannelPerformance,
+- DataCoverage,
+- DataQuality,
+- SourceBadge,
+- ConfidenceBadge.
+
+Intelligence components:
+
+- InsightCard,
+- OpportunityCard,
+- RiskCard,
+- RecommendationCard,
+- EvidencePanel,
+- RootCauseTree,
+- AIExplanation,
+- ConfidencePanel.
+
+Execution components:
+
+- ActionCard,
+- AssigneePicker,
+- ProgressTracker,
+- ExperimentCard,
+- OutcomeCard,
+- ChangeTimeline.
+
+Feedback:
+
+- toast,
+- alert,
+- banner,
+- modal,
+- drawer,
+- empty state,
+- loading state,
+- skeleton,
+- error state.
+
+---
+
+# 28. SIGNATURE COMPONENTS
+
+Give extra polish to these because they define the product:
+
+### Insight Card
+
+Purple intelligence treatment.
+
+### Opportunity Card
+
+Amber treatment.
+
+### Recommendation Card
+
+Problem → evidence → recommendation → expected outcome.
+
+### Confidence Indicator
+
+Shows how strongly evidence supports interpretation.
+
+### Data Coverage Indicator
+
+Shows what the system currently understands.
+
+### Business Health Summary
+
+Shows overall condition but remains explainable.
+
+### Change Timeline
+
+Shows business interventions/events over time.
+
+### Outcome Card
+
+Shows whether something improved after an action.
+
+---
+
+# 29. COPY/TONE
+
+Writing must be:
+
+- calm,
+- specific,
+- concise,
+- business-facing,
+- evidence-based,
+- actionable.
+
+Avoid:
+
+“Awesome! Your business is crushing it! 🎉”
+
+Prefer:
+
+“Revenue increased 18% this month.”
+
+Avoid:
+
+“Uh-oh!”
+
+Prefer:
+
+“Your Shopify connection stopped syncing 3 hours ago.”
+
+The product should sound like an intelligent business adviser.
+
+Do not overuse emojis.
+
+---
+
+# 30. ACCESSIBILITY
+
+Target WCAG AA.
+
+Never communicate meaning using colour alone.
+
+Use:
+
+colour + label + icon where appropriate.
+
+Example:
+
+**At risk**
+
+not simply a red dot.
+
+Charts require labels/legends/line styles.
+
+Keyboard-focus states should exist.
+
+Buttons need clear labels.
+
+---
+
+# 31. MAIN END-TO-END DEMO FLOW
+
+A stakeholder should be able to experience this story:
+
+Landing page
+
+→ Start Private Business Checkup
+
+→ Create account/workspace
+
+→ Conversational onboarding
+
+→ Confirm business model/journey
+
+→ See structured understanding
+
+→ Receive first diagnosis
+
+→ Inspect evidence/confidence
+
+→ Improve diagnosis using aggregate data
+
+→ Enter workspace
+
+→ See business overview
+
+→ Explore performance
+
+→ Inspect root-cause diagnosis
+
+→ See recommendation
+
+→ Start action
+
+→ Assign action
+
+→ Create/track experiment
+
+→ See detected business change
+
+→ Confirm change
+
+→ View outcome
+
+→ See timeline updated
+
+→ Ask AI about what happened
+
+→ Review weekly/monthly brief
+
+This flow must feel connected.
+
+---
+
+# 32. COMPLETE SCREEN INVENTORY
+
+Build ALL of the following.
+
+---
+
+# A. PUBLIC, AUTHENTICATION AND ACCESS
+
+## SCREEN 1 — Landing Page
+
+Purpose:
+
+Explain the product simply and get businesses into the first diagnostic experience.
+
+Hero idea:
+
+**Understand what is driving your business growth — and what to fix next.**
+
+Supporting copy:
+
+Connect or enter your business information and turn scattered marketing, sales and website signals into clear decisions.
+
+Primary CTA:
+
+**Get a private business checkup**
+
+Secondary CTA:
+
+**Explore a sample business**
+
+Sections should demonstrate:
+
+- problem,
+- how it works,
+- example diagnosis,
+- business models supported,
+- progressive privacy/trust,
+- product loop,
+- testimonials placeholders,
+- CTA.
+
+Do not market advanced out-of-MVP features.
+
+---
+
+## SCREEN 2 — Pricing / Plans
+
+Create a credible plan comparison.
+
+Because commercial pricing has not been finalized, avoid presenting arbitrary prices as confirmed.
+
+Use plan concepts such as:
+
+**Private Beta**
+
+**Growth**
+
+**Team**
+
+Show what types of capabilities can differ:
+
+- businesses/workspaces,
+- connected sources,
+- team members,
+- reporting,
+- data history,
+- intelligence depth.
+
+Buttons:
+
+Join pilot / Choose plan / Contact.
+
+---
+
+## SCREEN 3 — Create Account
+
+Fields:
+
+Name
+
+Email
+
+Password
+
+Agree to terms/privacy.
+
+Support link to Sign In.
+
+After submit → Verify Email.
+
+---
+
+## SCREEN 4 — Verify Email
+
+Display email address.
+
+Explain verification.
+
+Actions:
+
+Open email
+
+Resend
+
+Change email
+
+Verification success → continue setup.
+
+---
+
+## SCREEN 5 — Sign In
+
+Email/password.
+
+Remember me.
+
+Forgot password.
+
+Create account link.
+
+Successful login:
+
+If new → setup.
+
+If existing → Home.
+
+---
+
+## SCREEN 6 — Forgot Password
+
+Email field.
+
+Submit.
+
+Success state explaining reset email.
+
+---
+
+## SCREEN 7 — Reset Password
+
+New password.
+
+Confirm password.
+
+Success → Sign In.
+
+---
+
+## SCREEN 8 — Accept Team Invitation
+
+Show:
+
+Business name
+
+Inviter
+
+Role being offered
+
+Invitation expiration.
+
+Actions:
+
+Accept invitation
+
+Decline.
+
+If not signed in, flow through account/login first.
+
+---
+
+## SCREEN 9 — Privacy Policy
+
+Professional policy presentation.
+
+Readable layout with anchored sections.
+
+---
+
+## SCREEN 10 — Terms of Service
+
+Professional legal information presentation.
+
+---
+
+# B. FIRST-TIME BUSINESS SETUP AND DIAGNOSIS
+
+## SCREEN 11 — Welcome / Choose How to Start
+
+IMPORTANT.
+
+This is the first meaningful product screen after account entry.
+
+Headline:
+
+**How would you like to start?**
+
+Options:
+
+### Start my private business checkup
+
+Answer a few questions. No integrations required.
+
+Primary/recommended.
+
+### Explore a sample business
+
+Instantly open the complete SwiftHaul demo experience.
+
+### Resume setup
+
+Shown when partial progress exists.
+
+Explain:
+
+“You can connect accounts later.”
+
+Make the trust proposition very obvious.
+
+---
+
+## SCREEN 12 — Create Business Workspace
+
+Keep minimal.
+
+Fields:
+
+Business name
+
+Primary country
+
+Currency
+
+Optional website
+
+Do NOT request unnecessary information.
+
+Continue → private checkup introduction.
+
+---
+
+## SCREEN 13 — Private Business Checkup Introduction
+
+Headline:
+
+**Get your first diagnosis without connecting any accounts.**
+
+Explain:
+
+- takes only a few minutes,
+- exact financial figures are optional,
+- estimates are acceptable,
+- connections come later,
+- the purpose is to understand enough to produce useful insight.
+
+CTA:
+
+**Start checkup**
+
+Secondary:
+
+Use sample business.
+
+---
+
+## SCREEN 14 — Conversational Onboarding
+
+Build a polished AI conversation experience.
+
+Do NOT make it visually identical to ChatGPT.
+
+Keep product context visible.
+
+Left or top section can show:
+
+**What I'm learning**
+
+Business type ✓
+
+Goal ✓
+
+Customer journey in progress
+
+Performance signals pending.
+
+Suggested conversation progression should branch.
+
+Ask:
+
+“Tell me about your business and what you most want to improve.”
+
+Provide realistic responses.
+
+When user enters a natural answer, simulate extraction.
+
+Show occasional subtle confirmation:
+
+“I understand that most customers find you through Instagram and referrals.”
+
+Allow quick response chips such as:
+
+Increased
+
+Decreased
+
+About the same
+
+Don't know.
+
+Include privacy reassurance when sensitive questions arise.
+
+---
+
+## SCREEN 15 — Business Model / Buying Journey Confirmation
+
+Show what the system believes the business journey is.
+
+Example service:
+
+Instagram / Google / Referral
+
+↓
+
+Website / WhatsApp
+
+↓
+
+Enquiry
+
+↓
+
+Quote
+
+↓
+
+Customer
+
+Allow drag/edit/remove/add steps.
+
+Ask:
+
+**Does this look right?**
+
+Buttons:
+
+Yes, continue
+
+Edit journey.
+
+Allow Service / Ecommerce / Both.
+
+---
+
+## SCREEN 16 — What We Understand About Your Business
+
+Structured Business Brain summary.
+
+Sections:
+
+Business
+
+What you sell
+
+Primary goal
+
+Customers
+
+Customer journey
+
+Acquisition channels
+
+Known performance changes
+
+Known recent changes
+
+Show provenance for each fact:
+
+User supplied
+
+AI extracted
+
+Approximate.
+
+Actions:
+
+Edit
+
+Looks right
+
+Continue.
+
+---
+
+## SCREEN 17 — First Diagnosis
+
+This is a major “wow” page.
+
+Do not make it a dashboard.
+
+Use strong hero intelligence surface.
+
+Example:
+
+**We found the first thing worth investigating.**
+
+Then:
+
+> Your marketing activity and enquiries increased much faster than your number of customers. Your immediate constraint may be conversion rather than lead generation.
+
+Show:
+
+Marketing spend +40%
+
+Enquiries +50%
+
+Customers +4%
+
+Revenue +3%
+
+Then:
+
+**What this means**
+
+**Why it matters**
+
+**Recommended next investigation**
+
+Button:
+
+**See the evidence**
+
+Secondary:
+
+**Improve this diagnosis**
+
+---
+
+## SCREEN 18 — First Diagnosis Evidence
+
+Show:
+
+What we know
+
+What we think
+
+What we don't know
+
+Confidence.
+
+Example:
+
+Measured/User supplied:
+
+Marketing ↑
+
+Enquiries ↑
+
+Customers almost unchanged
+
+AI interpretation:
+
+Bottleneck likely after enquiry generation.
+
+Unknown:
+
+Lead quality
+
+Response time
+
+Channel-level conversion
+
+Pricing
+
+Follow-up.
+
+Confidence:
+
+Medium.
+
+Buttons:
+
+Improve diagnosis
+
+Continue with current understanding.
+
+---
+
+## SCREEN 19 — Improve My Diagnosis
+
+Offer multiple paths.
+
+Cards:
+
+### Enter a few numbers
+
+Aggregate/manual.
+
+### Upload data
+
+CSV or Excel.
+
+### Connect a source
+
+Read-only integration.
+
+### Continue for now
+
+Explain what each option unlocks.
+
+For demo flow, choosing “Enter numbers” should allow the Instagram/Google/referral enquiry/customer data to be entered and update diagnosis immediately.
+
+---
+
+## SCREEN 20 — Setup Complete / Enter Workspace
+
+Show progress summary.
+
+Example:
+
+Business profile ✓
+
+Initial diagnosis ✓
+
+Data coverage 42%
+
+Goal configured ✓
+
+Headline:
+
+**Your workspace is ready.**
+
+Explain that additional connections improve intelligence over time.
+
+CTA:
+
+**Enter Business Overview**
+
+---
+
+# C. HOME AND EXECUTIVE OVERVIEW
+
+## SCREEN 21 — Home / Business Overview
+
+This is the main command centre.
+
+It must answer four questions:
+
+### How are we doing?
+
+### What changed?
+
+### Why?
+
+### What should we do?
+
+Top area:
+
+Business status.
+
+Key metrics.
+
+Example SwiftHaul:
+
+Revenue ₦6.0m +3%
+
+Customers 49 +4%
+
+Enquiries 277 +50%
+
+Marketing spend ₦370k +40%
+
+Then:
+
+### Important change
+
+Enquiry volume grew significantly faster than customers.
+
+### AI insight
+
+Conversion appears to be the current growth constraint.
+
+### Recommended action
+
+Improve qualification/follow-up for Instagram enquiries.
+
+### Goal progress
+
+Increase monthly customers from 49 → 60.
+
+### Data coverage
+
+62%.
+
+### Recent timeline
+
+Three meaningful business events.
+
+Avoid overloading with graphs.
+
+---
+
+## SCREEN 22 — Business Health Detail
+
+Show health dimensions such as:
+
+Revenue health
+
+Marketing efficiency
+
+Customer acquisition
+
+Conversion
+
+Data coverage
+
+Website performance if available.
+
+Any overall score must be explainable.
+
+Example:
+
+**Marketing Efficiency — 61/100**
+
+Why:
+
+Marketing spend +40%
+
+Customers +4%
+
+Instagram CAC high
+
+Google acquisition efficient.
+
+Show formula/logic explanation in human language.
+
+Never present unexplained gamification.
+
+---
+
+## SCREEN 23 — Metric Drill-down
+
+Reusable detailed view opened by clicking metrics.
+
+Support examples:
+
+Revenue
+
+Customers
+
+CAC
+
+Conversion
+
+Orders
+
+Enquiries.
+
+Structure:
+
+Metric title/value
+
+Trend
+
+Comparison
+
+Timeline chart
+
+Breakdown
+
+Related channels/products
+
+Important changes
+
+Related insights
+
+Data source/provenance
+
+Ask AI about this metric.
+
+---
+
+# D. BUSINESS PERFORMANCE
+
+## SCREEN 24 — Performance Overview
+
+Provide one place to understand performance areas.
+
+Tabs/cards:
+
+Revenue
+
+Customers
+
+Funnel
+
+Marketing
+
+Website
+
+Products/Services
+
+Retention.
+
+Summarize important trends without duplicating Home.
+
+Date-range controls.
+
+---
+
+## SCREEN 25 — Revenue & Sales Performance
+
+Show:
+
+Total revenue
+
+Growth
+
+Customers/orders
+
+Average transaction value
+
+Revenue trend
+
+Revenue by channel
+
+Revenue by product/service where available
+
+Previous period comparison.
+
+AI interpretation:
+
+“Revenue increased only 3% despite a 40% increase in marketing spend.”
+
+---
+
+## SCREEN 26 — Customer Journey / Funnel
+
+Must dynamically change by business type.
+
+SwiftHaul:
+
+277 enquiries
+
+↓
+
+120 qualified
+
+↓
+
+77 quotes
+
+↓
+
+49 customers.
+
+Highlight largest percentage loss.
+
+KoraHome:
+
+18,430 visitors
+
+↓
+
+12,800 product viewers
+
+↓
+
+2,560 carts
+
+↓
+
+1,510 checkouts
+
+↓
+
+740 purchases.
+
+Visually identify bottleneck.
+
+Click stages for details.
+
+---
+
+## SCREEN 27 — Marketing Performance
+
+Table/chart:
+
+Channel
+
+Spend
+
+Enquiries/leads/orders
+
+Customers
+
+Revenue
+
+CAC
+
+Conversion
+
+ROI/ROAS when enough data exists.
+
+For SwiftHaul clearly show Instagram vs Google vs Referral.
+
+Insight:
+
+**Instagram produces the most enquiries but the weakest customer conversion.**
+
+---
+
+## SCREEN 28 — Marketing Channel Detail
+
+Open one channel.
+
+Example Instagram.
+
+Show:
+
+Spend
+
+Enquiries
+
+Customers
+
+Revenue
+
+CAC
+
+Conversion
+
+Trend
+
+Campaigns if simulated
+
+Related insight
+
+Recommendations
+
+Provenance.
+
+Allow switch between Instagram / Google / Referral.
+
+---
+
+## SCREEN 29 — Website & Conversion Performance
+
+Show:
+
+Traffic
+
+Unique visitors
+
+Device mix
+
+Visitor-to-enquiry or purchase conversion
+
+Top landing pages
+
+CTA interactions
+
+Mobile/desktop differences.
+
+For KoraHome expose mobile checkout issue.
+
+For SwiftHaul show website → enquiry behaviour.
+
+If website analytics are missing, show useful empty/insufficient state rather than fake numbers.
+
+---
+
+## SCREEN 30 — Product / Service Performance
+
+For service workspace:
+
+Services
+
+Enquiries
+
+Customers
+
+Revenue
+
+Conversion.
+
+Example services:
+
+Same-day Delivery
+
+Interstate Delivery
+
+Corporate Logistics.
+
+For ecommerce:
+
+Products
+
+Views
+
+Cart additions
+
+Orders
+
+Revenue
+
+Conversion
+
+Returns.
+
+Allow sorting/filtering.
+
+---
+
+## SCREEN 31 — Customer / Retention Performance
+
+Show where data allows:
+
+New vs repeat
+
+Repeat purchase rate
+
+Customer growth
+
+Retention
+
+Purchase frequency
+
+Average value
+
+Channel/source.
+
+When service business lacks repeat data, communicate limitation clearly.
+
+---
+
+# E. INSIGHTS, DIAGNOSIS AND OPPORTUNITIES
+
+## SCREEN 32 — Insights Feed
+
+Central intelligence feed.
+
+Filter:
+
+All
+
+Problems
+
+Opportunities
+
+Improvements
+
+Watch.
+
+Example cards:
+
+Conversion bottleneck
+
+High Instagram enquiry volume
+
+Google acquisition efficiency
+
+Revenue stagnation
+
+Mobile checkout risk.
+
+Each card shows:
+
+Type
+
+Importance
+
+Summary
+
+Confidence
+
+Date
+
+CTA.
+
+---
+
+## SCREEN 33 — Diagnosis / Root-Cause Detail
+
+This is a signature screen.
+
+Show a reasoning chain.
+
+Example:
+
+Customers barely changed
+
+↓
+
+Enquiries increased sharply
+
+↓
+
+Conversion decreased
+
+↓
+
+Largest decline among Instagram enquiries
+
+↓
+
+Possible causes require investigation.
+
+Sections:
+
+What happened
+
+Where it happened
+
+Evidence
+
+Possible explanation
+
+Other plausible explanations
+
+What we do NOT know
+
+Confidence
+
+Recommended action.
+
+Use a visual root-cause tree.
+
+Never imply certainty without evidence.
+
+---
+
+## SCREEN 34 — Opportunity Detail
+
+Example:
+
+Google converts enquiries significantly better than Instagram.
+
+Opportunity:
+
+Investigate whether additional qualified Google demand can be captured.
+
+Show:
+
+Why this was detected
+
+Evidence
+
+Potential impact
+
+Effort
+
+Confidence
+
+What additional information would strengthen conclusion
+
+Recommended next action.
+
+---
+
+## SCREEN 35 — Confidence / Evidence Detail
+
+Explain:
+
+Confidence level
+
+Data coverage
+
+Sources supporting conclusion
+
+Missing data
+
+Measured vs estimated vs interpreted.
+
+Example:
+
+Confidence: 82%
+
+Measured:
+
+Channel enquiries/customers
+
+User supplied:
+
+Offline referral totals
+
+Unknown:
+
+Response time by channel.
+
+Allow opening provenance records.
+
+---
+
+## SCREEN 36 — Alerts Centre
+
+List important business events.
+
+Filters:
+
+Critical
+
+Warning
+
+Opportunity
+
+Information
+
+Resolved.
+
+Examples:
+
+Shopify stopped syncing
+
+Revenue anomaly
+
+Marketing costs increased
+
+Conversion dropped
+
+Action measurement complete.
+
+Every alert communicates:
+
+What happened
+
+Why it matters
+
+What to do.
+
+---
+
+## SCREEN 37 — Alert Detail
+
+Show:
+
+Alert
+
+Time
+
+Affected metric/source
+
+Evidence
+
+Historical context
+
+Related diagnosis
+
+Recommended response
+
+Resolve / dismiss / investigate.
+
+---
+
+# F. RECOMMENDATIONS, ACTIONS AND EXPERIMENTS
+
+## SCREEN 38 — Action Centre
+
+This is a major core feature.
+
+Views:
+
+Recommended
+
+In progress
+
+Measuring
+
+Completed
+
+All.
+
+Categories:
+
+High priority
+
+Growth
+
+Performance
+
+Data
+
+Experiment.
+
+Show cards with:
+
+Action
+
+Reason
+
+Impact
+
+Effort
+
+Confidence
+
+Owner
+
+Status.
+
+---
+
+## SCREEN 39 — Recommendation Detail
+
+Required structure:
+
+### Problem
+
+### Evidence
+
+### Diagnosis
+
+### Recommendation
+
+### Expected impact
+
+### Effort
+
+### Confidence
+
+### Primary success metric
+
+### Measurement period
+
+### Execution type
+
+Example:
+
+**Improve qualification and follow-up for Instagram enquiries.**
+
+Buttons:
+
+Start action
+
+Ask about this
+
+Dismiss
+
+Save for later.
+
+---
+
+## SCREEN 40 — Start Action / Implementation Setup
+
+Turn recommendation into trackable work.
+
+Fields:
+
+Action title
+
+Owner
+
+Due date
+
+Implementation approach
+
+Success metric
+
+Measurement period
+
+Notes.
+
+Option:
+
+**Create as experiment**
+
+CTA:
+
+Start action.
+
+---
+
+## SCREEN 41 — Action Detail / Progress
+
+Show:
+
+Status
+
+Owner
+
+Started
+
+Target date
+
+Checklist
+
+Notes
+
+Evidence
+
+Recommendation origin
+
+Primary metric
+
+Activity history.
+
+Buttons:
+
+Update status
+
+Add note
+
+Mark implemented
+
+Create experiment.
+
+---
+
+## SCREEN 42 — Experiment Setup
+
+Fields:
+
+Hypothesis
+
+Action/change being tested
+
+Baseline metric
+
+Target metric
+
+Measurement window
+
+Start date
+
+Owner
+
+Other metrics to watch.
+
+Example:
+
+Hypothesis:
+
+Responding within 30 minutes improves Instagram conversion.
+
+Baseline:
+
+6%.
+
+Target:
+
+10%.
+
+Measurement:
+
+30 days.
+
+---
+
+## SCREEN 43 — Experiment / Measurement Tracking
+
+Show:
+
+Experiment status
+
+Days remaining
+
+Baseline
+
+Current value
+
+Target
+
+Timeline chart
+
+Other changes detected during measurement window.
+
+Important panel:
+
+**Other changes may affect attribution**
+
+Example:
+
+Instagram spend +10%.
+
+This is important for product credibility.
+
+---
+
+## SCREEN 44 — Outcome / Result Detail
+
+Compare:
+
+Before
+
+After
+
+Difference.
+
+Show:
+
+Primary metric
+
+Secondary metrics
+
+Other changes during period
+
+Attribution confidence
+
+AI interpretation
+
+Conclusion.
+
+Possible decisions:
+
+Keep change
+
+Revert
+
+Run longer
+
+Run another experiment.
+
+---
+
+## SCREEN 45 — Business Timeline / Change Ledger
+
+Chronological timeline combining:
+
+- business changes,
+- recommendations,
+- actions,
+- integration events,
+- promotions,
+- pricing changes,
+- website changes,
+- experiments,
+- important outcomes.
+
+Filters:
+
+All
+
+Actions
+
+External changes
+
+Recommendations
+
+Experiments
+
+Data events.
+
+This should feel like the memory of the business.
+
+---
+
+## SCREEN 46 — Add / Edit Business Change
+
+Allow user to manually record an offline/opaque business event.
+
+Fields:
+
+What changed?
+
+Category
+
+Date
+
+Before
+
+After
+
+Notes
+
+Related recommendation?
+
+Examples:
+
+Hired two salespeople.
+
+Started free delivery.
+
+Changed pricing.
+
+Launched promotion.
+
+---
+
+## SCREEN 47 — Detected Change Confirmation
+
+Modal/drawer.
+
+Example:
+
+**We noticed something changed.**
+
+Product A price changed:
+
+₦35,000 → ₦32,000.
+
+Was this related to Recommendation #284?
+
+Options:
+
+Yes
+
+No
+
+Partly
+
+Not sure.
+
+Allow note.
+
+This confirms relationships instead of inventing attribution.
+
+---
+
+# G. ASK YOUR BUSINESS
+
+## SCREEN 48 — Ask Your Business
+
+This should feel more expressive than other areas while still remaining serious business software.
+
+Prompt:
+
+**Ask anything about your business…**
+
+Suggestions:
+
+Why did sales fall?
+
+What should I focus on this week?
+
+Which channel is performing best?
+
+What changed this month?
+
+What have we tried before?
+
+Use a simulated data-grounded answer.
+
+Example question:
+
+“Why are we getting more enquiries but not more customers?”
+
+Answer should reference actual prototype data.
+
+Include inline evidence.
+
+Example:
+
+Instagram:
+
+184 enquiries → 11 customers.
+
+Google:
+
+62 → 24.
+
+Explain limitations.
+
+Buttons:
+
+View supporting data
+
+Create action
+
+Ask follow-up.
+
+---
+
+## SCREEN 49 — Conversation History
+
+List previous analyses.
+
+Show:
+
+Title
+
+Date
+
+Short summary
+
+Referenced period.
+
+Search/filter.
+
+Click opens conversation.
+
+---
+
+# H. DATA CENTRE
+
+## SCREEN 50 — Data Coverage Overview
+
+Signature screen.
+
+Show overall data coverage.
+
+Example:
+
+62%
+
+Then areas:
+
+Revenue 90%
+
+Marketing 85%
+
+Sales funnel 55%
+
+Website 40%
+
+Customers 35%.
+
+For each:
+
+What we know
+
+What's missing
+
+What additional data would unlock.
+
+CTA:
+
+Improve coverage.
+
+---
+
+## SCREEN 51 — Integrations / Data Sources Library
+
+Categories:
+
+Website analytics
+
+Advertising
+
+Ecommerce
+
+Payments
+
+Sales
+
+Manual/import.
+
+Prototype connectors may include:
+
+Google Analytics
+
+Google Ads
+
+Meta Ads
+
+Shopify
+
+WooCommerce
+
+Paystack
+
+Flutterwave
+
+CSV/Excel
+
+Manual Data.
+
+Clearly mark availability/prototype state.
+
+Integration cards can display capability badges such as:
+
+Read
+
+Observe
+
+Write
+
+but default trust model should emphasize read-only where possible.
+
+---
+
+## SCREEN 52 — Integration Detail
+
+Example Google Analytics.
+
+Show:
+
+What it provides
+
+Traffic
+
+Sessions
+
+Conversions
+
+Pages.
+
+What intelligence it unlocks.
+
+What permissions are needed.
+
+Current status.
+
+CTA:
+
+Connect.
+
+---
+
+## SCREEN 53 — Permission Review Before Connecting
+
+Very important trust screen.
+
+Show:
+
+### Why we need access
+
+### What we will read
+
+### What we cannot change
+
+### How to disconnect
+
+### What this unlocks
+
+Button:
+
+Continue with read-only connection.
+
+Secondary:
+
+Enter totals manually.
+
+---
+
+## SCREEN 54 — Connection Success / Initial Sync
+
+Show successful authorization.
+
+Then simulate:
+
+Connecting
+
+Importing data
+
+Calculating metrics
+
+Checking history
+
+Updating diagnosis.
+
+Progress state.
+
+Allow “Continue in background.”
+
+Finish → source settings / updated Data Coverage.
+
+---
+
+## SCREEN 55 — Connection Error / Reconnect
+
+Examples:
+
+Authorization expired.
+
+Permission missing.
+
+Account unavailable.
+
+Show:
+
+What happened
+
+What data is affected
+
+How to resolve.
+
+CTA:
+
+Reconnect.
+
+---
+
+## SCREEN 56 — Connected Source Settings
+
+Show:
+
+Account name
+
+Connected date
+
+Last sync
+
+Next sync
+
+Permissions
+
+Data types
+
+Health
+
+Disconnect.
+
+Buttons:
+
+Sync now
+
+Reconnect
+
+Disconnect.
+
+---
+
+## SCREEN 57 — Manual Data Entry
+
+Support periods.
+
+Example monthly entry:
+
+Marketing spend
+
+Enquiries
+
+Customers
+
+Revenue.
+
+Adapt ecommerce fields:
+
+Traffic
+
+Orders
+
+Revenue
+
+Marketing spend.
+
+Allow exact value / approximate / range where relevant.
+
+---
+
+## SCREEN 58 — Manual Data History
+
+Table:
+
+Period
+
+Metrics
+
+Updated by
+
+Last modified
+
+Status.
+
+Actions:
+
+View
+
+Edit
+
+Delete.
+
+---
+
+## SCREEN 59 — CSV / Excel Upload
+
+Drag-and-drop upload.
+
+Show supported example datasets.
+
+Buttons:
+
+Download sample template
+
+Browse files.
+
+Simulate file upload.
+
+---
+
+## SCREEN 60 — CSV Column Mapping
+
+Example uploaded columns:
+
+Date → Date
+
+Lead Source → Channel
+
+Enquiries → Enquiries
+
+Customers → Customers
+
+Revenue → Revenue.
+
+Allow ignoring fields.
+
+Preview sample rows.
+
+CTA:
+
+Continue.
+
+---
+
+## SCREEN 61 — Import Review & Validation
+
+Show:
+
+Rows detected
+
+Date range
+
+Mapped fields
+
+Warnings
+
+Potential duplicates
+
+Missing values.
+
+Buttons:
+
+Import
+
+Back to mapping.
+
+---
+
+## SCREEN 62 — Import Result / Error Report
+
+Show:
+
+Successful rows
+
+Skipped rows
+
+Failed rows
+
+Warnings.
+
+Allow download error report.
+
+Button:
+
+View imported data.
+
+---
+
+## SCREEN 63 — Data Quality Issues
+
+List issues such as:
+
+Missing September sales data
+
+Unattributed customers
+
+Revenue spike needs confirmation
+
+Duplicate CSV rows
+
+Old integration.
+
+Each item shows severity and impact.
+
+CTA:
+
+Resolve.
+
+---
+
+## SCREEN 64 — Data Provenance / Fact Detail
+
+Explain exactly where a metric/fact came from.
+
+Example:
+
+Revenue — ₦6.0m
+
+Source:
+
+Manual monthly submission
+
+Entered by:
+
+Workspace owner
+
+Date:
+
+Sept 30
+
+Precision:
+
+Exact
+
+Confidence:
+
+High.
+
+Or:
+
+Revenue change +3%
+
+Source:
+
+Calculated from August and September totals.
+
+Show dependencies.
+
+---
+
+# I. BUSINESS GOALS
+
+## SCREEN 65 — Goals Overview
+
+Show:
+
+Active
+
+At risk
+
+Completed
+
+Draft.
+
+Example goal:
+
+Increase monthly paying customers:
+
+49 → 60.
+
+Progress:
+
+49 / 60.
+
+Related recommendations.
+
+---
+
+## SCREEN 66 — Create / Edit Goal
+
+Goal type:
+
+Revenue
+
+Customers
+
+Orders
+
+Conversion
+
+Marketing efficiency
+
+Custom.
+
+Fields:
+
+Current baseline
+
+Target
+
+Deadline
+
+Owner
+
+Priority.
+
+---
+
+## SCREEN 67 — Goal Detail & Progress
+
+Show:
+
+Goal
+
+Progress timeline
+
+Required improvement
+
+Contributing metrics
+
+Related recommendations
+
+Actions completed
+
+Risks
+
+AI summary.
+
+Example:
+
+To reach 60 customers, current performance requires approximately 11 additional customers.
+
+Highlight possible paths without presenting guarantees.
+
+---
+
+# J. BUSINESS BRIEFS AND REPORTING
+
+## SCREEN 68 — Weekly Business Brief
+
+Readable executive brief.
+
+Sections:
+
+### This week
+
+Revenue
+
+Customers/orders
+
+Enquiries/traffic.
+
+### What changed
+
+### Pay attention to this
+
+### Opportunity
+
+### Recommended action
+
+### Goal progress
+
+CTA into details.
+
+---
+
+## SCREEN 69 — Monthly Business Review
+
+Professional report style.
+
+Sections:
+
+Executive Summary
+
+Revenue
+
+Sales/orders
+
+Marketing
+
+Customers
+
+Website
+
+What worked
+
+What did not
+
+Likely explanations
+
+Biggest opportunity
+
+Biggest risk
+
+Actions completed
+
+Results measured
+
+Priorities for next month.
+
+Provide Export PDF button visually, but simulation is acceptable.
+
+---
+
+## SCREEN 70 — Reports / Brief Archive
+
+List previous reports.
+
+Filters:
+
+Weekly
+
+Monthly
+
+Custom.
+
+Show period/date/status.
+
+Click to view.
+
+---
+
+# K. BUSINESS PROFILE / BUSINESS BRAIN
+
+## SCREEN 71 — Business Profile / Business Brain
+
+This is what the system currently understands.
+
+Tabs/sections:
+
+Overview
+
+Products/services
+
+Customers
+
+Journey
+
+Channels
+
+Priorities.
+
+Show provenance and confidence on business facts.
+
+Allow edits.
+
+---
+
+## SCREEN 72 — Products & Services Configuration
+
+Service workspace:
+
+Services
+
+Description
+
+Price/range
+
+Active status
+
+Priority.
+
+Ecommerce:
+
+Products/categories summary.
+
+Actions:
+
+Add
+
+Edit
+
+Archive.
+
+---
+
+## SCREEN 73 — Customer / Target Market Configuration
+
+Show:
+
+Primary customer segments
+
+B2B/B2C
+
+Locations
+
+Typical customer
+
+High-value segments.
+
+Allow editing.
+
+Do not overcomplicate into a full CRM.
+
+---
+
+## SCREEN 74 — Customer Journey Configuration
+
+Visual editable funnel.
+
+Allow:
+
+Add step
+
+Remove step
+
+Reorder.
+
+Support service/ecommerce templates.
+
+This model affects funnel analysis.
+
+---
+
+## SCREEN 75 — Channels Configuration
+
+Sections:
+
+Customer acquisition channels
+
+Sales channels
+
+Marketing channels
+
+Communication channels.
+
+Examples:
+
+Google
+
+Instagram
+
+Referral
+
+WhatsApp
+
+Website
+
+Phone.
+
+Mark tracked/untracked.
+
+---
+
+## SCREEN 76 — Business Goals & Priorities Configuration
+
+Strategic context used by AI.
+
+Examples:
+
+Acquire more customers
+
+Improve profitability
+
+Increase sales
+
+Improve conversion
+
+Improve retention.
+
+Allow ranking priorities.
+
+---
+
+# L. TEAM AND ACCOUNTABILITY
+
+## SCREEN 77 — Team Members
+
+Table/cards:
+
+Name
+
+Role
+
+Status
+
+Assigned actions
+
+Last active.
+
+Roles for MVP:
+
+Owner
+
+Admin
+
+Member.
+
+---
+
+## SCREEN 78 — Invite Team Member
+
+Email
+
+Role
+
+Optional message.
+
+Explain permissions.
+
+Send invitation.
+
+Success state.
+
+---
+
+## SCREEN 79 — Member Detail / Edit Access
+
+Show:
+
+Name
+
+Email
+
+Role
+
+Status
+
+Assigned actions
+
+Activity.
+
+Allow changing role or removing access based on permission.
+
+---
+
+## SCREEN 80 — Roles & Permissions
+
+Matrix.
+
+Owner:
+
+Full workspace control including billing/export/delete.
+
+Admin:
+
+Business operations, data, team/action management within allowed boundaries.
+
+Member:
+
+Business views and assigned/action collaboration.
+
+Do not over-engineer enterprise permission systems.
+
+---
+
+## SCREEN 81 — My Assigned Actions
+
+Personal work queue.
+
+Sections:
+
+Due soon
+
+In progress
+
+Measuring
+
+Completed.
+
+Open Action Detail.
+
+---
+
+# M. NOTIFICATIONS
+
+## SCREEN 82 — Notifications Centre
+
+List:
+
+Alerts
+
+Assignments
+
+Reports ready
+
+Experiment results
+
+Connection issues
+
+Invitations.
+
+Mark read/unread.
+
+Click to relevant screen.
+
+---
+
+## SCREEN 83 — Notification Preferences
+
+Channels:
+
+In-app
+
+Email.
+
+Preferences:
+
+Critical alerts
+
+Recommendations
+
+Assignments
+
+Weekly brief
+
+Monthly review
+
+Integration issues.
+
+---
+
+# N. ACCOUNT, WORKSPACE AND BILLING SETTINGS
+
+## SCREEN 84 — Workspace / Business Settings
+
+Fields:
+
+Business name
+
+Logo
+
+Currency
+
+Timezone
+
+Reporting period
+
+Default comparison period.
+
+---
+
+## SCREEN 85 — User Profile
+
+Name
+
+Email
+
+Photo/avatar
+
+Job role.
+
+---
+
+## SCREEN 86 — Security & Password
+
+Change password
+
+Active sessions
+
+Sign out other sessions.
+
+Optional MFA placeholder.
+
+---
+
+## SCREEN 87 — Privacy & Data Permissions
+
+Show connected-data permissions.
+
+Data retention explanation.
+
+AI usage/context explanation.
+
+Consent controls where appropriate.
+
+Links to export/delete.
+
+---
+
+## SCREEN 88 — Plan / Subscription
+
+Current plan.
+
+Usage/limits.
+
+Capabilities.
+
+Upgrade/downgrade buttons.
+
+Keep plan/pricing presentation illustrative.
+
+---
+
+## SCREEN 89 — Upgrade / Checkout
+
+Plan selection.
+
+Billing frequency.
+
+Summary.
+
+Payment mockup.
+
+Complete upgrade → success.
+
+No real processor required.
+
+---
+
+## SCREEN 90 — Payment Method
+
+Current method.
+
+Add/change/remove simulated payment method.
+
+---
+
+## SCREEN 91 — Invoices / Billing History
+
+Invoice number
+
+Date
+
+Amount
+
+Status
+
+Download/view.
+
+Use mock invoices.
+
+---
+
+## SCREEN 92 — Export / Delete Business Data
+
+Sections:
+
+Export my data
+
+Download report/data archive
+
+Delete workspace.
+
+Deletion requires strong confirmation.
+
+Use red/destructive treatment.
+
+---
+
+## SCREEN 93 — Help & Support
+
+Search help.
+
+Common topics:
+
+Connections
+
+Data uploads
+
+Diagnosis
+
+Actions
+
+Billing
+
+Account.
+
+Contact support CTA.
+
+---
+
+## SCREEN 94 — Send Feedback / Report Problem
+
+Type:
+
+Feedback
+
+Bug
+
+Data concern
+
+AI diagnosis concern.
+
+Textarea.
+
+Optional screenshot/upload visual affordance.
+
+Submit → success.
+
+---
+
+# O. CRITICAL SYSTEM STATES
+
+These MUST be implemented and accessible from Prototype Map.
+
+## SCREEN 95 — New Workspace / No Data Yet
+
+Do NOT say simply “No data.”
+
+Explain:
+
+“You haven't added enough information yet to understand performance.”
+
+Offer:
+
+Start checkup
+
+Enter data
+
+Connect source
+
+Explore demo.
+
+---
+
+## SCREEN 96 — Insufficient Data for Diagnosis
+
+Signature state.
+
+Headline:
+
+**We can see the problem, but not yet the cause.**
+
+Show:
+
+What we know
+
+What we don't know
+
+What additional information would unlock the answer.
+
+Example:
+
+Known:
+
+Customers declined
+
+Revenue declined
+
+Marketing spend known.
+
+Unknown:
+
+Lead source
+
+Website conversion.
+
+CTA:
+
+Connect Google Analytics / Add funnel data.
+
+Never invent a diagnosis.
+
+---
+
+## SCREEN 97 — Data Syncing
+
+Progress indicator.
+
+Show sources/data being processed.
+
+Allow leaving screen.
+
+---
+
+## SCREEN 98 — Data Stale / Sync Delayed
+
+Show:
+
+Last successful update
+
+Affected analyses
+
+Possible reason
+
+Recommended response.
+
+Buttons:
+
+Sync now
+
+Review connection.
+
+---
+
+## SCREEN 99 — Integration Disconnected
+
+Clear red risk state.
+
+Show:
+
+Source
+
+When disconnected
+
+What intelligence is affected.
+
+CTA:
+
+Reconnect.
+
+---
+
+## SCREEN 100 — Permission Denied
+
+Explain:
+
+What action cannot be performed
+
+User's current role
+
+Who can perform it.
+
+Do not present generic 403 text only.
+
+---
+
+## SCREEN 101 — Plan Limit / Subscription Expired
+
+Explain:
+
+Feature requested
+
+Current plan limitation
+
+What upgrading unlocks.
+
+CTA:
+
+View plans.
+
+---
+
+## SCREEN 102 — Session Expired
+
+Explain session expired.
+
+Sign in again.
+
+Preserve intended destination.
+
+---
+
+## SCREEN 103 — 404 / Page Not Found
+
+Professional state.
+
+Actions:
+
+Go Home
+
+Back.
+
+---
+
+## SCREEN 104 — General Error / Service Unavailable
+
+Calm technical failure state.
+
+Actions:
+
+Retry
+
+Go Home
+
+Contact support.
+
+Show reference code placeholder.
+
+---
+
+# P. INTERNAL PLATFORM ADMINISTRATION
+
+Internal admin must have visually related but distinct navigation.
+
+Route example:
+
+`/admin`
+
+This is not exposed to normal users.
+
+---
+
+## SCREEN 105 — Admin Dashboard
+
+Show platform-level metrics:
+
+Businesses
+
+Active users
+
+Connected sources
+
+Diagnoses generated
+
+Recommendations generated
+
+Connection failures
+
+Import failures
+
+Support cases.
+
+Include recent system events.
+
+---
+
+## SCREEN 106 — Businesses Management
+
+Search/filter all businesses.
+
+Columns:
+
+Business
+
+Type
+
+Owner
+
+Plan
+
+Status
+
+Data coverage
+
+Last active.
+
+Click business.
+
+---
+
+## SCREEN 107 — Business Admin Detail
+
+Show:
+
+Workspace
+
+Owner
+
+Plan
+
+Team size
+
+Data sources
+
+Sync health
+
+Data coverage
+
+Recent diagnoses
+
+Recommendations
+
+Support history.
+
+Admin troubleshooting actions should be clearly marked.
+
+---
+
+## SCREEN 108 — Users Management
+
+Search/filter users.
+
+Columns:
+
+Name
+
+Email
+
+Business
+
+Role
+
+Status
+
+Joined
+
+Last active.
+
+---
+
+## SCREEN 109 — User Admin Detail
+
+Account profile.
+
+Workspace memberships.
+
+Status.
+
+Invitation history.
+
+Login/security metadata mockup.
+
+Support actions.
+
+Do not expose unnecessary sensitive information.
+
+---
+
+## SCREEN 110 — Subscriptions & Payments Admin
+
+Businesses
+
+Plan
+
+Billing state
+
+Last payment
+
+Next renewal
+
+Failed payments.
+
+Use mock data.
+
+---
+
+## SCREEN 111 — Integration / Sync Health
+
+This is important operationally.
+
+Show all connections with:
+
+Source
+
+Business
+
+Last sync
+
+Status
+
+Failure count
+
+Last error.
+
+Filters:
+
+Healthy
+
+Delayed
+
+Failed.
+
+Click to details.
+
+---
+
+## SCREEN 112 — Background Jobs / Import Errors
+
+Show simulated jobs:
+
+Data sync
+
+CSV import
+
+Metric calculation
+
+Report generation.
+
+Columns:
+
+Job
+
+Business
+
+Started
+
+Duration
+
+Status
+
+Error.
+
+Expandable error detail.
+
+---
+
+## SCREEN 113 — AI Diagnosis & Recommendation Audit
+
+CRITICAL MVP ADMIN SCREEN.
+
+This allows platform operators to review AI quality.
+
+Show:
+
+Business
+
+Diagnosis
+
+Recommendation
+
+Confidence
+
+Evidence count
+
+Data coverage
+
+Date
+
+Feedback/status.
+
+Click item.
+
+Detail should show:
+
+Input metrics/facts
+
+Data provenance
+
+AI interpretation
+
+Diagnosis
+
+Recommendation
+
+Confidence
+
+Missing data
+
+Potential concerns
+
+User feedback
+
+Outcome if available.
+
+Admin actions:
+
+Mark reviewed
+
+Flag poor output
+
+Add internal note.
+
+This screen is essential for validating the product during MVP.
+
+---
+
+## SCREEN 114 — Support / Feedback Inbox
+
+List submitted support requests and feedback.
+
+Fields:
+
+Type
+
+Business
+
+User
+
+Summary
+
+Priority
+
+Status
+
+Created.
+
+Open case.
+
+Show full message and relevant workspace context.
+
+Actions:
+
+Open
+
+In progress
+
+Resolved
+
+Internal notes.
+
+---
+
+# 33. REUSABLE SCREEN TEMPLATES
+
+Do not create 114 totally separate visual systems.
+
+Reuse intelligently.
+
+### Intelligence Detail Template
+
+Used by:
+
+Diagnosis
+
+Opportunity
+
+Alert
+
+Recommendation.
+
+Shared structure:
+
+Summary
+
+Evidence
+
+Confidence
+
+Related metrics
+
+Next action.
+
+### Data Source Template
+
+Used by:
+
+Integration detail
+
+Connection
+
+Error
+
+Settings.
+
+### Settings Template
+
+Reusable page shell.
+
+### Action / Experiment Template
+
+Shared timeline, metrics and owner/status components.
+
+### Error / Empty State Template
+
+Reusable structure while preserving context.
+
+This creates consistency and makes the future product realistic to implement.
+
+---
+
+# 34. EMPTY STATES
+
+Never display only:
+
+“No data.”
+
+Instead explain:
+
+- what this section does,
+- why nothing is available,
+- what the user can do.
+
+Example:
+
+### No marketing data yet
+
+Connect a marketing source or enter monthly totals to compare which channels generate customers.
+
+Buttons:
+
+Connect data
+
+Enter manually.
+
+---
+
+# 35. CONFIDENCE LANGUAGE
+
+High confidence:
+
+Strong evidence/data coverage.
+
+Medium confidence:
+
+Useful signal but some information missing.
+
+Low confidence:
+
+Not enough evidence to isolate the cause.
+
+Low confidence is NOT an error.
+
+Do not use red for uncertainty unless there is an actual risk/error.
+
+---
+
+# 36. DATA-QUALITY LANGUAGE
+
+The platform should be transparent.
+
+Examples:
+
+> Sales data is 9 days old.
+
+> 23% of customers do not have an acquisition source.
+
+> August revenue was entered manually.
+
+> Website traffic is measured from Google Analytics.
+
+> The explanation below is an AI interpretation.
+
+This transparency is part of the product value.
+
+---
+
+# 37. CHANGE LEDGER PRINCIPLE
+
+The platform must never assume that its recommendation caused an outcome.
+
+Track business changes.
+
+An important result might happen after:
+
+- campaign adjustment,
+- pricing change,
+- website redesign,
+- promotion,
+- staffing change,
+- product launch.
+
+If several things changed during the measurement window, say so.
+
+Example:
+
+> Sales increased 24% following three significant changes: increased Google advertising, lower pricing and a website redesign. There is not enough evidence to isolate which change contributed most.
+
+Confidence:
+
+Low.
+
+This behaviour must appear in outcome/experiment screens.
+
+---
+
+# 38. ASK YOUR BUSINESS PRINCIPLE
+
+AI answers must look grounded in company data.
+
+Do not give generic answers such as:
+
+“Try improving your social media strategy.”
+
+Instead:
+
+> Instagram produced 184 enquiries during September but only 11 became customers, compared with 24 customers from 62 Google enquiries. The main issue therefore appears to be conversion quality rather than enquiry volume.
+
+Then:
+
+> We do not currently know whether the lower conversion is caused by lead quality or follow-up speed.
+
+This creates trust.
+
+---
+
+# 39. ADAPTIVE SERVICE VS ECOMMERCE EXPERIENCE
+
+Changing from SwiftHaul to KoraHome must visibly change:
+
+Funnel terminology
+
+Metric cards
+
+Performance pages
+
+Diagnosis examples
+
+Manual entry fields
+
+Product/service performance.
+
+Examples:
+
+Service:
+
+Enquiries
+
+Quotes
+
+Customers
+
+Ecommerce:
+
+Product views
+
+Carts
+
+Checkouts
+
+Orders.
+
+The navigation remains the same because the intelligence core is shared.
+
+---
+
+# 40. RECOMMENDATION EXECUTION TYPES
+
+Recommendations can visually communicate three execution models.
+
+### Automatic / Connected
+
+Potentially executable through integration.
+
+### Guided
+
+Platform explains exactly what to change.
+
+### Human action required
+
+Requires an employee/owner to perform it.
+
+For the MVP prototype, actual external execution does not need to happen.
+
+The important thing is that recommendations can still be valuable without API execution.
+
+---
+
+# 41. DATE AND TIME BEHAVIOUR
+
+Include realistic date filters.
+
+Examples:
+
+Last 7 days
+
+Last 30 days
+
+This month
+
+Last month
+
+Custom.
+
+Comparison:
+
+Previous period
+
+Previous month.
+
+Changing dates should update relevant mock values or at minimum visibly update the reporting-period labels.
+
+---
+
+# 42. NOTIFICATIONS AND ALERTS ARE DIFFERENT
+
+An **alert** is a meaningful business event.
+
+A **notification** is a delivery mechanism telling a user that something happened.
+
+Do not merge their concepts entirely.
+
+Example alert:
+
+“Instagram CAC increased 28%.”
+
+Notification:
+
+“You have a new high-priority business alert.”
+
+---
+
+# 43. MICRO-INTERACTIONS
+
+Add polished but restrained behaviour:
+
+- hover states,
+- button feedback,
+- loading skeletons,
+- smooth drawers,
+- card expansion,
+- success toasts,
+- tabs,
+- filters,
+- dropdowns,
+- tooltips,
+- chart tooltips,
+- inline validation,
+- progress transitions.
+
+Animation approximately:
+
+Fast:
+
+120–160ms
+
+Standard:
+
+180–240ms
+
+Large transitions:
+
+240–320ms.
+
+Do not use childish bouncing animations.
+
+---
+
+# 44. THINGS NOT TO INCLUDE IN THIS MVP
+
+Do NOT expand scope with separate full modules for:
+
+- competitor intelligence,
+- deep SEO intelligence,
+- AI/AEO visibility monitoring,
+- reputation management,
+- website builder,
+- autonomous AI execution agent,
+- campaign builder,
+- content generation engine,
+- customer feedback intelligence,
+- public business discovery marketplace,
+- industry benchmarking,
+- scenario simulator,
+- agency/consultant multi-client mode.
+
+Those are future product directions.
+
+The MVP should prove the central loop:
+
+**Understand → Measure → Diagnose → Recommend → Act → Measure again.**
+
+Do not quietly re-add future features and make the prototype unnecessarily broad.
+
+---
+
+# 45. PROTOTYPE QUALITY BAR
+
+This should NOT look like wireframes.
+
+It should be convincing enough for someone viewing it to believe:
+
+“This is what the actual product could look like.”
+
+Use:
+
+realistic data
+
+meaningful copy
+
+professional typography
+
+finished forms
+
+polished empty states
+
+detailed tables
+
+real chart content
+
+tooltips
+
+interaction states
+
+modals
+
+drawers
+
+filters
+
+loading states
+
+success/error feedback.
+
+Avoid lorem ipsum.
+
+Avoid placeholder labels such as:
+
+“Metric 1”
+
+“Card title”
+
+“Sample text.”
+
+---
+
+# 46. CONSISTENCY REQUIREMENT
+
+The same data should tell the same story everywhere.
+
+If September revenue is ₦6.0m on Home, it should not become ₦8.5m on Revenue Performance.
+
+If Instagram has 184 enquiries and 11 customers on Marketing Performance, use those same numbers in:
+
+Channel Detail
+
+Diagnosis
+
+Ask Your Business
+
+Evidence
+
+Recommendation.
+
+The prototype should behave as though one coherent data model exists underneath it.
+
+---
+
+# 47. REVIEWER-FRIENDLY PRODUCT STORY
+
+A reviewer opening SwiftHaul should quickly understand:
+
+1. Business performance appears superficially okay.
+
+2. Marketing activity increased sharply.
+
+3. Enquiries increased.
+
+4. Customer growth barely moved.
+
+5. The system investigates.
+
+6. Instagram generates a lot of low-converting enquiries.
+
+7. The product doesn't blindly blame Instagram.
+
+8. It recommends investigating qualification/follow-up.
+
+9. The recommendation becomes an action.
+
+10. The action can become an experiment.
+
+11. The platform tracks changes during the experiment.
+
+12. It measures the outcome.
+
+13. It reports attribution confidence.
+
+14. The business timeline remembers the learning.
+
+This is the core product demonstration.
+
+---
+
+# 48. REVIEWER-FRIENDLY ECOMMERCE STORY
+
+Switch to KoraHome and demonstrate:
+
+Traffic increased.
+
+Orders declined.
+
+Revenue declined.
+
+The system investigates.
+
+Product interest remains healthy.
+
+Mobile checkout completion fell sharply.
+
+Payment failures increased.
+
+The system identifies checkout as the most likely area requiring intervention.
+
+It recommends investigating mobile payment/checkout before buying more traffic.
+
+This demonstrates that the same intelligence system adapts to a different business model.
+
+---
+
+# 49. FINAL ACCEPTANCE CHECKLIST
+
+Before considering the prototype complete, verify ALL of the following:
+
+Every screen numbered 1–114 exists.
+
+Every screen is accessible through natural navigation OR Prototype Map.
+
+Main user flows have no dead ends.
+
+All major buttons work.
+
+Service and ecommerce demo workspaces both exist.
+
+Business terminology changes appropriately between archetypes.
+
+All important metrics use consistent data.
+
+First diagnosis flow works.
+
+Evidence/confidence views work.
+
+Data Coverage works.
+
+Manual data entry works.
+
+CSV upload journey works.
+
+Integration success journey works.
+
+Integration failure journey works.
+
+Insights → diagnosis journey works.
+
+Recommendation → action journey works.
+
+Action → experiment journey works.
+
+Experiment → outcome journey works.
+
+Change confirmation works.
+
+Business timeline works.
+
+Ask Your Business works with realistic answers.
+
+Goals flow works.
+
+Weekly brief works.
+
+Monthly review works.
+
+Business Brain works.
+
+Team/invitation flow works.
+
+Notifications work.
+
+Billing screens exist.
+
+Privacy/settings screens exist.
+
+System states 95–104 exist.
+
+Internal admin screens 105–114 exist.
+
+AI audit exists.
+
+No future modules listed as out-of-scope have accidentally become major MVP areas.
+
+No unexplained arbitrary health scores.
+
+No AI conclusion is presented as measured data.
+
+No causal claim is made where only correlation exists.
+
+No random colour usage.
+
+No dead CTA buttons.
+
+No lorem ipsum.
+
+No inconsistent metrics.
+
+No unnecessary sensitive information requested during first onboarding.
+
+---
+
+# 50. FINAL DELIVERABLE
+
+Create the working clickable prototype itself.
+
+Do not stop after writing a product plan.
+
+Do not respond with only a sitemap.
+
+Do not respond with only component descriptions.
+
+Do not create only a few sample screens.
+
+Actually build the prototype.
+
+When finished, provide:
+
+1. the working prototype,
+2. the `/prototype-index` screen showing all 114 screens/views/states,
+3. the ability to explore SwiftHaul Logistics,
+4. the ability to explore KoraHome Store,
+5. the full onboarding → diagnosis → recommendation → action → measurement flow,
+6. the internal admin prototype,
+7. a final coverage check verifying that Screens 1–114 are implemented.
+
+The single most important quality test is this:
+
+> **Can a business owner look at this product and quickly understand what is happening, what it means, what deserves attention, and what they should do next?**
+
+If the answer is yes, the prototype is doing its job.

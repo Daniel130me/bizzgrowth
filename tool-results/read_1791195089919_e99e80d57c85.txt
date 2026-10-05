@@ -1,0 +1,829 @@
+     1→"use client";
+     2→// Screens 51–56 — Sources Library, Integration Detail, Permission Review,
+     3→// Initial Sync, Connection Error, Connected Source Settings.
+     4→
+     5→import { useEffect, useRef, useState } from "react";
+     6→import {
+     7→  ArrowLeft,
+     8→  Check,
+     9→  CheckCircle2,
+    10→  ChevronRight,
+    11→  CircleAlert,
+    12→  Database,
+    13→  Eye,
+    14→  Lock,
+    15→  PenLine,
+    16→  Plug,
+    17→  RefreshCw,
+    18→  ShieldCheck,
+    19→  Sparkles,
+    20→  Unlock,
+    21→  Wrench,
+    22→} from "lucide-react";
+    23→import { toast } from "sonner";
+    24→import { Button } from "@/components/ui/button";
+    25→import { Card } from "@/components/ui/card";
+    26→import { Badge } from "@/components/ui/badge";
+    27→import { Progress } from "@/components/ui/progress";
+    28→import { Separator } from "@/components/ui/separator";
+    29→import {
+    30→  AlertDialog,
+    31→  AlertDialogAction,
+    32→  AlertDialogCancel,
+    33→  AlertDialogContent,
+    34→  AlertDialogDescription,
+    35→  AlertDialogFooter,
+    36→  AlertDialogHeader,
+    37→  AlertDialogTitle,
+    38→  AlertDialogTrigger,
+    39→} from "@/components/ui/alert-dialog";
+    40→import { EmptyState } from "@/components/shared/states";
+    41→import { InfoBanner, KeyValue, PageHeader, SectionCard } from "@/components/shared/layout";
+    42→import { StatusBadge } from "@/components/shared/badges";
+    43→import { useBizz } from "@/lib/store";
+    44→import { getBusiness } from "@/lib/data/businesses";
+    45→import { INTEGRATIONS, integrationById } from "@/lib/data/operations";
+    46→import { getPendingConnection, setPendingConnection } from "./session";
+    47→import { fmtDate } from "@/lib/format";
+    48→import { cn } from "@/lib/utils";
+    49→import type { Business, ConnectionStatus, IntegrationDef } from "@/lib/types";
+    50→import type { ViewMap } from "../view-types";
+    51→
+    52→// ---------- Shared bits ----------
+    53→
+    54→function effectiveStatus(int: IntegrationDef, connections: Record<string, ConnectionStatus>): ConnectionStatus {
+    55→  return connections[int.id] ?? int.status;
+    56→}
+    57→
+    58→function CapabilityBadge({ badge }: { badge: IntegrationDef["badge"] }) {
+    59→  const cls =
+    60→    badge === "Read"
+    61→      ? "bg-blue-50 text-blue-700 border-blue-200"
+    62→      : badge === "Observe"
+    63→        ? "bg-slate-100 text-slate-600 border-slate-200"
+    64→        : "bg-amber-50 text-amber-700 border-amber-200";
+    65→  const icon = badge === "Read" ? <Unlock className="size-3" aria-hidden /> : badge === "Observe" ? <Eye className="size-3" aria-hidden /> : <PenLine className="size-3" aria-hidden />;
+    66→  return (
+    67→    <Badge variant="outline" className={cn("gap-1 font-normal", cls)}>
+    68→      {icon}
+    69→      {badge}
+    70→    </Badge>
+    71→  );
+    72→}
+    73→
+    74→const CATEGORY_ORDER = ["Website analytics", "Advertising", "Ecommerce", "Payments", "Manual / import"];
+    75→
+    76→const UNLOCK_BY_CATEGORY: Record<string, string[]> = {
+    77→  "Website analytics": ["Funnel and website conversion diagnosis", "Upstream analysis of what happens before enquiries or visits convert"],
+    78→  Advertising: ["Channel efficiency, CAC and budget guidance", "Detection of spend changes during experiments"],
+    79→  Ecommerce: ["Checkout funnel and product performance analysis", "Device-level completion and abandonment diagnosis"],
+    80→  Payments: ["Payment-reliability diagnosis and failure-reason analysis"],
+    81→  "Manual / import": ["A baseline diagnosis with zero connections", "Aggregate-level intelligence while integrations are pending"],
+    82→};
+    83→
+    84→function accountNameFor(int: IntegrationDef, business: Business): string {
+    85→  switch (int.id) {
+    86→    case "meta-ads":
+    87→      return `${business.name} — Meta Business`;
+    88→    case "google-ads":
+    89→      return `${business.name} — Google Ads (CID 482-990-1128)`;
+    90→    case "google-analytics":
+    91→      return `${business.name} — GA4 property`;
+    92→    case "shopify":
+    93→      return `${business.name} — ${business.name.toLowerCase().replace(/[^a-z]/g, "")}.myshopify.com`;
+    94→    case "woocommerce":
+    95→      return `${business.name} — WooCommerce store`;
+    96→    case "paystack":
+    97→      return `${business.name} — Paystack primary`;
+    98→    case "flutterwave":
+    99→      return `${business.name} — Flutterwave NG`;
+   100→    case "csv":
+   101→      return "Uploaded files";
+   102→    case "manual":
+   103→      return `${business.name} — manual entries`;
+   104→    default:
+   105→      return `${business.name} — ${int.name}`;
+   106→  }
+   107→}
+   108→
+   109→// ---------- Screen 51 — Sources Library ----------
+   110→
+   111→function IntegrationsLibraryScreen() {
+   112→  const businessId = useBizz((s) => s.businessId);
+   113→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   114→  const connections = useBizz((s) => s.connections);
+   115→  const navigate = useBizz((s) => s.navigate);
+   116→  const business = getBusiness(businessId, userWorkspace);
+   117→
+   118→  const list = INTEGRATIONS.filter((i) => !i.businessId || i.businessId === businessId || i.status === "available");
+   119→
+   120→  return (
+   121→    <div className="mx-auto w-full max-w-6xl">
+   122→      <PageHeader
+   123→        title="Sources library"
+   124→        description={`Everything ${business.name} can connect for data. Connectors are read-only by default.`}
+   125→        back={
+   126→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("data")}>
+   127→            Back to Data Centre
+   128→          </Button>
+   129→        }
+   130→      />
+   131→
+   132→      <InfoBanner tone="info" title="Prototype note">
+   133→        Connectors are simulated in this prototype — no live accounts are accessed, and connecting takes a few seconds.
+   134→      </InfoBanner>
+   135→
+   136→      <div className="mt-5 space-y-6">
+   137→        {CATEGORY_ORDER.map((category) => {
+   138→          const items = list.filter((i) => i.category === category);
+   139→          if (items.length === 0) return null;
+   140→          return (
+   141→            <section key={category} aria-label={category}>
+   142→              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{category}</h2>
+   143→              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+   144→                {items.map((int) => {
+   145→                  const status = effectiveStatus(int, connections);
+   146→                  return (
+   147→                    <Card key={int.id} className="flex flex-col p-5">
+   148→                      <div className="flex items-start justify-between gap-2">
+   149→                        <h3 className="text-sm font-semibold">{int.name}</h3>
+   150→                        <StatusBadge status={status} />
+   151→                      </div>
+   152→                      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">{int.description}</p>
+   153→                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+   154→                        <Badge variant="outline" className="font-normal text-muted-foreground">
+   155→                          {int.category}
+   156→                        </Badge>
+   157→                        <CapabilityBadge badge={int.badge} />
+   158→                      </div>
+   159→                      <div className="mt-4 border-t pt-3">
+   160→                        {status === "available" ? (
+   161→                          <Button size="sm" className="w-full" onClick={() => navigate(`connect/${int.id}`)}>
+   162→                            <Plug className="mr-1.5 size-4" aria-hidden /> Connect
+   163→                          </Button>
+   164→                        ) : status === "connected" ? (
+   165→                          <Button size="sm" variant="outline" className="w-full" onClick={() => navigate(`source-settings/${int.id}`)}>
+   166→                            <Wrench className="mr-1.5 size-4" aria-hidden /> Manage
+   167→                          </Button>
+   168→                        ) : status === "syncing" ? (
+   169→                          <Button size="sm" variant="outline" className="w-full" onClick={() => navigate("syncing")}>
+   170→                            <RefreshCw className="mr-1.5 size-4 animate-spin" aria-hidden /> View sync
+   171→                          </Button>
+   172→                        ) : (
+   173→                          <Button size="sm" variant="destructive" className="w-full" onClick={() => navigate("connection-error")}>
+   174→                            <CircleAlert className="mr-1.5 size-4" aria-hidden /> Fix connection
+   175→                          </Button>
+   176→                        )}
+   177→                      </div>
+   178→                    </Card>
+   179→                  );
+   180→                })}
+   181→              </div>
+   182→            </section>
+   183→          );
+   184→        })}
+   185→      </div>
+   186→    </div>
+   187→  );
+   188→}
+   189→
+   190→// ---------- Screen 52 — Integration Detail ----------
+   191→
+   192→function IntegrationDetailScreen({ params }: { params: Record<string, string> }) {
+   193→  const businessId = useBizz((s) => s.businessId);
+   194→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   195→  const connections = useBizz((s) => s.connections);
+   196→  const navigate = useBizz((s) => s.navigate);
+   197→  const business = getBusiness(businessId, userWorkspace);
+   198→  const int = integrationById(params.id);
+   199→
+   200→  useEffect(() => {
+   201→    if (!int) navigate("integrations");
+   202→  }, [int, navigate]);
+   203→
+   204→  if (!int) return null;
+   205→  const status = effectiveStatus(int, connections);
+   206→
+   207→  return (
+   208→    <div className="mx-auto w-full max-w-4xl">
+   209→      <PageHeader
+   210→        title={int.name}
+   211→        description={int.description}
+   212→        back={
+   213→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("integrations")}>
+   214→            Back to sources
+   215→          </Button>
+   216→        }
+   217→        badge={
+   218→          <>
+   219→            <Badge variant="outline" className="font-normal text-muted-foreground">
+   220→              {int.category}
+   221→            </Badge>
+   222→            <CapabilityBadge badge={int.badge} />
+   223→            <StatusBadge status={status} />
+   224→          </>
+   225→        }
+   226→        actions={
+   227→          status === "available" ? (
+   228→            <Button onClick={() => navigate(`connect/${int.id}`)}>
+   229→              <Plug className="mr-1.5 size-4" aria-hidden /> Connect
+   230→            </Button>
+   231→          ) : status === "connected" ? (
+   232→            <Button variant="outline" onClick={() => navigate(`source-settings/${int.id}`)}>
+   233→              <Wrench className="mr-1.5 size-4" aria-hidden /> Manage source
+   234→            </Button>
+   235→          ) : status === "syncing" ? (
+   236→            <Button variant="outline" onClick={() => navigate("syncing")}>
+   237→              <RefreshCw className="mr-1.5 size-4 animate-spin" aria-hidden /> View sync
+   238→            </Button>
+   239→          ) : (
+   240→            <Button variant="destructive" onClick={() => navigate("connection-error")}>
+   241→              <CircleAlert className="mr-1.5 size-4" aria-hidden /> Fix connection
+   242→            </Button>
+   243→          )
+   244→        }
+   245→      />
+   246→
+   247→      <div className="space-y-5">
+   248→        <SectionCard title="What it provides" description="Data types this source supplies to your workspace.">
+   249→          <ul className="space-y-1.5">
+   250→            {int.provides.map((p) => (
+   251→              <li key={p} className="flex items-center gap-2 text-sm">
+   252→                <Check className="size-4 shrink-0 text-emerald-600" aria-hidden /> {p}
+   253→              </li>
+   254→            ))}
+   255→          </ul>
+   256→        </SectionCard>
+   257→
+   258→        <SectionCard title="What intelligence it unlocks">
+   259→          <div className="flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+   260→            <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
+   261→            <p className="text-sm leading-relaxed text-violet-900">{int.unlocks}</p>
+   262→          </div>
+   263→        </SectionCard>
+   264→
+   265→        <SectionCard title="Permissions needed" description="What bizzGrowth will read — and what it cannot do.">
+   266→          <div className="grid gap-4 sm:grid-cols-2">
+   267→            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+   268→              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-800">
+   269→                <Unlock className="size-3.5" aria-hidden /> What we will read
+   270→              </p>
+   271→              <ul className="mt-2 space-y-1.5">
+   272→                {int.permissions.read.map((r) => (
+   273→                  <li key={r} className="text-sm text-blue-900/80">
+   274→                    · {r}
+   275→                  </li>
+   276→                ))}
+   277→              </ul>
+   278→            </div>
+   279→            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+   280→              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+   281→                <Lock className="size-3.5" aria-hidden /> What we cannot do
+   282→              </p>
+   283→              <ul className="mt-2 space-y-1.5">
+   284→                {int.permissions.cannot.map((c) => (
+   285→                  <li key={c} className="text-sm text-slate-600">
+   286→                    · {c}
+   287→                  </li>
+   288→                ))}
+   289→              </ul>
+   290→            </div>
+   291→          </div>
+   292→        </SectionCard>
+   293→
+   294→        <SectionCard title="Current status">
+   295→          {status === "available" ? (
+   296→            <p className="text-sm text-muted-foreground">
+   297→              Not connected yet. Connecting takes about a minute and is read-only — review permissions before you continue.
+   298→            </p>
+   299→          ) : (
+   300→            <div className="space-y-2">
+   301→              <KeyValue label="Status">
+   302→                <StatusBadge status={status} />
+   303→              </KeyValue>
+   304→              {int.connectedSince ? (
+   305→                <KeyValue label="Connected since">{fmtDate(int.connectedSince)}</KeyValue>
+   306→              ) : null}
+   307→              <KeyValue label="Last sync">{int.lastSync ?? "—"}</KeyValue>
+   308→              <KeyValue label="Next sync">{int.nextSync ?? "—"}</KeyValue>
+   309→              <KeyValue label="Workspace">{int.businessId ? business.name : "All workspaces"}</KeyValue>
+   310→            </div>
+   311→          )}
+   312→        </SectionCard>
+   313→      </div>
+   314→    </div>
+   315→  );
+   316→}
+   317→
+   318→// ---------- Screen 53 — Permission Review ----------
+   319→
+   320→function ConnectPermissionScreen({ params }: { params: Record<string, string> }) {
+   321→  const businessId = useBizz((s) => s.businessId);
+   322→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   323→  const navigate = useBizz((s) => s.navigate);
+   324→  const setConnection = useBizz((s) => s.setConnection);
+   325→  const business = getBusiness(businessId, userWorkspace);
+   326→  const int = integrationById(params.id);
+   327→
+   328→  useEffect(() => {
+   329→    if (!int) navigate("integrations");
+   330→  }, [int, navigate]);
+   331→
+   332→  if (!int) return null;
+   333→
+   334→  function continueReadOnly() {
+   335→    if (!int) return;
+   336→    setPendingConnection(int.id);
+   337→    setConnection(int.id, "syncing");
+   338→    navigate("syncing");
+   339→  }
+   340→
+   341→  return (
+   342→    <div className="mx-auto w-full max-w-3xl">
+   343→      <PageHeader
+   344→        title="Review permissions before connecting"
+   345→        description={`${int.name} — read-only access. Nothing on your account can be changed without a separate, explicit action.`}
+   346→        back={
+   347→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(`integrations/${int.id}`)}>
+   348→            Back to {int.name}
+   349→          </Button>
+   350→        }
+   351→        badge={<CapabilityBadge badge={int.badge} />}
+   352→      />
+   353→
+   354→      <InfoBanner tone="info" title="Read-only by default">
+   355→        bizzGrowth requests read-only access. We never publish content, modify campaigns or move money on your accounts.
+   356→      </InfoBanner>
+   357→
+   358→      <div className="mt-5 space-y-4">
+   359→        <SectionCard title="Why we need access">
+   360→          <div className="flex items-start gap-2.5">
+   361→            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+   362→            <p className="text-sm leading-relaxed">{int.unlocks}</p>
+   363→          </div>
+   364→        </SectionCard>
+   365→
+   366→        <SectionCard title="What we will read">
+   367→          <ul className="space-y-1.5">
+   368→            {int.permissions.read.map((r) => (
+   369→              <li key={r} className="flex items-center gap-2 text-sm">
+   370→                <Check className="size-4 shrink-0 text-emerald-600" aria-hidden /> {r}
+   371→              </li>
+   372→            ))}
+   373→          </ul>
+   374→          <Separator className="my-3" />
+   375→          <p className="text-xs text-muted-foreground">Also imported: {int.provides.join(", ")}.</p>
+   376→        </SectionCard>
+   377→
+   378→        <SectionCard title="What we cannot do">
+   379→          <ul className="space-y-1.5">
+   380→            {int.permissions.cannot.map((c) => (
+   381→              <li key={c} className="flex items-center gap-2 text-sm">
+   382→                <Lock className="size-4 shrink-0 text-slate-500" aria-hidden /> {c}
+   383→              </li>
+   384→            ))}
+   385→          </ul>
+   386→        </SectionCard>
+   387→
+   388→        <SectionCard title="How to disconnect">
+   389→          <p className="text-sm leading-relaxed text-muted-foreground">
+   390→            One click in Data Centre → Connected sources. Imported data is retained for 30 days in case you reconnect, then deleted.
+   391→          </p>
+   392→        </SectionCard>
+   393→
+   394→        <SectionCard title="What this unlocks">
+   395→          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+   396→            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700">
+   397→              <Sparkles className="size-3.5" aria-hidden /> Insights that improve
+   398→            </p>
+   399→            <ul className="mt-2 space-y-1.5">
+   400→              {(UNLOCK_BY_CATEGORY[int.category] ?? [int.unlocks]).map((u) => (
+   401→                <li key={u} className="text-sm text-violet-900">
+   402→                  · {u}
+   403→                </li>
+   404→              ))}
+   405→            </ul>
+   406→          </div>
+   407→        </SectionCard>
+   408→      </div>
+   409→
+   410→      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+   411→        <Button onClick={continueReadOnly} className="flex-1">
+   412→          <ShieldCheck className="mr-1.5 size-4" aria-hidden /> Continue with read-only connection
+   413→        </Button>
+   414→        <Button variant="outline" className="flex-1" onClick={() => navigate("manual-entry")}>
+   415→          <PenLine className="mr-1.5 size-4" aria-hidden /> Enter totals manually instead
+   416→        </Button>
+   417→      </div>
+   418→      <p className="mt-3 text-center text-xs text-muted-foreground">
+   419→        You can disconnect at any time. Connecting as {business.name} workspace.
+   420→      </p>
+   421→    </div>
+   422→  );
+   423→}
+   424→
+   425→// ---------- Screen 54 — Connection Success / Initial Sync ----------
+   426→
+   427→const SYNC_STEPS = ["Authorizing", "Connecting", "Importing data", "Calculating metrics", "Checking history", "Updating diagnosis"];
+   428→
+   429→function SyncingScreen() {
+   430→  const navigate = useBizz((s) => s.navigate);
+   431→  const setConnection = useBizz((s) => s.setConnection);
+   432→  const [step, setStep] = useState(1); // step 0 (Authorizing) is already complete
+   433→  const finishedRef = useRef(false);
+   434→  const pendingId = getPendingConnection();
+   435→  const int = integrationById(pendingId);
+   436→  const name = int?.name ?? "Source";
+   437→
+   438→  useEffect(() => {
+   439→    if (step >= SYNC_STEPS.length) {
+   440→      if (finishedRef.current) return;
+   441→      const t = setTimeout(() => {
+   442→        if (finishedRef.current) return;
+   443→        finishedRef.current = true;
+   444→        setConnection(pendingId, "connected");
+   445→        toast.success(`${name} connected — first insights arriving`, {
+   446→          description: "Initial history is imported; metrics update on the next pass.",
+   447→        });
+   448→        navigate(`source-settings/${pendingId}`);
+   449→      }, 900);
+   450→      return () => clearTimeout(t);
+   451→    }
+   452→    const t = setTimeout(() => setStep((s) => s + 1), 2000);
+   453→    return () => clearTimeout(t);
+   454→  }, [step, pendingId, name, setConnection, navigate]);
+   455→
+   456→  const progress = Math.round(((step + 0.5) / SYNC_STEPS.length) * 100);
+   457→
+   458→  return (
+   459→    <div className="mx-auto w-full max-w-2xl">
+   460→      <Card className="p-6">
+   461→        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+   462→          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
+   463→          <div>
+   464→            <h1 className="text-base font-semibold text-emerald-900">{name} authorized successfully</h1>
+   465→            <p className="mt-0.5 text-sm text-emerald-800/80">
+   466→              Read-only connection established. First sync is running — this usually takes under a minute.
+   467→            </p>
+   468→          </div>
+   469→        </div>
+   470→
+   471→        <div className="mt-6">
+   472→          <div className="flex items-center justify-between text-sm">
+   473→            <span className="font-medium">Initial sync</span>
+   474→            <span className="tnum text-muted-foreground">{progress}%</span>
+   475→          </div>
+   476→          <Progress value={progress} className="mt-2 h-2 [&>div]:bg-blue-600" aria-label={`Sync progress ${progress}%`} />
+   477→        </div>
+   478→
+   479→        <ol className="mt-6 space-y-3" aria-label="Sync steps">
+   480→          {SYNC_STEPS.map((label, i) => {
+   481→            const done = i < step;
+   482→            const active = i === step;
+   483→            return (
+   484→              <li key={label} className="flex items-center gap-3">
+   485→                <span
+   486→                  className={cn(
+   487→                    "flex size-7 shrink-0 items-center justify-center rounded-full border",
+   488→                    done && "border-emerald-200 bg-emerald-50 text-emerald-600",
+   489→                    active && "border-blue-200 bg-blue-50 text-blue-600",
+   490→                    !done && !active && "border-slate-200 bg-slate-50 text-slate-400"
+   491→                  )}
+   492→                  aria-hidden
+   493→                >
+   494→                  {done ? (
+   495→                    <Check className="size-4" />
+   496→                  ) : active ? (
+   497→                    <RefreshCw className="size-4 animate-spin" />
+   498→                  ) : (
+   499→                    <span className="text-xs tnum">{i + 1}</span>
+   500→                  )}
+   501→                </span>
+   502→                <span className={cn("text-sm", done && "text-muted-foreground", active && "font-medium", !done && !active && "text-slate-400")}>
+   503→                  {label}
+   504→                  {done && i === 0 ? " — token verified" : ""}
+   505→                </span>
+   506→                {active ? (
+   507→                  <span className="ml-auto text-xs text-muted-foreground" role="status">
+   508→                    in progress…
+   509→                  </span>
+   510→                ) : null}
+   511→              </li>
+   512→            );
+   513→          })}
+   514→        </ol>
+   515→
+   516→        <div className="mt-6 flex flex-col gap-2 border-t pt-5 sm:flex-row">
+   517→          <Button variant="outline" className="flex-1" onClick={() => { toast("Sync continues in the background", { description: "You can keep working — we will notify you when the first insights arrive." }); navigate("data"); }}>
+   518→            Continue in background
+   519→          </Button>
+   520→          <p className="flex items-center justify-center text-xs text-muted-foreground sm:flex-1">
+   521→            Nothing can be changed on your account — this connection is read-only.
+   522→          </p>
+   523→        </div>
+   524→      </Card>
+   525→    </div>
+   526→  );
+   527→}
+   528→
+   529→// ---------- Screen 55 — Connection Error / Reconnect ----------
+   530→
+   531→function ConnectionErrorScreen() {
+   532→  const navigate = useBizz((s) => s.navigate);
+   533→  const setConnection = useBizz((s) => s.setConnection);
+   534→  const shopify = integrationById("shopify");
+   535→  const error = shopify?.error;
+   536→
+   537→  if (!shopify || !error) return null;
+   538→
+   539→  function reconnect() {
+   540→    setPendingConnection("shopify");
+   541→    setConnection("shopify", "syncing");
+   542→    navigate("syncing");
+   543→  }
+   544→
+   545→  return (
+   546→    <div className="mx-auto w-full max-w-3xl">
+   547→      <PageHeader
+   548→        title="Connection error"
+   549→        description={`${shopify.name} — connected source for KoraHome Store.`}
+   550→        back={
+   551→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("integrations")}>
+   552→            Back to sources
+   553→          </Button>
+   554→        }
+   555→        badge={<StatusBadge status="error" />}
+   556→      />
+   557→
+   558→      <InfoBanner tone="danger" title={error.title}>
+   559→        {error.detail}
+   560→      </InfoBanner>
+   561→
+   562→      <div className="mt-5 grid gap-4 md:grid-cols-3">
+   563→        <Card className="p-5">
+   564→          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+   565→            <CircleAlert className="size-4 text-red-500" aria-hidden /> What happened
+   566→          </h2>
+   567→          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{error.detail}</p>
+   568→          <p className="mt-2 text-xs text-muted-foreground">Detected: {error.time}</p>
+   569→        </Card>
+   570→        <Card className="p-5">
+   571→          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+   572→            <Database className="size-4 text-amber-500" aria-hidden /> What data is affected
+   573→          </h2>
+   574→          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{error.affected}</p>
+   575→          <p className="mt-2 text-xs text-muted-foreground">Historical data is retained and will backfill on reconnect.</p>
+   576→        </Card>
+   577→        <Card className="p-5">
+   578→          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+   579→            <Wrench className="size-4 text-blue-600" aria-hidden /> How to resolve
+   580→          </h2>
+   581→          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{error.resolution}</p>
+   582→          <p className="mt-2 text-xs text-muted-foreground">Takes under a minute. The connection stays read-only.</p>
+   583→        </Card>
+   584→      </div>
+   585→
+   586→      <Card className="mt-4 p-5">
+   587→        <h2 className="text-sm font-semibold">Sync schedule while paused</h2>
+   588→        <div className="mt-3 space-y-2">
+   589→          <KeyValue label="Last sync">{shopify.lastSync ?? "—"}</KeyValue>
+   590→          <KeyValue label="Next sync">{shopify.nextSync ?? "—"}</KeyValue>
+   591→        </div>
+   592→      </Card>
+   593→
+   594→      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+   595→        <Button onClick={reconnect} className="flex-1">
+   596→          <RefreshCw className="mr-1.5 size-4" aria-hidden /> Reconnect
+   597→        </Button>
+   598→        <Button variant="outline" className="flex-1" onClick={() => navigate("source-settings/shopify")}>
+   599→          Review source settings
+   600→        </Button>
+   601→      </div>
+   602→    </div>
+   603→  );
+   604→}
+   605→
+   606→// ---------- Screen 56 — Connected Source Settings ----------
+   607→
+   608→function SourceSettingsScreen({ params }: { params: Record<string, string> }) {
+   609→  const businessId = useBizz((s) => s.businessId);
+   610→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   611→  const connections = useBizz((s) => s.connections);
+   612→  const setConnection = useBizz((s) => s.setConnection);
+   613→  const navigate = useBizz((s) => s.navigate);
+   614→  const business = getBusiness(businessId, userWorkspace);
+   615→  const int = integrationById(params.id);
+   616→
+   617→  const [syncingNow, setSyncingNow] = useState(false);
+   618→  const [lastSyncOverride, setLastSyncOverride] = useState<string | null>(null);
+   619→  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+   620→
+   621→  useEffect(() => {
+   622→    return () => {
+   623→      if (syncTimer.current) clearTimeout(syncTimer.current);
+   624→    };
+   625→  }, []);
+   626→
+   627→  if (!int) {
+   628→    return (
+   629→      <div className="mx-auto w-full max-w-3xl">
+   630→        <PageHeader title="Connected source" />
+   631→        <EmptyState
+   632→          icon={<Plug className="size-5" />}
+   633→          title="Source not found"
+   634→          description="We couldn't find that source. Pick a source from the library instead."
+   635→          actions={
+   636→            <Button size="sm" onClick={() => navigate("integrations")}>
+   637→              Open sources library
+   638→            </Button>
+   639→          }
+   640→        />
+   641→      </div>
+   642→    );
+   643→  }
+   644→
+   645→  const status = effectiveStatus(int, connections);
+   646→
+   647→  if (status === "available") {
+   648→    return (
+   649→      <div className="mx-auto w-full max-w-3xl">
+   650→        <PageHeader title={`${int.name} settings`} back={<Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("integrations")}>Back to sources</Button>} />
+   651→        <EmptyState
+   652→          icon={<Plug className="size-5" />}
+   653→          title={`${int.name} is not connected yet`}
+   654→          description="Connect this source to see settings, sync history and health."
+   655→          actions={
+   656→            <Button size="sm" onClick={() => navigate(`connect/${int.id}`)}>
+   657→              <Plug className="mr-1.5 size-4" aria-hidden /> Connect {int.name}
+   658→            </Button>
+   659→          }
+   660→        />
+   661→      </div>
+   662→    );
+   663→  }
+   664→
+   665→  function syncNow() {
+   666→    setSyncingNow(true);
+   667→    syncTimer.current = setTimeout(() => {
+   668→      setSyncingNow(false);
+   669→      setLastSyncOverride("Just now");
+   670→      toast.success("Sync complete", { description: `${int?.name ?? "Source"} data is up to date.` });
+   671→    }, 2000);
+   672→  }
+   673→
+   674→  function reconnect() {
+   675→    setPendingConnection(int!.id);
+   676→    setConnection(int!.id, "syncing");
+   677→    navigate("syncing");
+   678→  }
+   679→
+   680→  function disconnect() {
+   681→    setConnection(int!.id, "available");
+   682→    toast("Source disconnected", { description: `${int?.name ?? "Source"} data is retained for 30 days.` });
+   683→    navigate("integrations");
+   684→  }
+   685→
+   686→  return (
+   687→    <div className="mx-auto w-full max-w-3xl">
+   688→      <PageHeader
+   689→        title={`${int.name} settings`}
+   690→        description={int.description}
+   691→        back={
+   692→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("integrations")}>
+   693→            Back to sources
+   694→          </Button>
+   695→        }
+   696→        badge={<StatusBadge status={status} />}
+   697→      />
+   698→
+   699→      <div className="space-y-5">
+   700→        <SectionCard title="Account">
+   701→          <div className="space-y-2">
+   702→            <KeyValue label="Account name">{accountNameFor(int, business)}</KeyValue>
+   703→            <KeyValue label="Connected since">{int.connectedSince ? fmtDate(int.connectedSince) : "—"}</KeyValue>
+   704→            <KeyValue label="Last sync">
+   705→              {lastSyncOverride ?? (status === "error" ? int.lastSync ?? "—" : int.lastSync ?? "A few minutes ago")}
+   706→            </KeyValue>
+   707→            <KeyValue label="Next sync">{status === "error" ? "paused" : int.nextSync ?? "In about an hour"}</KeyValue>
+   708→          </div>
+   709→        </SectionCard>
+   710→
+   711→        <SectionCard title="Health">
+   712→          <div className="flex flex-wrap items-center gap-3">
+   713→            <StatusBadge status={status} />
+   714→            <p className="text-sm text-muted-foreground">
+   715→              {status === "connected"
+   716→                ? "Syncing normally. Data lands in your workspace within minutes of each sync window."
+   717→                : status === "error"
+   718→                  ? "Last sync failed — authorization needs to be refreshed. Historical data is retained."
+   719→                  : "Initial sync in progress."}
+   720→            </p>
+   721→          </div>
+   722→        </SectionCard>
+   723→
+   724→        <SectionCard title="Permissions" description="Read-only — these cannot be widened from the prototype.">
+   725→          <div className="grid gap-4 sm:grid-cols-2">
+   726→            <div>
+   727→              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Reads</p>
+   728→              <ul className="mt-1.5 space-y-1">
+   729→                {int.permissions.read.map((r) => (
+   730→                  <li key={r} className="text-sm text-muted-foreground">
+   731→                    · {r}
+   732→                  </li>
+   733→                ))}
+   734→              </ul>
+   735→            </div>
+   736→            <div>
+   737→              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Cannot</p>
+   738→              <ul className="mt-1.5 space-y-1">
+   739→                {int.permissions.cannot.map((c) => (
+   740→                  <li key={c} className="text-sm text-muted-foreground">
+   741→                    · {c}
+   742→                  </li>
+   743→                ))}
+   744→              </ul>
+   745→            </div>
+   746→          </div>
+   747→        </SectionCard>
+   748→
+   749→        <SectionCard title="Data types">
+   750→          <div className="flex flex-wrap gap-2">
+   751→            {int.provides.map((p) => (
+   752→              <Badge key={p} variant="outline" className="font-normal text-muted-foreground">
+   753→                {p}
+   754→              </Badge>
+   755→            ))}
+   756→          </div>
+   757→        </SectionCard>
+   758→      </div>
+   759→
+   760→      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+   761→        <Button onClick={syncNow} disabled={syncingNow} className="flex-1">
+   762→          {syncingNow ? (
+   763→            <>
+   764→              <RefreshCw className="mr-1.5 size-4 animate-spin" aria-hidden /> Syncing…
+   765→            </>
+   766→          ) : (
+   767→            <>
+   768→              <RefreshCw className="mr-1.5 size-4" aria-hidden /> Sync now
+   769→            </>
+   770→          )}
+   771→        </Button>
+   772→        <Button variant="outline" className="flex-1" onClick={reconnect}>
+   773→          Reconnect
+   774→        </Button>
+   775→        <AlertDialog>
+   776→          <AlertDialogTrigger asChild>
+   777→            <Button variant="destructive" className="flex-1">
+   778→              Disconnect
+   779→            </Button>
+   780→          </AlertDialogTrigger>
+   781→          <AlertDialogContent>
+   782→            <AlertDialogHeader>
+   783→              <AlertDialogTitle>Disconnect {int.name}?</AlertDialogTitle>
+   784→              <AlertDialogDescription>
+   785→                {accountNameFor(int, business)} will stop syncing. Analyses that use this source will note the gap until you
+   786→                reconnect. Imported data is retained for 30 days.
+   787→              </AlertDialogDescription>
+   788→            </AlertDialogHeader>
+   789→            <AlertDialogFooter>
+   790→              <AlertDialogCancel>Cancel</AlertDialogCancel>
+   791→              <AlertDialogAction onClick={disconnect} className="bg-red-600 hover:bg-red-700">
+   792→                Disconnect
+   793→              </AlertDialogAction>
+   794→            </AlertDialogFooter>
+   795→          </AlertDialogContent>
+   796→        </AlertDialog>
+   797→      </div>
+   798→
+   799→      {status === "error" ? (
+   800→        <button
+   801→          onClick={() => navigate("connection-error")}
+   802→          className="mt-4 flex w-full items-center justify-between rounded-xl border border-red-200 bg-red-50/60 p-4 text-left transition-colors hover:bg-red-50"
+   803→        >
+   804→          <span className="flex items-center gap-2 text-sm font-medium text-red-800">
+   805→            <CircleAlert className="size-4" aria-hidden /> Authorization expired — reconnect required
+   806→          </span>
+   807→          <ChevronRight className="size-4 text-red-400" aria-hidden />
+   808→        </button>
+   809→      ) : null}
+   810→
+   811→      <button
+   812→        onClick={() => navigate(`integrations/${int.id}`)}
+   813→        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline"
+   814→      >
+   815→        <ArrowLeft className="size-4" aria-hidden /> What {int.name} provides and unlocks
+   816→      </button>
+   817→    </div>
+   818→  );
+   819→}
+   820→
+   821→export const views: ViewMap = {
+   822→  integrations: IntegrationsLibraryScreen,
+   823→  "integrations/:id": IntegrationDetailScreen,
+   824→  "connect/:id": ConnectPermissionScreen,
+   825→  syncing: SyncingScreen,
+   826→  "connection-error": ConnectionErrorScreen,
+   827→  "source-settings/:id": SourceSettingsScreen,
+   828→};
+   829→

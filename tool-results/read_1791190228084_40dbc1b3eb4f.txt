@@ -1,0 +1,2002 @@
+     1→# MASTER BUILD PROMPT
+     2→
+     3→## Business Intelligence / AI Growth Operating System — Complete Clickable MVP Prototype
+     4→
+     5→You are an expert product designer, UX architect, SaaS product strategist, and frontend engineer.
+     6→
+     7→Your task is to create a **complete, high-fidelity, interactive prototype** of a new AI-powered Business Intelligence and Growth Operating System for growing small and medium-sized businesses.
+     8→
+     9→This is NOT a landing-page-only exercise.
+    10→
+    11→This is NOT a collection of disconnected dashboard mockups.
+    12→
+    13→This must be a **deep, realistic, clickable end-to-end product prototype** that can be shown to:
+    14→
+    15→- potential customers,
+    16→- business owners,
+    17→- investors,
+    18→- advisors,
+    19→- product reviewers,
+    20→- development teams,
+    21→- stakeholders considering whether the product should be built.
+    22→
+    23→The people reviewing the prototype should be able to click through the product and understand how the proposed MVP works without anyone explaining every screen to them.
+    24→
+    25→---
+    26→
+    27→# 1. CRITICAL INSTRUCTION
+    28→
+    29→Build the entire MVP experience.
+    30→
+    31→Do not simplify this into 10–20 screens.
+    32→
+    33→There are **114 required product views/states** described below.
+    34→
+    35→Some are full pages.
+    36→
+    37→Some are detail views.
+    38→
+    39→Some are tabs.
+    40→
+    41→Some are drawers.
+    42→
+    43→Some are dialogs.
+    44→
+    45→Some are system states.
+    46→
+    47→Some are internal administrative screens.
+    48→
+    49→They do not all need separate navigation items, but they MUST all exist and be demonstrable.
+    50→
+    51→Do not omit boring screens such as:
+    52→
+    53→- connection errors,
+    54→- CSV mapping,
+    55→- insufficient-data states,
+    56→- permissions,
+    57→- team invitation,
+    58→- billing,
+    59→- stale-data states,
+    60→- change confirmation,
+    61→- experiment tracking,
+    62→- action outcomes,
+    63→- AI audit screens,
+    64→- support screens.
+    65→
+    66→These are part of the MVP.
+    67→
+    68→Create reusable layouts/components rather than making 114 unrelated designs.
+    69→
+    70→---
+    71→
+    72→# 2. WHAT THE PRODUCT IS
+    73→
+    74→The product is best understood as an:
+    75→
+    76→> **AI Business Growth Operating System**
+    77→
+    78→Its job is to understand a business, observe its performance, identify problems and opportunities, explain why something may be happening, recommend what the business should do next, help the business track those actions, and measure what happened afterward.
+    79→
+    80→The central product loop is:
+    81→
+    82→**Understand → Measure → Diagnose → Recommend → Act → Measure again**
+    83→
+    84→Another way to express it is:
+    85→
+    86→**Connect → Understand → Measure → Diagnose → Recommend → Execute → Measure again**
+    87→
+    88→Everything in the prototype must support this loop.
+    89→
+    90→This is much more than:
+    91→
+    92→- analytics,
+    93→- dashboards,
+    94→- SEO software,
+    95→- AI chat,
+    96→- website analytics,
+    97→- CRM reporting,
+    98→- marketing reporting.
+    99→
+   100→The product connects business information together and translates it into decisions.
+   101→
+   102→The central promise is:
+   103→
+   104→> **Understand what is happening in your business, why it is happening, and what you should do next.**
+   105→
+   106→---
+   107→
+   108→# 3. THE PROBLEM BEING SOLVED
+   109→
+   110→Many growing businesses already have:
+   111→
+   112→- customers,
+   113→- sales,
+   114→- marketing,
+   115→- websites,
+   116→- Instagram/Facebook activity,
+   117→- Google activity,
+   118→- WhatsApp enquiries,
+   119→- payment platforms,
+   120→- ecommerce stores,
+   121→- spreadsheets,
+   122→- reports,
+   123→- advertising campaigns.
+   124→
+   125→Their problem is not necessarily lack of data.
+   126→
+   127→Their problem is:
+   128→
+   129→> **“We have information everywhere, but we don't know what it means.”**
+   130→
+   131→Typical questions include:
+   132→
+   133→> Why did sales fall this month?
+   134→
+   135→> Which marketing channel is actually producing customers?
+   136→
+   137→> We generated more enquiries, so why didn't revenue grow?
+   138→
+   139→> Is our website helping or hurting us?
+   140→
+   141→> What should we work on next?
+   142→
+   143→> Where are potential customers being lost?
+   144→
+   145→> Are we spending too much to acquire customers?
+   146→
+   147→> Which products or services are actually driving growth?
+   148→
+   149→> We implemented something last month. Did it actually help?
+   150→
+   151→The product should answer questions like these.
+   152→
+   153→---
+   154→
+   155→# 4. PRIMARY CUSTOMER
+   156→
+   157→Design around:
+   158→
+   159→> **Growing small-to-medium-sized businesses that already acquire customers digitally but do not clearly understand what is driving revenue, what is underperforming, or what they should improve next.**
+   160→
+   161→The primary person using the product is often:
+   162→
+   163→- founder,
+   164→- business owner,
+   165→- CEO,
+   166→- growth decision-maker,
+   167→- marketing manager.
+   168→
+   169→They are NOT data scientists.
+   170→
+   171→They should not need to understand complicated analytics terminology before gaining value.
+   172→
+   173→Use simple business language:
+   174→
+   175→- sales,
+   176→- revenue,
+   177→- customers,
+   178→- enquiries,
+   179→- orders,
+   180→- leads,
+   181→- marketing spend,
+   182→- conversion,
+   183→- opportunities,
+   184→- risks.
+   185→
+   186→Technical concepts can exist, but they should be explained.
+   187→
+   188→---
+   189→
+   190→# 5. BUSINESS TYPES SUPPORTED IN THE MVP
+   191→
+   192→The MVP supports TWO primary business archetypes through ONE shared intelligence system.
+   193→
+   194→Do not build two separate applications.
+   195→
+   196→## Archetype A — Service Business
+   197→
+   198→Examples:
+   199→
+   200→- logistics company,
+   201→- law firm,
+   202→- clinic,
+   203→- real estate business,
+   204→- training company,
+   205→- school,
+   206→- consultant,
+   207→- software company,
+   208→- cleaning business,
+   209→- travel agency,
+   210→- professional services business.
+   211→
+   212→Typical funnel:
+   213→
+   214→**Instagram / Google / Referral  
+   215→→ Website / WhatsApp / Call  
+   216→→ Enquiry  
+   217→→ Qualified lead  
+   218→→ Proposal/Quote  
+   219→→ Customer  
+   220→→ Revenue**
+   221→
+   222→Important metrics include:
+   223→
+   224→- enquiries,
+   225→- qualified leads,
+   226→- customers,
+   227→- enquiry-to-customer conversion,
+   228→- proposal conversion,
+   229→- lead source,
+   230→- revenue,
+   231→- CAC,
+   232→- marketing efficiency.
+   233→
+   234→---
+   235→
+   236→## Archetype B — Digitally Active Product / Ecommerce Business
+   237→
+   238→Examples:
+   239→
+   240→- Shopify stores,
+   241→- WooCommerce stores,
+   242→- online retailers,
+   243→- Instagram shops,
+   244→- consumer brands,
+   245→- digital product businesses.
+   246→
+   247→Typical funnel:
+   248→
+   249→**Instagram / Google / Referral  
+   250→→ Website  
+   251→→ Product view  
+   252→→ Add to cart  
+   253→→ Checkout  
+   254→→ Purchase  
+   255→→ Repeat purchase  
+   256→→ Revenue**
+   257→
+   258→Important metrics include:
+   259→
+   260→- traffic,
+   261→- product views,
+   262→- add-to-cart rate,
+   263→- checkout rate,
+   264→- purchase conversion,
+   265→- orders,
+   266→- average order value,
+   267→- repeat purchases,
+   268→- revenue,
+   269→- CAC,
+   270→- marketing efficiency.
+   271→
+   272→---
+   273→
+   274→## Hybrid businesses
+   275→
+   276→The model may eventually support businesses with both service and product revenue.
+   277→
+   278→For this prototype it is enough to demonstrate that the architecture can understand:
+   279→
+   280→**Service**
+   281→
+   282→**Product/Ecommerce**
+   283→
+   284→**Both**
+   285→
+   286→---
+   287→
+   288→# 6. PRODUCT PHILOSOPHY
+   289→
+   290→The software must always distinguish between:
+   291→
+   292→### What happened
+   293→
+   294→Measured business information.
+   295→
+   296→### What it may mean
+   297→
+   298→Interpretation or diagnosis.
+   299→
+   300→### What could be done
+   301→
+   302→Recommendation.
+   303→
+   304→### What actually changed
+   305→
+   306→Action/change event.
+   307→
+   308→### What happened afterward
+   309→
+   310→Outcome.
+   311→
+   312→This distinction is extremely important.
+   313→
+   314→Do NOT design the platform as if AI magically knows everything.
+   315→
+   316→---
+   317→
+   318→# 7. TRUST AND EVIDENCE
+   319→
+   320→This is one of the most important product principles.
+   321→
+   322→Every important conclusion should make it possible to see:
+   323→
+   324→- what data supports it,
+   325→- where the data came from,
+   326→- whether it is exact or approximate,
+   327→- whether it was entered by a user,
+   328→- whether it came from an integration,
+   329→- whether it is an estimate,
+   330→- whether it is AI interpretation,
+   331→- how confident the system is.
+   332→
+   333→Use provenance labels throughout the product.
+   334→
+   335→### Measured
+   336→
+   337→Information directly retrieved from a source.
+   338→
+   339→### User supplied
+   340→
+   341→Information manually provided.
+   342→
+   343→### Estimated
+   344→
+   345→Approximate/calculated information.
+   346→
+   347→### AI interpretation
+   348→
+   349→A conclusion produced by reasoning over the available evidence.
+   350→
+   351→Never visually treat these four categories as identical.
+   352→
+   353→---
+   354→
+   355→# 8. PROGRESSIVE INTELLIGENCE
+   356→
+   357→Do NOT require a business to connect everything before receiving value.
+   358→
+   359→The product should become more intelligent as more information becomes available.
+   360→
+   361→Think of the progression as:
+   362→
+   363→**Level 0 — Demo**
+   364→
+   365→No information required.
+   366→
+   367→**Level 1 — Private Diagnostic**
+   368→
+   369→Business context + rough trends.
+   370→
+   371→**Level 2 — Aggregate Data**
+   372→
+   373→Monthly/weekly totals.
+   374→
+   375→**Level 3 — Read-only Connections**
+   376→
+   377→Connected analytics, marketing, sales or ecommerce sources.
+   378→
+   379→**Level 4 — Deeper Intelligence**
+   380→
+   381→Multiple sources allow better root-cause analysis.
+   382→
+   383→**Level 5 — Actions and Change History**
+   384→
+   385→The system observes what the business changed.
+   386→
+   387→**Level 6 — Outcome Learning**
+   388→
+   389→The platform begins understanding what historically works for this particular business.
+   390→
+   391→This progression should be visible throughout the UX.
+   392→
+   393→---
+   394→
+   395→# 9. TRUST LADDER
+   396→
+   397→Do not ask a new user for highly sensitive access immediately.
+   398→
+   399→The experience should progress approximately:
+   400→
+   401→**Demo**
+   402→
+   403→↓
+   404→
+   405→**Anonymous / approximate business trends**
+   406→
+   407→↓
+   408→
+   409→**Aggregate numbers**
+   410→
+   411→↓
+   412→
+   413→**Read-only integrations**
+   414→
+   415→↓
+   416→
+   417→**Optional execution permissions later**
+   418→
+   419→Read access must never automatically imply write access.
+   420→
+   421→Whenever an integration is being connected, clearly communicate:
+   422→
+   423→### Why we need it
+   424→
+   425→Example:
+   426→
+   427→“To compare website activity with customer acquisition.”
+   428→
+   429→### What we can access
+   430→
+   431→Example:
+   432→
+   433→“Traffic, sessions and conversions.”
+   434→
+   435→### What we cannot do
+   436→
+   437→Example:
+   438→
+   439→“We cannot modify your website.”
+   440→
+   441→### What this unlocks
+   442→
+   443→Example:
+   444→
+   445→“Website conversion analysis and better diagnosis.”
+   446→
+   447→Provide an alternative such as:
+   448→
+   449→**Enter monthly totals instead**
+   450→
+   451→where appropriate.
+   452→
+   453→---
+   454→
+   455→# 10. CONVERSATIONAL BUSINESS ONBOARDING
+   456→
+   457→The onboarding experience should NOT be a rigid 12-step questionnaire.
+   458→
+   459→The core concept is a conversational Business Context Engine.
+   460→
+   461→The AI manages conversation.
+   462→
+   463→Structured application logic manages the truth.
+   464→
+   465→The conversational interface should progressively understand:
+   466→
+   467→- business type,
+   468→- business model,
+   469→- what the company sells,
+   470→- who it sells to,
+   471→- primary goal,
+   472→- acquisition channels,
+   473→- buying journey,
+   474→- marketing trend,
+   475→- enquiry/traffic trend,
+   476→- customer/order trend,
+   477→- revenue trend where available,
+   478→- major recent business changes.
+   479→
+   480→The system should act as though it is filling a hidden structured model.
+   481→
+   482→The AI should ask:
+   483→
+   484→> **What is the minimum next question that would increase useful understanding the most?**
+   485→
+   486→Do not ask something the user has already answered indirectly.
+   487→
+   488→Example conversation:
+   489→
+   490→AI:
+   491→
+   492→“Tell me briefly about your business and what you're trying to improve.”
+   493→
+   494→User:
+   495→
+   496→“We run a cleaning company in Lagos. Most customers come through Instagram and referrals. We've been spending more on Instagram lately but I don't think we're getting more customers.”
+   497→
+   498→The system should understand:
+   499→
+   500→- business = cleaning/service,
+   501→- location = Lagos,
+   502→- acquisition sources = Instagram + referrals,
+   503→- issue = possible marketing efficiency/conversion problem.
+   504→
+   505→It should NOT then ask:
+   506→
+   507→“What channels do customers come from?”
+   508→
+   509→Instead ask something useful such as:
+   510→
+   511→“Compared with the previous month, did the number of enquiries increase, decrease or stay roughly the same?”
+   512→
+   513→If user refuses exact revenue:
+   514→
+   515→“That's fine. I don't need the actual amount. Would you say revenue increased, decreased or stayed roughly the same?”
+   516→
+   517→The system should know when enough evidence exists for a preliminary diagnosis and STOP asking questions.
+   518→
+   519→---
+   520→
+   521→# 11. FIRST WOW MOMENT
+   522→
+   523→The first wow moment must NOT be:
+   524→
+   525→“Here is your dashboard.”
+   526→
+   527→The wow moment is:
+   528→
+   529→> **“We noticed something about your business.”**
+   530→
+   531→Example:
+   532→
+   533→Marketing spend:
+   534→
+   535→**↑ 40%**
+   536→
+   537→Enquiries:
+   538→
+   539→**↑ 50%**
+   540→
+   541→Customers:
+   542→
+   543→**↑ 5%**
+   544→
+   545→Revenue:
+   546→
+   547→**↑ 3%**
+   548→
+   549→Diagnosis:
+   550→
+   551→> **Your immediate growth constraint may not be lead generation.**
+   552→
+   553→> Marketing activity and enquiries increased significantly, but customers barely increased. The biggest opportunity may be between enquiry and customer rather than simply increasing advertising spend.
+   554→
+   555→Then show:
+   556→
+   557→### What we know
+   558→
+   559→Marketing ↑  
+   560→Enquiries ↑  
+   561→Customers almost unchanged  
+   562→Revenue almost unchanged
+   563→
+   564→### What we think
+   565→
+   566→The bottleneck likely occurs after enquiry generation.
+   567→
+   568→### What we don't yet know
+   569→
+   570→Whether the issue is:
+   571→
+   572→- lead quality,
+   573→- response time,
+   574→- pricing,
+   575→- follow-up,
+   576→- sales process.
+   577→
+   578→### Unlock a better answer
+   579→
+   580→Add channel-level enquiry/customer totals or connect a marketing/sales source.
+   581→
+   582→This concept should appear throughout the product.
+   583→
+   584→---
+   585→
+   586→# 12. PROTOTYPE DATA
+   587→
+   588→Do not use random values on every page.
+   589→
+   590→Use a coherent shared dataset.
+   591→
+   592→Create TWO fictional demo businesses.
+   593→
+   594→---
+   595→
+   596→## DEMO BUSINESS A — SwiftHaul Logistics
+   597→
+   598→Type:
+   599→
+   600→Service business
+   601→
+   602→Location:
+   603→
+   604→Lagos, Nigeria
+   605→
+   606→Model:
+   607→
+   608→B2B + B2C logistics
+   609→
+   610→Primary goal:
+   611→
+   612→Increase paying customers without wasting marketing spend.
+   613→
+   614→Customer journey:
+   615→
+   616→**Google / Instagram / Referral  
+   617→→ Website / WhatsApp  
+   618→→ Enquiry  
+   619→→ Quote  
+   620→→ Customer**
+   621→
+   622→Current reporting period:
+   623→
+   624→September 2026
+   625→
+   626→Previous period:
+   627→
+   628→August 2026
+   629→
+   630→### August
+   631→
+   632→Marketing spend:
+   633→
+   634→₦265,000
+   635→
+   636→Enquiries:
+   637→
+   638→185
+   639→
+   640→Customers:
+   641→
+   642→47
+   643→
+   644→Revenue:
+   645→
+   646→₦5.83m
+   647→
+   648→### September
+   649→
+   650→Marketing spend:
+   651→
+   652→₦370,000
+   653→
+   654→Enquiries:
+   655→
+   656→277
+   657→
+   658→Customers:
+   659→
+   660→49
+   661→
+   662→Revenue:
+   663→
+   664→₦6.0m
+   665→
+   666→This produces approximately:
+   667→
+   668→Marketing spend:
+   669→
+   670→**+40%**
+   671→
+   672→Enquiries:
+   673→
+   674→**+50%**
+   675→
+   676→Customers:
+   677→
+   678→**+4–5%**
+   679→
+   680→Revenue:
+   681→
+   682→**+3%**
+   683→
+   684→The business is generating significantly more interest without producing proportional customer/revenue growth.
+   685→
+   686→---
+   687→
+   688→## September channel breakdown
+   689→
+   690→### Instagram
+   691→
+   692→Spend:
+   693→
+   694→₦200,000
+   695→
+   696→Enquiries:
+   697→
+   698→184
+   699→
+   700→Customers:
+   701→
+   702→11
+   703→
+   704→Revenue:
+   705→
+   706→₦1.8m
+   707→
+   708→Customer conversion:
+   709→
+   710→approximately 6%
+   711→
+   712→CAC:
+   713→
+   714→approximately ₦18,182
+   715→
+   716→### Google Search
+   717→
+   718→Spend:
+   719→
+   720→₦150,000
+   721→
+   722→Enquiries:
+   723→
+   724→62
+   725→
+   726→Customers:
+   727→
+   728→24
+   729→
+   730→Revenue:
+   731→
+   732→₦2.5m
+   733→
+   734→Customer conversion:
+   735→
+   736→approximately 38.7%
+   737→
+   738→CAC:
+   739→
+   740→₦6,250
+   741→
+   742→### Referral
+   743→
+   744→Spend:
+   745→
+   746→₦20,000
+   747→
+   748→Enquiries:
+   749→
+   750→31
+   751→
+   752→Customers:
+   753→
+   754→14
+   755→
+   756→Revenue:
+   757→
+   758→₦1.7m
+   759→
+   760→Customer conversion:
+   761→
+   762→approximately 45%
+   763→
+   764→CAC:
+   765→
+   766→approximately ₦1,429
+   767→
+   768→The major insight should therefore be:
+   769→
+   770→> Instagram produces the most enquiries but the weakest enquiry-to-customer conversion.
+   771→
+   772→Do not automatically claim Instagram itself is the cause.
+   773→
+   774→Say instead:
+   775→
+   776→> The largest conversion gap appears among Instagram enquiries. More information about lead quality and follow-up would strengthen this diagnosis.
+   777→
+   778→---
+   779→
+   780→# 13. SAMPLE RECOMMENDATION STORY
+   781→
+   782→Use the following story across several screens so reviewers can experience the complete product loop.
+   783→
+   784→### Problem
+   785→
+   786→Marketing activity increased significantly without proportional customer growth.
+   787→
+   788→### Evidence
+   789→
+   790→Instagram:
+   791→
+   792→184 enquiries → 11 customers
+   793→
+   794→Google:
+   795→
+   796→62 enquiries → 24 customers
+   797→
+   798→Referral:
+   799→
+   800→31 enquiries → 14 customers
+   801→
+   802→### Diagnosis
+   803→
+   804→The immediate bottleneck appears to be conversion rather than generating additional enquiries.
+   805→
+   806→### Recommendation
+   807→
+   808→**Improve qualification and follow-up for Instagram enquiries before increasing Instagram advertising spend.**
+   809→
+   810→Impact:
+   811→
+   812→High
+   813→
+   814→Effort:
+   815→
+   816→Medium
+   817→
+   818→Confidence:
+   819→
+   820→82%
+   821→
+   822→Primary metric:
+   823→
+   824→Instagram enquiry → customer conversion
+   825→
+   826→Measurement window:
+   827→
+   828→30 days
+   829→
+   830→Execution type:
+   831→
+   832→Human / guided action
+   833→
+   834→Suggested tasks:
+   835→
+   836→- create simple enquiry qualification questions,
+   837→- respond to new enquiries faster,
+   838→- introduce follow-up sequence,
+   839→- track lead status,
+   840→- record reason for lost leads.
+   841→
+   842→Allow the user to:
+   843→
+   844→**Start action**
+   845→
+   846→Assign owner:
+   847→
+   848→Sales Manager
+   849→
+   850→Set target date.
+   851→
+   852→Create experiment.
+   853→
+   854→Mark implementation complete.
+   855→
+   856→Monitor results.
+   857→
+   858→View outcome.
+   859→
+   860→---
+   861→
+   862→# 14. SAMPLE EXPERIMENT
+   863→
+   864→Experiment:
+   865→
+   866→**Faster Instagram enquiry follow-up**
+   867→
+   868→Hypothesis:
+   869→
+   870→Responding to qualified Instagram enquiries within 30 minutes will improve enquiry-to-customer conversion.
+   871→
+   872→Baseline:
+   873→
+   874→Instagram conversion:
+   875→
+   876→6.0%
+   877→
+   878→Target:
+   879→
+   880→10%
+   881→
+   882→Measurement:
+   883→
+   884→30 days
+   885→
+   886→Other changes detected during measurement window:
+   887→
+   888→- Instagram spend +10%
+   889→- pricing unchanged
+   890→- website unchanged
+   891→
+   892→Outcome example:
+   893→
+   894→Instagram conversion:
+   895→
+   896→6.0% → 9.1%
+   897→
+   898→Customers:
+   899→
+   900→11 → 17
+   901→
+   902→Attribution confidence:
+   903→
+   904→Medium
+   905→
+   906→Conclusion:
+   907→
+   908→> Conversion improved after the new follow-up process. The timing suggests the intervention may have contributed, although Instagram spend also increased during the period.
+   909→
+   910→Never say:
+   911→
+   912→“The recommendation caused the improvement.”
+   913→
+   914→unless the evidence supports causation.
+   915→
+   916→---
+   917→
+   918→# 15. DEMO BUSINESS B — KoraHome Store
+   919→
+   920→Type:
+   921→
+   922→Product / Ecommerce
+   923→
+   924→Platform:
+   925→
+   926→Shopify
+   927→
+   928→Location:
+   929→
+   930→Nigeria
+   931→
+   932→Customer journey:
+   933→
+   934→**Google / Instagram  
+   935→→ Website  
+   936→→ Product page  
+   937→→ Add to cart  
+   938→→ Checkout  
+   939→→ Purchase  
+   940→→ Repeat purchase**
+   941→
+   942→Use this business to demonstrate that the same product adapts to ecommerce.
+   943→
+   944→Sample problem:
+   945→
+   946→Traffic:
+   947→
+   948→**+24%**
+   949→
+   950→Orders:
+   951→
+   952→**-8%**
+   953→
+   954→Revenue:
+   955→
+   956→**-8%**
+   957→
+   958→Mobile checkout completion:
+   959→
+   960→**71% → 49%**
+   961→
+   962→Payment failures:
+   963→
+   964→**+31%**
+   965→
+   966→Diagnosis:
+   967→
+   968→> Demand appears relatively healthy. The largest performance deterioration occurs during mobile checkout.
+   969→
+   970→Recommendation:
+   971→
+   972→> Investigate mobile checkout and payment failures before increasing traffic acquisition.
+   973→
+   974→This sample workspace should be selectable from the workspace/demo switcher.
+   975→
+   976→---
+   977→
+   978→# 16. PROTOTYPE IMPLEMENTATION REQUIREMENTS
+   979→
+   980→This is a PROTOTYPE.
+   981→
+   982→Do not spend time building production integrations or backend infrastructure.
+   983→
+   984→However, it must FEEL like a working product.
+   985→
+   986→Use realistic mock data and simulated asynchronous behaviour.
+   987→
+   988→If generating code, preferably use:
+   989→
+   990→- React or Next.js,
+   991→- TypeScript,
+   992→- Tailwind CSS,
+   993→- reusable component architecture,
+   994→- Lucide icons,
+   995→- a chart library such as Recharts,
+   996→- local application state,
+   997→- localStorage where useful.
+   998→
+   999→If the builder uses another frontend stack, reproduce equivalent behaviour.
+  1000→
+  1001→No backend is required.
+  1002→
+  1003→No real OAuth is required.
+  1004→
+  1005→No real AI API is required.
+  1006→
+  1007→No real payment processing is required.
+  1008→
+  1009→No real external integration is required.
+  1010→
+  1011→Simulate them convincingly.
+  1012→
+  1013→---
+  1014→
+  1015→# 17. INTERACTION REQUIREMENTS
+  1016→
+  1017→There must be NO dead primary buttons.
+  1018→
+  1019→Important interactions must work.
+  1020→
+  1021→Examples:
+  1022→
+  1023→Click metric → metric drill-down.
+  1024→
+  1025→Click insight → diagnosis detail.
+  1026→
+  1027→Click recommendation → recommendation detail.
+  1028→
+  1029→Click Start Action → implementation setup.
+  1030→
+  1031→Submit setup → action appears in Action Centre.
+  1032→
+  1033→Mark action complete → start measurement state.
+  1034→
+  1035→Create experiment → experiment tracking.
+  1036→
+  1037→Finish measurement → outcome screen.
+  1038→
+  1039→Click evidence → evidence panel.
+  1040→
+  1041→Click source badge → provenance detail.
+  1042→
+  1043→Click health dimension → health detail.
+  1044→
+  1045→Click channel → channel detail.
+  1046→
+  1047→Click notification → related object.
+  1048→
+  1049→Click alert → alert detail.
+  1050→
+  1051→Click Connect → permission review.
+  1052→
+  1053→Confirm connection → syncing state.
+  1054→
+  1055→Sync finishes → connected state.
+  1056→
+  1057→Trigger failure → reconnect state.
+  1058→
+  1059→Upload CSV → mapping → validation → result.
+  1060→
+  1061→Create goal → goal detail.
+  1062→
+  1063→Invite user → pending team member.
+  1064→
+  1065→Change role → permissions update.
+  1066→
+  1067→Ask suggested AI question → simulated data-grounded answer.
+  1068→
+  1069→Change date range → update visible data.
+  1070→
+  1071→Switch business → interface changes between service/ecommerce terminology.
+  1072→
+  1073→Save settings → persist in prototype.
+  1074→
+  1075→Use drawers, dialogs and toasts where appropriate.
+  1076→
+  1077→---
+  1078→
+  1079→# 18. PROTOTYPE-ONLY REVIEWER MODE
+  1080→
+  1081→Create a hidden prototype route such as:
+  1082→
+  1083→`/prototype-index`
+  1084→
+  1085→or a small unobtrusive “Prototype Map” available only in demo mode.
+  1086→
+  1087→This is NOT a production feature.
+  1088→
+  1089→It is for reviewers.
+  1090→
+  1091→It must list:
+  1092→
+  1093→Screen 1 → Screen 114
+  1094→
+  1095→with:
+  1096→
+  1097→- screen number,
+  1098→- screen name,
+  1099→- category,
+  1100→- button to open it,
+  1101→- implementation status.
+  1102→
+  1103→This allows reviewers to inspect every required screen/state without manually reproducing every condition.
+  1104→
+  1105→At completion, every item must say:
+  1106→
+  1107→**Implemented**
+  1108→
+  1109→---
+  1110→
+  1111→# 19. GLOBAL PRODUCT NAVIGATION
+  1112→
+  1113→Customer application sidebar:
+  1114→
+  1115→**Home**
+  1116→
+  1117→**Performance**
+  1118→
+  1119→**Insights**
+  1120→
+  1121→**Actions**
+  1122→
+  1123→**Ask**
+  1124→
+  1125→**Data**
+  1126→
+  1127→**Goals**
+  1128→
+  1129→**Reports**
+  1130→
+  1131→Settings contains:
+  1132→
+  1133→**Business**
+  1134→
+  1135→**Team**
+  1136→
+  1137→**Billing**
+  1138→
+  1139→**Account**
+  1140→
+  1141→**Privacy**
+  1142→
+  1143→Notifications and alerts live primarily in the header.
+  1144→
+  1145→Integrations are accessible through Data.
+  1146→
+  1147→Do NOT create a 20-item sidebar.
+  1148→
+  1149→---
+  1150→
+  1151→# 20. GLOBAL APP SHELL
+  1152→
+  1153→Desktop-first application.
+  1154→
+  1155→Use:
+  1156→
+  1157→**Left sidebar + top header + content area**
+  1158→
+  1159→Header should contain:
+  1160→
+  1161→- workspace/business switcher,
+  1162→- reporting date range,
+  1163→- optional “Data updated X minutes ago” indicator,
+  1164→- notifications,
+  1165→- help,
+  1166→- user avatar/menu.
+  1167→
+  1168→Support responsive layouts.
+  1169→
+  1170→Primary prototype target:
+  1171→
+  1172→1440px desktop.
+  1173→
+  1174→Also ensure reasonable usability around:
+  1175→
+  1176→1024px tablet/laptop
+  1177→
+  1178→and mobile width.
+  1179→
+  1180→---
+  1181→
+  1182→# 21. DESIGN PERSONALITY
+  1183→
+  1184→The product should feel like:
+  1185→
+  1186→**Modern + Intelligent + Business-facing + Trustworthy + Action-oriented**
+  1187→
+  1188→Use inspiration from the clarity of products such as:
+  1189→
+  1190→- Stripe,
+  1191→- Linear,
+  1192→- Notion,
+  1193→- HubSpot,
+  1194→- modern AI products.
+  1195→
+  1196→Do NOT copy any product.
+  1197→
+  1198→Do NOT make this look like:
+  1199→
+  1200→- an accounting package,
+  1201→- an old enterprise dashboard,
+  1202→- a crypto dashboard,
+  1203→- a playful consumer AI chatbot,
+  1204→- a spreadsheet with cards,
+  1205→- a template full of random gradients.
+  1206→
+  1207→The product should feel premium enough that someone could believe this is an emerging serious SaaS company.
+  1208→
+  1209→---
+  1210→
+  1211→# 22. DESIGN SYSTEM — SEMANTIC COLOUR
+  1212→
+  1213→Colour communicates meaning.
+  1214→
+  1215→## Blue — Data / Truth / Measurement
+  1216→
+  1217→Primary:
+  1218→
+  1219→`#2563EB`
+  1220→
+  1221→Dark:
+  1222→
+  1223→`#1D4ED8`
+  1224→
+  1225→Light:
+  1226→
+  1227→`#60A5FA`
+  1228→
+  1229→Tint:
+  1230→
+  1231→`#EFF6FF`
+  1232→
+  1233→Use blue for:
+  1234→
+  1235→- measured data,
+  1236→- normal metrics,
+  1237→- primary actions,
+  1238→- selected navigation,
+  1239→- trusted product functions.
+  1240→
+  1241→---
+  1242→
+  1243→## Purple — AI / Intelligence / Interpretation
+  1244→
+  1245→Primary:
+  1246→
+  1247→`#7C3AED`
+  1248→
+  1249→Secondary:
+  1250→
+  1251→`#8B5CF6`
+  1252→
+  1253→Tint:
+  1254→
+  1255→`#F5F3FF`
+  1256→
+  1257→Use purple for:
+  1258→
+  1259→- AI insights,
+  1260→- diagnosis,
+  1261→- Ask Your Business,
+  1262→- AI interpretation,
+  1263→- root-cause analysis,
+  1264→- intelligent explanations.
+  1265→
+  1266→Purple should NOT be randomly used as another chart colour.
+  1267→
+  1268→---
+  1269→
+  1270→## Green — Positive Outcome
+  1271→
+  1272→Primary:
+  1273→
+  1274→`#10B981`
+  1275→
+  1276→Tint:
+  1277→
+  1278→`#ECFDF5`
+  1279→
+  1280→Use for:
+  1281→
+  1282→- healthy outcome,
+  1283→- successful connection,
+  1284→- completed action,
+  1285→- improvement,
+  1286→- achieved goal.
+  1287→
+  1288→Green means positive.
+  1289→
+  1290→It does NOT automatically mean “the number increased.”
+  1291→
+  1292→Example:
+  1293→
+  1294→Revenue ↑ = positive/green.
+  1295→
+  1296→CAC ↑ = negative/red.
+  1297→
+  1298→Refund rate ↓ = positive/green.
+  1299→
+  1300→---
+  1301→
+  1302→## Amber — Opportunity / Attention / Investigation
+  1303→
+  1304→Primary:
+  1305→
+  1306→`#F59E0B`
+  1307→
+  1308→Tint:
+  1309→
+  1310→`#FFFBEB`
+  1311→
+  1312→Use for:
+  1313→
+  1314→- opportunities,
+  1315→- warnings,
+  1316→- incomplete data,
+  1317→- medium-confidence findings,
+  1318→- things worth investigating,
+  1319→- things requiring attention.
+  1320→
+  1321→Amber does NOT mean failure.
+  1322→
+  1323→---
+  1324→
+  1325→## Red — Risk / Negative / Urgency
+  1326→
+  1327→Primary:
+  1328→
+  1329→`#EF4444`
+  1330→
+  1331→Tint:
+  1332→
+  1333→`#FEF2F2`
+  1334→
+  1335→Use carefully for:
+  1336→
+  1337→- significant decline,
+  1338→- integration failure,
+  1339→- dangerous anomaly,
+  1340→- destructive action,
+  1341→- errors,
+  1342→- business risk.
+  1343→
+  1344→---
+  1345→
+  1346→## Neutral
+  1347→
+  1348→Primary text:
+  1349→
+  1350→`#0F172A`
+  1351→
+  1352→Secondary:
+  1353→
+  1354→`#475569`
+  1355→
+  1356→Muted:
+  1357→
+  1358→`#64748B`
+  1359→
+  1360→Border:
+  1361→
+  1362→`#E2E8F0`
+  1363→
+  1364→App background:
+  1365→
+  1366→`#F8FAFC`
+  1367→
+  1368→Surface:
+  1369→
+  1370→`#FFFFFF`
+  1371→
+  1372→Subtle surface:
+  1373→
+  1374→`#F1F5F9`
+  1375→
+  1376→Approximately 70–80% of the UI should remain neutral.
+  1377→
+  1378→Semantic colours become powerful because they are not overused.
+  1379→
+  1380→---
+  1381→
+  1382→# 23. BRAND EXPRESSION
+  1383→
+  1384→Primary brand relationship:
+  1385→
+  1386→**Blue + Purple**
+  1387→
+  1388→Blue represents:
+  1389→
+  1390→**Data**
+  1391→
+  1392→Purple represents:
+  1393→
+  1394→**Intelligence**
+  1395→
+  1396→Together:
+  1397→
+  1398→**Data + Intelligence**
+  1399→
+  1400→Secondary semantic language:
+  1401→
+  1402→Green:
+  1403→
+  1404→**What is working**
+  1405→
+  1406→Amber:
+  1407→
+  1408→**What needs attention / opportunity**
+  1409→
+  1410→Red:
+  1411→
+  1412→**What requires intervention**
+  1413→
+  1414→---
+  1415→
+  1416→# 24. TYPOGRAPHY
+  1417→
+  1418→Use:
+  1419→
+  1420→**Inter**
+  1421→
+  1422→Fallback:
+  1423→
+  1424→`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+  1425→
+  1426→Approximate scale:
+  1427→
+  1428→Display:
+  1429→
+  1430→48–56px / bold
+  1431→
+  1432→H1:
+  1433→
+  1434→36–40px / 700
+  1435→
+  1436→H2:
+  1437→
+  1438→28–32px / 700
+  1439→
+  1440→H3:
+  1441→
+  1442→22–24px / 600
+  1443→
+  1444→H4:
+  1445→
+  1446→18–20px / 600
+  1447→
+  1448→Body:
+  1449→
+  1450→14–16px
+  1451→
+  1452→Caption:
+  1453→
+  1454→12px
+  1455→
+  1456→Business metrics should use visually strong numbers and tabular numerals where possible.
+  1457→
+  1458→---
+  1459→
+  1460→# 25. SPACING AND COMPONENT STYLE
+  1461→
+  1462→Use 4px spacing foundation.
+  1463→
+  1464→Typical spacing:
+  1465→
+  1466→4, 8, 12, 16, 24, 32, 40, 48, 64.
+  1467→
+  1468→Typical radii:
+  1469→
+  1470→Inputs:
+  1471→
+  1472→8px
+  1473→
+  1474→Buttons:
+  1475→
+  1476→8px
+  1477→
+  1478→Cards:
+  1479→
+  1480→12px
+  1481→
+  1482→AI/feature cards:
+  1483→
+  1484→16px
+  1485→
+  1486→Hero moments:
+  1487→
+  1488→20–24px.
+  1489→
+  1490→Prefer subtle borders over excessive shadows.
+  1491→
+  1492→Avoid making every component a pill.
+  1493→
+  1494→---
+  1495→
+  1496→# 26. CHART PRINCIPLES
+  1497→
+  1498→Charts support the explanation.
+  1499→
+  1500→They are NOT the product.
+  1501→
+  1502→Every chart should answer one clear question.
+  1503→
+  1504→Avoid placing 8 unrelated metrics into one graph.
+  1505→
+  1506→Good:
+  1507→
+  1508→**Revenue vs marketing spend**
+  1509→
+  1510→then:
+  1511→
+  1512→> Revenue increased while marketing spend increased significantly faster.
+  1513→
+  1514→Use:
+  1515→
+  1516→Blue = measured/current.
+  1517→
+  1518→Slate = comparison.
+  1519→
+  1520→Purple dashed = forecast/AI estimate.
+  1521→
+  1522→Green = positive result.
+  1523→
+  1524→Red = negative/risk.
+  1525→
+  1526→Amber = opportunity/attention.
+  1527→
+  1528→Always interpret whether change is good or bad based on the metric.
+  1529→
+  1530→---
+  1531→
+  1532→# 27. CORE COMPONENT LIBRARY
+  1533→
+  1534→Create reusable components for:
+  1535→
+  1536→Navigation:
+  1537→
+  1538→- sidebar,
+  1539→- header,
+  1540→- breadcrumbs,
+  1541→- tabs,
+  1542→- command/search.
+  1543→
+  1544→Inputs:
+  1545→
+  1546→- text,
+  1547→- textarea,
+  1548→- select,
+  1549→- date/date range,
+  1550→- search,
+  1551→- filters,
+  1552→- checkbox,
+  1553→- radio,
+  1554→- toggle,
+  1555→- slider.
+  1556→
+  1557→Business components:
+  1558→
+  1559→- MetricCard,
+  1560→- TrendIndicator,
+  1561→- GoalProgress,
+  1562→- HealthIndicator,
+  1563→- Funnel,
+  1564→- ChannelPerformance,
+  1565→- DataCoverage,
+  1566→- DataQuality,
+  1567→- SourceBadge,
+  1568→- ConfidenceBadge.
+  1569→
+  1570→Intelligence components:
+  1571→
+  1572→- InsightCard,
+  1573→- OpportunityCard,
+  1574→- RiskCard,
+  1575→- RecommendationCard,
+  1576→- EvidencePanel,
+  1577→- RootCauseTree,
+  1578→- AIExplanation,
+  1579→- ConfidencePanel.
+  1580→
+  1581→Execution components:
+  1582→
+  1583→- ActionCard,
+  1584→- AssigneePicker,
+  1585→- ProgressTracker,
+  1586→- ExperimentCard,
+  1587→- OutcomeCard,
+  1588→- ChangeTimeline.
+  1589→
+  1590→Feedback:
+  1591→
+  1592→- toast,
+  1593→- alert,
+  1594→- banner,
+  1595→- modal,
+  1596→- drawer,
+  1597→- empty state,
+  1598→- loading state,
+  1599→- skeleton,
+  1600→- error state.
+  1601→
+  1602→---
+  1603→
+  1604→# 28. SIGNATURE COMPONENTS
+  1605→
+  1606→Give extra polish to these because they define the product:
+  1607→
+  1608→### Insight Card
+  1609→
+  1610→Purple intelligence treatment.
+  1611→
+  1612→### Opportunity Card
+  1613→
+  1614→Amber treatment.
+  1615→
+  1616→### Recommendation Card
+  1617→
+  1618→Problem → evidence → recommendation → expected outcome.
+  1619→
+  1620→### Confidence Indicator
+  1621→
+  1622→Shows how strongly evidence supports interpretation.
+  1623→
+  1624→### Data Coverage Indicator
+  1625→
+  1626→Shows what the system currently understands.
+  1627→
+  1628→### Business Health Summary
+  1629→
+  1630→Shows overall condition but remains explainable.
+  1631→
+  1632→### Change Timeline
+  1633→
+  1634→Shows business interventions/events over time.
+  1635→
+  1636→### Outcome Card
+  1637→
+  1638→Shows whether something improved after an action.
+  1639→
+  1640→---
+  1641→
+  1642→# 29. COPY/TONE
+  1643→
+  1644→Writing must be:
+  1645→
+  1646→- calm,
+  1647→- specific,
+  1648→- concise,
+  1649→- business-facing,
+  1650→- evidence-based,
+  1651→- actionable.
+  1652→
+  1653→Avoid:
+  1654→
+  1655→“Awesome! Your business is crushing it! 🎉”
+  1656→
+  1657→Prefer:
+  1658→
+  1659→“Revenue increased 18% this month.”
+  1660→
+  1661→Avoid:
+  1662→
+  1663→“Uh-oh!”
+  1664→
+  1665→Prefer:
+  1666→
+  1667→“Your Shopify connection stopped syncing 3 hours ago.”
+  1668→
+  1669→The product should sound like an intelligent business adviser.
+  1670→
+  1671→Do not overuse emojis.
+  1672→
+  1673→---
+  1674→
+  1675→# 30. ACCESSIBILITY
+  1676→
+  1677→Target WCAG AA.
+  1678→
+  1679→Never communicate meaning using colour alone.
+  1680→
+  1681→Use:
+  1682→
+  1683→colour + label + icon where appropriate.
+  1684→
+  1685→Example:
+  1686→
+  1687→**At risk**
+  1688→
+  1689→not simply a red dot.
+  1690→
+  1691→Charts require labels/legends/line styles.
+  1692→
+  1693→Keyboard-focus states should exist.
+  1694→
+  1695→Buttons need clear labels.
+  1696→
+  1697→---
+  1698→
+  1699→# 31. MAIN END-TO-END DEMO FLOW
+  1700→
+  1701→A stakeholder should be able to experience this story:
+  1702→
+  1703→Landing page
+  1704→
+  1705→→ Start Private Business Checkup
+  1706→
+  1707→→ Create account/workspace
+  1708→
+  1709→→ Conversational onboarding
+  1710→
+  1711→→ Confirm business model/journey
+  1712→
+  1713→→ See structured understanding
+  1714→
+  1715→→ Receive first diagnosis
+  1716→
+  1717→→ Inspect evidence/confidence
+  1718→
+  1719→→ Improve diagnosis using aggregate data
+  1720→
+  1721→→ Enter workspace
+  1722→
+  1723→→ See business overview
+  1724→
+  1725→→ Explore performance
+  1726→
+  1727→→ Inspect root-cause diagnosis
+  1728→
+  1729→→ See recommendation
+  1730→
+  1731→→ Start action
+  1732→
+  1733→→ Assign action
+  1734→
+  1735→→ Create/track experiment
+  1736→
+  1737→→ See detected business change
+  1738→
+  1739→→ Confirm change
+  1740→
+  1741→→ View outcome
+  1742→
+  1743→→ See timeline updated
+  1744→
+  1745→→ Ask AI about what happened
+  1746→
+  1747→→ Review weekly/monthly brief
+  1748→
+  1749→This flow must feel connected.
+  1750→
+  1751→---
+  1752→
+  1753→# 32. COMPLETE SCREEN INVENTORY
+  1754→
+  1755→Build ALL of the following.
+  1756→
+  1757→---
+  1758→
+  1759→# A. PUBLIC, AUTHENTICATION AND ACCESS
+  1760→
+  1761→## SCREEN 1 — Landing Page
+  1762→
+  1763→Purpose:
+  1764→
+  1765→Explain the product simply and get businesses into the first diagnostic experience.
+  1766→
+  1767→Hero idea:
+  1768→
+  1769→**Understand what is driving your business growth — and what to fix next.**
+  1770→
+  1771→Supporting copy:
+  1772→
+  1773→Connect or enter your business information and turn scattered marketing, sales and website signals into clear decisions.
+  1774→
+  1775→Primary CTA:
+  1776→
+  1777→**Get a private business checkup**
+  1778→
+  1779→Secondary CTA:
+  1780→
+  1781→**Explore a sample business**
+  1782→
+  1783→Sections should demonstrate:
+  1784→
+  1785→- problem,
+  1786→- how it works,
+  1787→- example diagnosis,
+  1788→- business models supported,
+  1789→- progressive privacy/trust,
+  1790→- product loop,
+  1791→- testimonials placeholders,
+  1792→- CTA.
+  1793→
+  1794→Do not market advanced out-of-MVP features.
+  1795→
+  1796→---
+  1797→
+  1798→## SCREEN 2 — Pricing / Plans
+  1799→
+  1800→Create a credible plan comparison.
+  1801→
+  1802→Because commercial pricing has not been finalized, avoid presenting arbitrary prices as confirmed.
+  1803→
+  1804→Use plan concepts such as:
+  1805→
+  1806→**Private Beta**
+  1807→
+  1808→**Growth**
+  1809→
+  1810→**Team**
+  1811→
+  1812→Show what types of capabilities can differ:
+  1813→
+  1814→- businesses/workspaces,
+  1815→- connected sources,
+  1816→- team members,
+  1817→- reporting,
+  1818→- data history,
+  1819→- intelligence depth.
+  1820→
+  1821→Buttons:
+  1822→
+  1823→Join pilot / Choose plan / Contact.
+  1824→
+  1825→---
+  1826→
+  1827→## SCREEN 3 — Create Account
+  1828→
+  1829→Fields:
+  1830→
+  1831→Name
+  1832→
+  1833→Email
+  1834→
+  1835→Password
+  1836→
+  1837→Agree to terms/privacy.
+  1838→
+  1839→Support link to Sign In.
+  1840→
+  1841→After submit → Verify Email.
+  1842→
+  1843→---
+  1844→
+  1845→## SCREEN 4 — Verify Email
+  1846→
+  1847→Display email address.
+  1848→
+  1849→Explain verification.
+  1850→
+  1851→Actions:
+  1852→
+  1853→Open email
+  1854→
+  1855→Resend
+  1856→
+  1857→Change email
+  1858→
+  1859→Verification success → continue setup.
+  1860→
+  1861→---
+  1862→
+  1863→## SCREEN 5 — Sign In
+  1864→
+  1865→Email/password.
+  1866→
+  1867→Remember me.
+  1868→
+  1869→Forgot password.
+  1870→
+  1871→Create account link.
+  1872→
+  1873→Successful login:
+  1874→
+  1875→If new → setup.
+  1876→
+  1877→If existing → Home.
+  1878→
+  1879→---
+  1880→
+  1881→## SCREEN 6 — Forgot Password
+  1882→
+  1883→Email field.
+  1884→
+  1885→Submit.
+  1886→
+  1887→Success state explaining reset email.
+  1888→
+  1889→---
+  1890→
+  1891→## SCREEN 7 — Reset Password
+  1892→
+  1893→New password.
+  1894→
+  1895→Confirm password.
+  1896→
+  1897→Success → Sign In.
+  1898→
+  1899→---
+  1900→
+  1901→## SCREEN 8 — Accept Team Invitation
+  1902→
+  1903→Show:
+  1904→
+  1905→Business name
+  1906→
+  1907→Inviter
+  1908→
+  1909→Role being offered
+  1910→
+  1911→Invitation expiration.
+  1912→
+  1913→Actions:
+  1914→
+  1915→Accept invitation
+  1916→
+  1917→Decline.
+  1918→
+  1919→If not signed in, flow through account/login first.
+  1920→
+  1921→---
+  1922→
+  1923→## SCREEN 9 — Privacy Policy
+  1924→
+  1925→Professional policy presentation.
+  1926→
+  1927→Readable layout with anchored sections.
+  1928→
+  1929→---
+  1930→
+  1931→## SCREEN 10 — Terms of Service
+  1932→
+  1933→Professional legal information presentation.
+  1934→
+  1935→---
+  1936→
+  1937→# B. FIRST-TIME BUSINESS SETUP AND DIAGNOSIS
+  1938→
+  1939→## SCREEN 11 — Welcome / Choose How to Start
+  1940→
+  1941→IMPORTANT.
+  1942→
+  1943→This is the first meaningful product screen after account entry.
+  1944→
+  1945→Headline:
+  1946→
+  1947→**How would you like to start?**
+  1948→
+  1949→Options:
+  1950→
+  1951→### Start my private business checkup
+  1952→
+  1953→Answer a few questions. No integrations required.
+  1954→
+  1955→Primary/recommended.
+  1956→
+  1957→### Explore a sample business
+  1958→
+  1959→Instantly open the complete SwiftHaul demo experience.
+  1960→
+  1961→### Resume setup
+  1962→
+  1963→Shown when partial progress exists.
+  1964→
+  1965→Explain:
+  1966→
+  1967→“You can connect accounts later.”
+  1968→
+  1969→Make the trust proposition very obvious.
+  1970→
+  1971→---
+  1972→
+  1973→## SCREEN 12 — Create Business Workspace
+  1974→
+  1975→Keep minimal.
+  1976→
+  1977→Fields:
+  1978→
+  1979→Business name
+  1980→
+  1981→Primary country
+  1982→
+  1983→Currency
+  1984→
+  1985→Optional website
+  1986→
+  1987→Do NOT request unnecessary information.
+  1988→
+  1989→Continue → private checkup introduction.
+  1990→
+  1991→---
+  1992→
+  1993→## SCREEN 13 — Private Business Checkup Introduction
+  1994→
+  1995→Headline:
+  1996→
+  1997→**Get your first diagnosis without connecting any accounts.**
+  1998→
+  1999→Explain:
+  2000→
+
+[showing lines 1-2000 of 5458; use offset=2001 with limit to continue reading]
