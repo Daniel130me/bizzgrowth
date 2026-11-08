@@ -353,3 +353,23 @@ Verification (agent-browser E2E, replaying the owner's exact failing conversatio
 
 Stage Summary:
 - The checkup conversation is now a real consultant loop: listens, classifies, corrects itself, re-asks indirectly, accepts gaps honestly. Owner answers still drive business-understanding, diagnosis, journey and Ask screens.
+
+---
+Task ID: fix-consultant-ai-2
+Agent: Z.ai Code (main)
+Task: Remove the fixed question script entirely — coverage-driven adaptive consultation
+
+Owner clarification: the consultant must not rely on any particular format or order of questioning — people are different, not the same questions every time. The goal is a SHORT consultation that gathers well-enough information to diagnose, by whatever path the owner's conversation takes.
+
+What changed:
+- Replaced the linear stage machine (intro → enquiry → customers → revenue → changes → done) with a COVERAGE model (src/lib/checkup.ts): SlotKey list, REQUIRED_SLOTS (sells, targetMarket, goal, channels, enquiries, customers), optional slots (businessType, location, revenue, changes), per-slot ASK_CAP, AskCounts. ChatTurnResult now carries phase ("interview"|"done") + askCounts instead of stage.
+- /api/checkup/chat rewritten: the prompt gives the LLM a live COVERAGE ledger (KNOWN / MISSING / DECLINED / asked Nx of cap) and instructs it to CHOOSE ITS OWN next question each turn — the missing slot that connects most naturally to what the owner just said; no fixed order; harvest everything a message reveals and skip ahead; never re-ask known/declined slots; one different angle after a dodge, then the slot is off-limits; wrap warmly once required coverage is complete or 12 owner replies are spent.
+- Server enforcement (deterministic, LLM-independent): ask-count bookkeeping from the LLM's declared nextSlot; slots at cap auto-declined (trends → honest "Don't know"); phase flips to done the moment required coverage completes (even mid-turn via slotUpdates) or userTurns >= 12; if the LLM asks a question when it must wrap, the reply is replaced with a slot-grounded wrap line; question must be written inside the reply text (not left to chips).
+- onboarding-chat.tsx: 5 randomized openers + 3 rotating example-chip pairs so repeat owners never see the same script; state is phase/slots/askCounts; "What I'm learning" panel fully slot-driven; client hard cap 14 replies.
+
+Verification:
+- API: dump-everything owner (frozen foods, 1 message) → all 8 slots harvested in ONE turn, phase=done, no scripted questions. Complaint-led owner (price haggling) → consultant followed the owner's thread instead of jumping to a trend script. Dodge at ask cap → slot auto-declined "Don't know", graceful move to a different gap. Post-fix: question always present in reply text.
+- Browser E2E as "BrightStitch Studio" (custom dresses, Enugu): different opener than previous session; conversation completed in 3 owner replies once coverage was sufficient (vs 6+ in the old script); wrap + final extraction fired automatically; facts in owner's words (sells/goal/customers/channels/trends, revenue honestly "Don't know"); AI journey "Discovery via Instagram → Referral → Enquiry → First order → Repeat customer" (repeat step reflects the retention goal); CTA → journey-confirm works; zero page errors; lint clean; /api/checkup/chat ~1.4-1.8s.
+
+Stage Summary:
+- The checkup is now a real adaptive consultation: same product, different conversation for every owner; length scales with how much the owner volunteers (1-3 replies for communicative owners, bounded at ~12 otherwise); diagnosis quality floor guaranteed by required-slot coverage rather than question count.

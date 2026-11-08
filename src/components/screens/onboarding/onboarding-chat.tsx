@@ -14,10 +14,12 @@ import { Input } from "@/components/ui/input";
 import { useBizz } from "@/lib/store";
 import {
   emptySlots,
+  REQUIRED_SLOTS,
+  type AskCounts,
   type BusinessFacts,
   type ChatTurnResult,
+  type CheckupPhase,
   type CheckupSlots,
-  type CheckupStage,
   type TranscriptTurn,
 } from "@/lib/checkup";
 import { cn } from "@/lib/utils";
@@ -34,8 +36,17 @@ interface Msg {
 }
 
 const INTRO_CHIPS = [
-  "We run a cleaning company in Lagos. Most customers come through Instagram and referrals.",
-  "We sell handmade furniture online and get most visitors from Instagram.",
+  ["We run a cleaning company in Lagos. Most customers come through Instagram and referrals.", "We sell handmade furniture online and get most visitors from Instagram."],
+  ["I run a tailoring studio in Abuja; clients find me on WhatsApp and word of mouth.", "We run an online store selling phone accessories, mostly via Instagram ads."],
+  ["We are a small logistics company in Port Harcourt — clients reach us by phone and referrals.", "I sell baked goods from home; orders come through WhatsApp and Instagram."],
+];
+
+const OPENERS = [
+  "Tell me about your business and what you most want to improve.",
+  "Let's start simple: what does your business do, and what's the one thing you'd most like to improve?",
+  "Walk me through your business — what you sell, who you serve, and what's been bothering you lately.",
+  "What's your business all about, and where does growth feel stuck right now?",
+  "Tell me about your business — and if you had to fix one thing this month, what would it be?",
 ];
 
 /** Client-side regex extraction — offline fallback only, never the primary path. */
@@ -69,7 +80,7 @@ export default function OnboardingChat(_props: ScreenProps) {
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [chips, setChips] = useState<string[]>([]);
-  const [stage, setStage] = useState<CheckupStage>("intro");
+  const [phase, setPhase] = useState<CheckupPhase>("interview");
   const [slots, setSlots] = useState<CheckupSlots>(emptySlots);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
@@ -79,9 +90,9 @@ export default function OnboardingChat(_props: ScreenProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const transcriptRef = useRef<TranscriptTurn[]>([]);
-  const stageRef = useRef<CheckupStage>("intro");
+  const phaseRef = useRef<CheckupPhase>("interview");
   const slotsRef = useRef<CheckupSlots>(emptySlots());
-  const attemptsRef = useRef(0);
+  const askCountsRef = useRef<AskCounts>({});
   const busyRef = useRef(false);
 
   const nextId = () => {
@@ -148,13 +159,15 @@ export default function OnboardingChat(_props: ScreenProps) {
     };
   }
 
-  // Opening question — "Tell me about your business..."
+  // Opening question — varied so repeat owners never see the same script.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    const opener = OPENERS[Math.floor(Math.random() * OPENERS.length)];
+    const chipPair = INTRO_CHIPS[Math.floor(Math.random() * INTRO_CHIPS.length)];
     const t = window.setTimeout(() => {
-      setMessages([{ id: nextId(), role: "ai", text: "Tell me about your business and what you most want to improve." }]);
-      setChips(INTRO_CHIPS);
+      setMessages([{ id: nextId(), role: "ai", text: opener }]);
+      setChips(chipPair);
     }, 600);
     return () => window.clearTimeout(t);
   }, []);
@@ -186,18 +199,19 @@ export default function OnboardingChat(_props: ScreenProps) {
     })();
   }
 
-  /** One consultant turn — the engine classifies, reacts, and decides pacing. */
+  /** One consultant turn — the engine classifies, harvests what it can, and chooses its own next question. */
   async function consultantTurn(text: string) {
     busyRef.current = true;
     setTyping(true);
     setChips([]);
+    const userTurns = transcriptRef.current.filter((t) => t.role === "user").length;
     const payload = {
       workspaceName: userWorkspace?.name ?? "Your business",
       country: userWorkspace?.country ?? "Nigeria",
       transcript: transcriptRef.current,
-      stage: stageRef.current,
+      phase: phaseRef.current,
       slots: slotsRef.current,
-      attempts: attemptsRef.current,
+      askCounts: askCountsRef.current,
     };
     try {
       const res = await fetch("/api/checkup/chat", {
@@ -208,7 +222,7 @@ export default function OnboardingChat(_props: ScreenProps) {
       const data = (await res.json()) as { ok?: boolean } & Partial<ChatTurnResult>;
       if (!data?.ok || typeof data.reply !== "string" || data.reply.length === 0) throw new Error("bad response");
 
-      const nextStage = (data.stage ?? stageRef.current) as CheckupStage;
+      const nextPhase = (data.phase ?? "interview") as CheckupPhase;
       const nextSlots = data.slots ?? slotsRef.current;
       const learned = data.learnedChips ?? [];
 
@@ -216,14 +230,14 @@ export default function OnboardingChat(_props: ScreenProps) {
       transcriptRef.current.push({ role: "ai", text: data.reply });
       setMessages((m) => [...m, { id: nextId(), role: "ai", text: data.reply as string, learned }]);
 
-      attemptsRef.current = nextStage === stageRef.current ? attemptsRef.current + 1 : 0;
-      stageRef.current = nextStage;
+      phaseRef.current = nextPhase;
       slotsRef.current = nextSlots;
-      setStage(nextStage);
+      askCountsRef.current = data.askCounts ?? {};
+      setPhase(nextPhase);
       setSlots(nextSlots);
       setChips(data.chips ?? []);
 
-      if (nextStage === "done") finishConversation();
+      if (nextPhase === "done" || userTurns + 1 >= 14) finishConversation();
     } catch {
       // Network hiccup — never advance, never guess. Ask the owner to try again.
       setTyping(false);
@@ -239,7 +253,7 @@ export default function OnboardingChat(_props: ScreenProps) {
 
   function send(raw?: string) {
     const text = (raw ?? input).trim();
-    if (!text || typing || busyRef.current || finishing || stageRef.current === "done") return;
+    if (!text || typing || busyRef.current || finishing || phaseRef.current === "done") return;
     transcriptRef.current.push({ role: "user", text });
     setMessages((m) => [...m, { id: nextId(), role: "user", text }]);
     setInput("");
@@ -247,23 +261,23 @@ export default function OnboardingChat(_props: ScreenProps) {
   }
 
   // Side panel — what the engine has actually learned, driven by real slots.
-  const trendResolved = (v?: string, topic?: CheckupStage) => Boolean(v) || (topic ? slots.declined.includes(topic) : false);
+  const resolved = (v: unknown) => (Array.isArray(v) ? v.length > 0 : typeof v === "string" && v.length > 0);
+  const doneOr = (cond: boolean) => (phase === "done" || cond ? ("done" as const) : ("active" as const));
   const LEARN: { label: string; status: LearnStatus }[] = [
-    { label: "Business type", status: slots.businessType ? "done" : stage === "intro" ? "active" : "pending" },
-    { label: "What you sell", status: slots.sells ? "done" : stage === "intro" ? "active" : "pending" },
-    { label: "Target market", status: slots.targetMarket ? "done" : stage === "intro" ? "active" : "pending" },
-    { label: "Goal", status: slots.goal ? "done" : stage === "intro" ? "active" : "pending" },
-    { label: "Customer journey", status: stage === "done" ? "done" : "active" },
+    { label: "Business type", status: doneOr(resolved(slots.businessType)) },
+    { label: "What you sell", status: doneOr(resolved(slots.sells)) },
+    { label: "Target market", status: doneOr(resolved(slots.targetMarket)) },
+    { label: "Goal", status: doneOr(resolved(slots.goal)) },
+    { label: "Customer sources", status: doneOr(resolved(slots.channels)) },
     {
       label: "Performance signals",
       status:
-        trendResolved(slots.enquiries, "enquiry") && trendResolved(slots.customers, "customers") && trendResolved(slots.revenue, "revenue")
-          ? "done"
-          : stage === "enquiry" || stage === "customers" || stage === "revenue"
-            ? "active"
-            : "pending",
+        REQUIRED_SLOTS.filter((k) => k === "enquiries" || k === "customers").every((k) => slots.declined.includes(k) || resolved(slots[k]))
+          ? ("done" as const)
+          : ("active" as const),
     },
-    { label: "Recent changes", status: slots.changes?.length || slots.declined.includes("changes") ? "done" : stage === "changes" ? "active" : "pending" },
+    { label: "Recent changes", status: doneOr(resolved(slots.changes) || slots.declined.includes("changes")) },
+    { label: "Customer journey", status: phase === "done" ? ("done" as const) : ("active" as const) },
   ];
 
   return (
@@ -341,7 +355,7 @@ export default function OnboardingChat(_props: ScreenProps) {
 
             {/* Quick chips + composer */}
             <div className="border-t bg-slate-50/70 p-3 sm:p-4">
-              {chips.length > 0 && !typing && stage !== "done" ? (
+              {chips.length > 0 && !typing && phase !== "done" ? (
                 <div className="mb-2.5 flex flex-wrap gap-1.5" aria-label="Suggested answers">
                   {chips.map((c) => (
                     <button
@@ -366,12 +380,12 @@ export default function OnboardingChat(_props: ScreenProps) {
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={stage === "done" ? "Conversation complete — continue below" : "Type your answer in plain language…"}
-                  disabled={typing || stage === "done"}
+                  placeholder={phase === "done" ? "Conversation complete — continue below" : "Type your answer in plain language…"}
+                  disabled={typing || phase === "done"}
                   aria-label="Your answer"
                   className="bg-white"
                 />
-                <Button type="submit" size="icon" disabled={typing || stage === "done" || !input.trim()} aria-label="Send answer">
+                <Button type="submit" size="icon" disabled={typing || phase === "done" || !input.trim()} aria-label="Send answer">
                   <SendHorizontal className="size-4" aria-hidden />
                 </Button>
               </form>

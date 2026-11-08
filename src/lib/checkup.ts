@@ -124,9 +124,63 @@ export interface AskWorkspaceContext {
 /* Consultant conversation (per-turn brain) — /api/checkup/chat        */
 /* ------------------------------------------------------------------ */
 
-export type CheckupStage = "intro" | "enquiry" | "customers" | "revenue" | "changes" | "done";
+export type CheckupPhase = "interview" | "done";
 
-export const CHECKUP_STAGES: CheckupStage[] = ["intro", "enquiry", "customers", "revenue", "changes", "done"];
+/** Every piece of information the consultation can gather. No fixed order. */
+export type SlotKey =
+  | "businessType"
+  | "sells"
+  | "targetMarket"
+  | "location"
+  | "goal"
+  | "channels"
+  | "enquiries"
+  | "customers"
+  | "revenue"
+  | "changes";
+
+export const SLOT_KEYS: SlotKey[] = [
+  "businessType",
+  "sells",
+  "targetMarket",
+  "location",
+  "goal",
+  "channels",
+  "enquiries",
+  "customers",
+  "revenue",
+  "changes",
+];
+
+/** Slots a first diagnosis genuinely needs — coverage = all of these resolved. */
+export const REQUIRED_SLOTS: SlotKey[] = ["sells", "targetMarket", "goal", "channels", "enquiries", "customers"];
+
+/** How many times the consultant may ask about a slot before accepting the gap. */
+export const ASK_CAP: Record<SlotKey, number> = {
+  businessType: 1,
+  sells: 3,
+  targetMarket: 3,
+  location: 1,
+  goal: 3,
+  channels: 3,
+  enquiries: 2,
+  customers: 2,
+  revenue: 2,
+  changes: 2,
+};
+
+export const SLOT_LABELS: Record<SlotKey, string> = {
+  businessType: "Business type",
+  sells: "What they sell",
+  targetMarket: "Who they serve",
+  location: "Where they operate",
+  goal: "What they want to improve",
+  channels: "Where customers come from",
+  enquiries: "Enquiries vs last month",
+  customers: "Customers vs last month",
+  revenue: "Revenue vs last month (optional)",
+  changes: "Recent changes",
+};
 
 /** What the engine currently understands about the business. Updated every turn. */
 export interface CheckupSlots {
@@ -140,7 +194,7 @@ export interface CheckupSlots {
   customers?: TrendDirection;
   revenue?: TrendDirection;
   changes?: string[];
-  /** Topics the owner declined to answer — accepted gaps, never fabricated. */
+  /** Slots the owner declined to answer — accepted gaps, never fabricated. */
   declined: string[];
   /** How many times the owner corrected the engine's understanding. */
   corrections: number;
@@ -149,6 +203,9 @@ export interface CheckupSlots {
 export function emptySlots(): CheckupSlots {
   return { declined: [], corrections: 0 };
 }
+
+/** Times each slot has been asked about, e.g. { enquiries: 1 }. */
+export type AskCounts = Partial<Record<SlotKey, number>>;
 
 /** How the engine classified the owner's latest message. */
 export type ChatRead = "answer" | "correction" | "partial" | "dodge" | "question" | "other";
@@ -159,8 +216,9 @@ export interface ChatTurnResult {
   reply: string;
   /** Chips shown under "Understood as" — what changed in the model this turn. */
   learnedChips: string[];
-  stage: CheckupStage;
+  phase: CheckupPhase;
   slots: CheckupSlots;
+  askCounts: AskCounts;
   /** Suggested short answers for the NEXT question. */
   chips: string[];
   degraded: boolean;
