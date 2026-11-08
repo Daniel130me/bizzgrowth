@@ -31,9 +31,17 @@ export interface BusinessFacts {
 
 export interface DiagnosisDelta {
   label: string;
-  delta: number; // percent change vs previous month, negative = decline
+  /**
+   * Real measured percent change. null when no measured figure exists —
+   * bizzGrowth NEVER invents a number the owner did not give.
+   */
+  delta: number | null;
+  /** Self-reported direction, used when delta is null. */
+  direction?: "up" | "down" | "flat" | "unknown";
   goodness: "good" | "bad" | "neutral";
   caption: string;
+  /** Preformatted value to display instead of a percent (e.g. a real conversion rate). */
+  customValue?: string;
 }
 
 export interface DiagnosisContent {

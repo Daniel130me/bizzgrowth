@@ -373,3 +373,31 @@ Verification:
 
 Stage Summary:
 - The checkup is now a real adaptive consultation: same product, different conversation for every owner; length scales with how much the owner volunteers (1-3 replies for communicative owners, bounded at ~12 otherwise); diagnosis quality floor guaranteed by required-slot coverage rather than question count.
+
+---
+Task ID: fix-trust-journey-1
+Agent: Z.ai Code (main)
+Task: Kill fabricated percentages in the first diagnosis; make journey confirmation self-explanatory
+
+Owner reports:
+1. Journey-confirm screen was confusing — "believed journey" unclear, no sense of what to do.
+2. First diagnosis showed CUSTOMERS +15% which the owner never stated — invented precision that destroys trust.
+
+Root cause (trust):
+- /api/checkup/diagnosis system prompt EXPLICITLY instructed the LLM: "Convert each stated trend direction into an illustrative percent estimate: Increased -> 12-25" — so "customers increasing" became a fabricated "+15%". templateDiagnosis did the same via num().
+
+Fix (numbers):
+- DiagnosisDelta type: delta is now number|null (null = no measured figure) + direction ("up"|"down"|"flat"|"unknown") + optional customValue. A number is ONLY ever present for real measured data.
+- /api/checkup/diagnosis rewritten: the LLM now writes ONLY the narrative (headline/story/meaning/whyItMatters/nextInvestigation/confidence) under a hard "NUMBERS ARE SACRED — never output a percentage" rule; the metric tiles are computed deterministically from facts.trends (direction words) and facts.recentChanges (spend mention). templateDiagnosis degraded path uses the same builder.
+- first-diagnosis.tsx rendering: directional tiles render arrow icon + word (Up / Down / About the same / Not reported) with icon+label badges (Increasing/Decreasing/Steady/No data yet) — never colour alone; footnote states plainly "bizzGrowth never invents figures you did not give". Improved variant now shows REAL numbers from owner-entered counts: total enquiries entered + per-channel conversion % (caption "3 of 40 enquiries became customers") with "Measured from your counts" badge. Demo template deltas relabelled "Sample story".
+Fix (journey UX):
+- journey-confirm.tsx: heading now says what the page IS ("Here's how customers find and pay you"); explicit "What to do here" 3-step instruction box; business model card retitled "What kind of business is this?" with "only changes the words used across the product"; journey card retitled "Draft — your customer journey" with "a draft built from what you told us — nothing is measured yet"; shows "Built from what you told us:" chips of the owner's actual channels; primary CTA renamed "Yes, that's how it happens"; secondary toggles edit (redundant labels unified).
+
+Verification (browser E2E as "ApexClean Services", fresh session):
+- Conversation (2 replies) → wrap → CTA → journey-confirm: new copy renders (title, instruction box, draft framing, source chips); edit mode toggles (move/remove/add controls appear); confirm persists edited journey to store → business-understanding → first-diagnosis.
+- Diagnosis tiles: MARKETING SPEND "Not reported"/No data yet/"Not mentioned in your checkup"; ENQUIRIES "Up"/Increasing/"Direction you described"; CUSTOMERS "About the same"/Steady; REVENUE "Not reported"/"You did not report this yet". Zero percentages anywhere. Narrative names their channels, no numbers.
+- Improve flow: entered Instagram 40/3, referrals 25/11 → tiles show 65 entered, Instagram 7.5% (3 of 40), referrals 44.0% (11 of 25) — all computed from owner counts; confidence 62→82 banner intact.
+- Persistence: clearing improved state restores directional variant; mobile 390px renders; zero page errors; lint clean.
+
+Stage Summary:
+- Trust rule enforced end-to-end: words for described directions, numbers only from owner-entered or connected data. Journey confirmation is now a self-explanatory 30-second check with visible provenance.

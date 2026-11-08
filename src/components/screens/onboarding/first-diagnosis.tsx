@@ -6,20 +6,22 @@
 // The template content below is only the fallback when no checkup facts exist.
 
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, Eye, Loader2, Search, Sparkles, TrendingDown } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CircleDashed, Eye, Loader2, Minus, Search, Sparkles, TrendingDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoBanner } from "@/components/shared/layout";
 import { ProvenanceBadge, TrendBadge } from "@/components/shared/badges";
 import { useBizz } from "@/lib/store";
 import type { DiagnosisContent } from "@/lib/checkup";
 import type { Goodness } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import type { ScreenProps } from "../view-types";
 
 const TEMPLATE_DELTAS: DiagnosisContent["deltas"] = [
-  { label: "Marketing spend", delta: 40, goodness: "neutral", caption: "You invested more in ads" },
-  { label: "Enquiries", delta: 50, goodness: "good", caption: "Demand responded" },
-  { label: "Customers", delta: 4, goodness: "neutral", caption: "Barely moved" },
-  { label: "Revenue", delta: 3, goodness: "neutral", caption: "Barely moved" },
+  { label: "Marketing spend", delta: null, direction: "up", goodness: "neutral", caption: "Sample story — invested more in ads" },
+  { label: "Enquiries", delta: null, direction: "up", goodness: "good", caption: "Sample story — demand responded" },
+  { label: "Customers", delta: null, direction: "flat", goodness: "neutral", caption: "Sample story — barely moved" },
+  { label: "Revenue", delta: null, direction: "flat", goodness: "neutral", caption: "Sample story — barely moved" },
 ];
 
 const TEMPLATE: DiagnosisContent = {
@@ -34,6 +36,23 @@ const TEMPLATE: DiagnosisContent = {
   nextInvestigation:
     "Compare how each channel converts enquiries into customers, and check how quickly enquiries receive a first response. Your Instagram enquiries grew the fastest, yet converted far worse than referrals — that contrast is the fastest route to the real constraint.",
   confidence: 62,
+};
+
+const DIRECTION_STYLE: Record<
+  "up" | "down" | "flat" | "unknown",
+  { word: string; icon: React.ReactNode; cls: string }
+> = {
+  up: { word: "Up", icon: <ArrowUpRight className="size-5 sm:size-6" aria-hidden />, cls: "text-emerald-700" },
+  down: { word: "Down", icon: <ArrowDownRight className="size-5 sm:size-6" aria-hidden />, cls: "text-red-700" },
+  flat: { word: "About the same", icon: <Minus className="size-5 sm:size-6" aria-hidden />, cls: "text-slate-600" },
+  unknown: { word: "Not reported", icon: <CircleDashed className="size-5 sm:size-6" aria-hidden />, cls: "text-slate-400" },
+};
+
+const DIRECTION_BADGE: Record<"up" | "down" | "flat" | "unknown", { label: string; cls: string }> = {
+  up: { label: "Increasing", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  down: { label: "Decreasing", cls: "bg-red-50 text-red-700 border-red-200" },
+  flat: { label: "Steady", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+  unknown: { label: "No data yet", cls: "bg-slate-100 text-slate-500 border-slate-200" },
 };
 
 export default function FirstDiagnosis(_props: ScreenProps) {
@@ -80,12 +99,21 @@ export default function FirstDiagnosis(_props: ScreenProps) {
         headline: improved.headline,
         story: improved.story,
         deltas: [
-          { label: "Marketing spend", delta: 0, goodness: "neutral", caption: "Measured counts entered" },
+          {
+            label: "Enquiries entered",
+            delta: null,
+            direction: "unknown",
+            goodness: "neutral",
+            caption: "Counts you entered for your last full month",
+            customValue: String(improved.channelRows.reduce((sum, r) => sum + r.enquiries, 0)),
+          },
           ...improved.channelRows.slice(0, 3).map((r) => ({
             label: r.name,
-            delta: 0,
+            delta: null,
+            direction: "unknown" as const,
             goodness: (r.name === improved.worstChannel ? "bad" : "good") as Goodness,
-            caption: `${r.customers}/${r.enquiries} enquiries — ${r.conversion.toFixed(1)}%`,
+            caption: `${r.customers} of ${r.enquiries} enquiries became customers`,
+            customValue: `${r.conversion.toFixed(1)}%`,
           })),
         ],
         meaning: improved.meaning,
@@ -141,24 +169,43 @@ export default function FirstDiagnosis(_props: ScreenProps) {
               : "Based on the trends you described — not on measured channel data yet."}
           </p>
 
-          {/* Delta story */}
+          {/* Delta story — directions as words, never invented percentages */}
           <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-            {content.deltas.map((d) => (
-              <div key={d.label} className="rounded-xl border border-violet-100 bg-white/80 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{d.label}</p>
-                <p className="mt-1.5 text-2xl font-semibold tnum text-slate-900 sm:text-3xl">
-                  {d.delta > 0 ? "+" : ""}
-                  {d.delta}%
-                </p>
-                <TrendBadge delta={d.delta} goodness={d.goodness} className="mt-2" />
-                <p className="mt-2 text-xs text-muted-foreground">{d.caption}</p>
-              </div>
-            ))}
+            {content.deltas.map((d) => {
+              const dirStyle = DIRECTION_STYLE[d.direction ?? "unknown"];
+              const badge = DIRECTION_BADGE[d.direction ?? "unknown"];
+              return (
+                <div key={d.label} className="rounded-xl border border-violet-100 bg-white/80 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{d.label}</p>
+                  {d.customValue ? (
+                    <p className="mt-1.5 text-2xl font-semibold tnum text-slate-900 sm:text-3xl">{d.customValue}</p>
+                  ) : d.delta !== null && d.delta !== undefined ? (
+                    <p className="mt-1.5 text-2xl font-semibold tnum text-slate-900 sm:text-3xl">
+                      {d.delta > 0 ? "+" : ""}
+                      {d.delta}%
+                    </p>
+                  ) : (
+                    <p className={cn("mt-1.5 flex items-center gap-1 text-xl font-semibold sm:text-2xl", dirStyle.cls)}>
+                      {dirStyle.icon}
+                      <span>{dirStyle.word}</span>
+                    </p>
+                  )}
+                  {d.customValue ? (
+                    <Badge variant="outline" className="mt-2 gap-1 bg-blue-50 font-normal text-blue-700 border-blue-200">Measured from your counts</Badge>
+                  ) : d.delta !== null && d.delta !== undefined ? (
+                    <TrendBadge delta={d.delta} goodness={d.goodness} className="mt-2" />
+                  ) : (
+                    <Badge variant="outline" className={cn("mt-2 gap-1 font-normal", badge.cls)}>{badge.label}</Badge>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">{d.caption}</p>
+                </div>
+              );
+            })}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {improved
-              ? "Channel conversion is now measured from the counts you entered."
-              : "Your last full month vs the month before, as you described it."}
+              ? "Conversion is calculated from the channel counts you entered — measured numbers, not guesses."
+              : "Shown as words on purpose: these are the directions you described, and bizzGrowth never invents figures you did not give. Enter channel counts or connect an account to get measured numbers."}
           </p>
         </div>
       </section>

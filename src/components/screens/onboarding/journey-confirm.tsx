@@ -93,20 +93,34 @@ export default function JourneyConfirm(_props: ScreenProps) {
   }
 
   const modelLabel = model === "service" ? "Service" : model === "ecommerce" ? "Ecommerce" : "Both";
+  const builtFrom = (checkupFacts?.channels ?? []).slice(0, 4);
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">From your checkup conversation</p>
-      <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">Does this look right?</h1>
-      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        This is the buying journey bizzGrowth believes your customers use.
-        <ProvenanceBadge provenance="ai-interpretation" />
+      <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">Here&apos;s how customers find and pay you</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        From your answers, we drafted the steps a customer takes — from first hearing about you to paying you.
+        This draft shapes how your diagnosis and future measurements are framed, so it is worth a quick check.
+        <ProvenanceBadge provenance="ai-interpretation" className="ml-2 align-middle" />
       </p>
 
+      {/* What to do — explicit instruction, so nobody has to guess */}
+      <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/60 p-4" aria-label="What to do on this page">
+        <p className="text-sm font-semibold text-violet-900">What to do here</p>
+        <ol className="mt-1.5 list-inside list-decimal space-y-0.5 text-sm text-violet-900/85">
+          <li>Read the steps below, top to bottom.</li>
+          <li>If that is really how it happens, press “Yes, that&apos;s how it happens”.</li>
+          <li>If anything is wrong or missing, press “Edit journey” — you can rename, reorder, remove or add steps.</li>
+        </ol>
+      </div>
+
       {/* Business model */}
-      <Card className="mt-6 p-5">
-        <h2 className="text-sm font-semibold">Business model</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">Sets the labels used across the whole product.</p>
+      <Card className="mt-4 p-5">
+        <h2 className="text-sm font-semibold">What kind of business is this?</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          This only changes the words used across the product — for example Enquiries vs Orders. It does not affect your data.
+        </p>
         <div className="mt-3 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="radiogroup" aria-label="Business model">
           {(["service", "ecommerce", "both"] as Model[]).map((m) => (
             <button
@@ -134,12 +148,25 @@ export default function JourneyConfirm(_props: ScreenProps) {
       {/* Journey */}
       <Card className="mt-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold">Believed journey ({modelLabel})</h2>
+          <h2 className="text-sm font-semibold">Draft — your customer journey ({modelLabel})</h2>
           <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
             {editing ? <Check className="size-4" aria-hidden /> : <Pencil className="size-4" aria-hidden />}
             {editing ? "Done editing" : "Edit journey"}
           </Button>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          A draft built from what you told us — nothing is measured yet. Correcting it now keeps your diagnosis accurate.
+        </p>
+        {builtFrom.length > 0 ? (
+          <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            Built from what you told us:
+            {builtFrom.map((c) => (
+              <span key={c} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-medium text-slate-600">
+                {c}
+              </span>
+            ))}
+          </p>
+        ) : null}
 
         <ol className="mt-4 space-y-0">
           {steps.map((s, i) => (
@@ -216,11 +243,11 @@ export default function JourneyConfirm(_props: ScreenProps) {
           className="w-full sm:w-auto"
         >
           <Check className="size-4" aria-hidden />
-          Yes, continue
+          Yes, that&apos;s how it happens
         </Button>
         <Button variant="outline" className="w-full sm:w-auto" onClick={() => setEditing((v) => !v)}>
           <Pencil className="size-4" aria-hidden />
-          Edit journey
+          {editing ? "Done editing" : "Edit journey"}
         </Button>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
