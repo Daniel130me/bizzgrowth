@@ -97,16 +97,32 @@ export function writeRemovedMember(id: string) {
   } catch {}
 }
 
-/** TEAM dataset with role overrides applied and removed members filtered out. */
+/** TEAM dataset with role overrides applied and removed members filtered out.
+ *  A user's OWN workspace starts with just the owner — sample staff never appear. */
 export function useTeam(): TeamMember[] {
+  const businessId = useBizz((s) => s.businessId);
+  const user = useBizz((s) => s.user);
   return useMemo(() => {
+    if (businessId === "user-workspace") {
+      const owner: TeamMember = {
+        id: "own-owner",
+        name: user.name || "You",
+        email: user.email || "",
+        role: "owner",
+        jobTitle: user.jobRole || "Owner",
+        status: "active",
+        lastActive: "Active now",
+        assignedActions: 0,
+      };
+      return [owner];
+    }
     const overrides = readJson<Record<string, TeamRole>>(ROLES_KEY, {});
     const removed = readJson<string[]>(REMOVED_KEY, []);
     return TEAM.filter((m) => !removed.includes(m.id)).map((m) => ({
       ...m,
       role: overrides[m.id] ?? m.role,
     }));
-  }, []);
+  }, [businessId, user]);
 }
 
 /** Joined dates for member activity — aligned with the notification history (Ngozi: Sept 2). */

@@ -3,7 +3,7 @@
 // Sets expectations honestly before the conversational checkup starts.
 
 import React from "react";
-import { ArrowRight, Calculator, Clock, Link2, Target } from "lucide-react";
+import { ArrowRight, Calculator, Clock, FileSpreadsheet, Link2, PenLine, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useBizz } from "@/lib/store";
@@ -14,7 +14,7 @@ const POINTS = [
   { icon: Clock, title: "Takes only a few minutes", body: "A short conversation, not a 12-step form." },
   { icon: Calculator, title: "Exact financial figures are optional", body: "Directions and rough estimates are enough for a first diagnosis." },
   { icon: ArrowRight, title: "Estimates are acceptable", body: "Imprecise answers still produce useful intelligence — provenance is tracked." },
-  { icon: Link2, title: "Connections come later", body: "No integrations required now. You can connect accounts when you are ready." },
+  { icon: PenLine, title: "Happy to share numbers or files?", body: "During or after the checkup you can enter monthly figures, upload a CSV, or connect a service like Meta Ads or Shopify." },
   { icon: Target, title: "The purpose is understanding", body: "Enough context to produce insight that is useful on day one." },
 ];
 
@@ -54,11 +54,20 @@ export default function CheckupIntro(_props: ScreenProps) {
             Start checkup
             <ArrowRight className="size-4" aria-hidden />
           </Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("integrations")}>
+            <Link2 className="size-4" aria-hidden />
+            Connect data instead
+          </Button>
           <DemoBusinessButton className="w-full sm:w-auto" />
         </div>
       </Card>
 
       <TrustRow className="mt-6" />
+
+      <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <FileSpreadsheet className="size-3.5 shrink-0" aria-hidden />
+        Prefer spreadsheets? You can upload a CSV or type totals after the checkup — the diagnosis improves either way.
+      </p>
     </div>
   );
 }

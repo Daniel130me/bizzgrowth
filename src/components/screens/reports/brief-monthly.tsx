@@ -1,10 +1,15 @@
 "use client";
 // Screen 69 — Monthly Business Review: professional report-style document.
+// Sample reviews exist only for sample workspaces; a user's own workspace gets
+// an honest early-state until real data produces a real review.
 
 import React from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
+import { EmptyState } from "@/components/shared/states";
 import { BriefDocShell, ExecMetricChip, ExplanationsCard, OpportunityCard, RiskCard, WorkedDidNotGrid, parseMetricBullet } from "./brief-parts";
 import { monthlyBriefFor } from "./brief-data";
 import type { BriefSection } from "@/lib/types";
@@ -13,9 +18,33 @@ import type { ScreenProps } from "../view-types";
 const PLAIN_HEADINGS = new Set(["Revenue", "Sales", "Sales / orders", "Marketing", "Customers", "Website", "Results measured"]);
 
 export function BriefMonthly({ params: _params }: ScreenProps) {
+  const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const business = getBusiness(businessId, userWorkspace);
+
+  // A real owner's workspace has no monthly review yet — never show a sample
+  // review carrying someone else's figures.
+  if (businessId === "user-workspace") {
+    return (
+      <div className="mx-auto w-full max-w-4xl">
+        <Card className="p-8">
+          <EmptyState
+            icon={<FileText className="size-5" />}
+            title="Your first monthly review isn't written yet"
+            description={`Monthly reviews are generated from real numbers — entered totals, an upload or a connected source. Nothing is drafted from sample data for ${userWorkspace?.name ?? "your workspace"}.`}
+            actions={
+              <>
+                <Button size="sm" onClick={() => navigate("manual-entry")}>Enter your totals</Button>
+                <Button size="sm" variant="outline" onClick={() => navigate("integrations")}>Connect a source</Button>
+              </>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
   const brief = monthlyBriefFor(business);
 
   const exec = brief.sections.find((s) => s.heading === "Executive summary");

@@ -1,17 +1,47 @@
 "use client";
 // Screen 68 — Weekly Business Brief: a readable executive brief document.
+// Sample briefs exist only for sample workspaces; a user's own workspace gets
+// an honest early-state until real data produces a real brief.
 
 import React from "react";
+import { FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
+import { EmptyState } from "@/components/shared/states";
 import { BriefDocShell, BriefMetricChip, BriefSectionBlock } from "./brief-parts";
 import { weeklyBriefFor } from "./brief-data";
 import type { ScreenProps } from "../view-types";
 
 export function BriefWeekly({ params: _params }: ScreenProps) {
+  const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const business = getBusiness(businessId, userWorkspace);
+
+  // A real owner's workspace has no briefs yet — never show a sample brief
+  // carrying someone else's figures.
+  if (businessId === "user-workspace") {
+    return (
+      <div className="mx-auto w-full max-w-4xl">
+        <Card className="p-8">
+          <EmptyState
+            icon={<FileText className="size-5" />}
+            title="Your first weekly brief isn't written yet"
+            description={`Briefs are generated from real numbers — entered totals, an upload or a connected source. Nothing is drafted from sample data for ${userWorkspace?.name ?? "your workspace"}.`}
+            actions={
+              <>
+                <Button size="sm" onClick={() => navigate("manual-entry")}>Enter your totals</Button>
+                <Button size="sm" variant="outline" onClick={() => navigate("integrations")}>Connect a source</Button>
+              </>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
   const brief = weeklyBriefFor(business);
 
   const thisWeek = brief.sections.find((s) => s.heading === "This week");

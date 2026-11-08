@@ -1,0 +1,992 @@
+     1→"use client";
+     2→// System states — Screens 95–104 (registry group "states").
+     3→// 95 no-data · 96 insufficient · 97 syncing · 98 stale · 99 disconnected ·
+     4→// 100 permission-denied · 101 plan-limit · 102 session-expired (bare) ·
+     5→// 103 404 (bare) · 104 error (bare).
+     6→//
+     7→// Layout contract (app-root): state/session-expired, state/404 and state/error
+     8→// render BARE (no shell) and are therefore fully self-contained pages with
+     9→// their own top bar. All other state/* screens render inside AppShell and use
+    10→// PageHeader + SectionCard.
+    11→
+    12→import { useEffect, useRef, useState } from "react";
+    13→import { toast } from "sonner";
+    14→import {
+    15→  AlertTriangle,
+    16→  ArrowRight,
+    17→  CheckCircle2,
+    18→  ClipboardList,
+    19→  Clock,
+    20→  Compass,
+    21→  Copy,
+    22→  Database,
+    23→  HelpCircle,
+    24→  History,
+    25→  Home,
+    26→  KeyRound,
+    27→  Loader2,
+    28→  Lock,
+    29→  LogIn,
+    30→  PenLine,
+    31→  Plug,
+    32→  RefreshCw,
+    33→  ServerOff,
+    34→  ShieldCheck,
+    35→  Sparkles,
+    36→  TrendingUp,
+    37→  WifiOff,
+    38→} from "lucide-react";
+    39→import { Button } from "@/components/ui/button";
+    40→import { Badge } from "@/components/ui/badge";
+    41→import { Card } from "@/components/ui/card";
+    42→import { Progress } from "@/components/ui/progress";
+    43→import { Separator } from "@/components/ui/separator";
+    44→import { InfoBanner, KeyValue, PageHeader, SectionCard } from "@/components/shared/layout";
+    45→import { ProvenanceBadge } from "@/components/shared/badges";
+    46→import { useBizz } from "@/lib/store";
+    47→import { getBusiness } from "@/lib/data/businesses";
+    48→import type { ReactNode } from "react";
+    49→import type { ViewMap } from "../view-types";
+    50→
+    51→// ---------- Shared bits ----------
+    52→
+    53→/** Small chip marking these screens as system states (demo artifacts). */
+    54→function SystemStateChip() {
+    55→  return (
+    56→    <Badge variant="outline" className="bg-slate-100 font-normal text-slate-600">
+    57→      System state
+    58→    </Badge>
+    59→  );
+    60→}
+    61→
+    62→/** Wordmark used by the bare (standalone) state pages — links back to the landing page. */
+    63→function BareLogo() {
+    64→  const navigate = useBizz((s) => s.navigate);
+    65→  return (
+    66→    <button onClick={() => navigate("landing")} aria-label="bizzGrowth home" className="inline-flex items-center gap-2">
+    67→      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white">
+    68→        <TrendingUp className="size-4" aria-hidden />
+    69→      </span>
+    70→      <span className="text-[15px] font-bold tracking-tight text-slate-900">
+    71→        bizz<span className="text-blue-600">Growth</span>
+    72→      </span>
+    73→    </button>
+    74→  );
+    75→}
+    76→
+    77→/** Standalone page chrome for bare states: minimal top bar + centered card. */
+    78→function BareShell({ children, link }: { children: ReactNode; link?: { label: string; onClick: () => void } }) {
+    79→  return (
+    80→    <div className="flex min-h-screen flex-col bg-slate-50">
+    81→      <header className="border-b bg-white">
+    82→        <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 sm:px-6">
+    83→          <BareLogo />
+    84→          {link ? (
+    85→            <Button variant="ghost" size="sm" onClick={link.onClick}>
+    86→              {link.label}
+    87→            </Button>
+    88→          ) : null}
+    89→        </div>
+    90→      </header>
+    91→      <main className="flex flex-1 items-start justify-center px-4 py-12 sm:py-20">
+    92→        <div className="w-full max-w-xl">{children}</div>
+    93→      </main>
+    94→    </div>
+    95→  );
+    96→}
+    97→
+    98→/** history.back() with a safe in-app fallback. */
+    99→function useGoBack(fallback: string) {
+   100→  const navigate = useBizz((s) => s.navigate);
+   101→  return () => {
+   102→    if (window.history.length > 1) window.history.back();
+   103→    else navigate(fallback);
+   104→  };
+   105→}
+   106→
+   107→// ---------- Screen 95 — New Workspace / No Data Yet ----------
+   108→
+   109→function NoDataScreen() {
+   110→  const navigate = useBizz((s) => s.navigate);
+   111→  const setBusiness = useBizz((s) => s.setBusiness);
+   112→  const businessId = useBizz((s) => s.businessId);
+   113→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   114→  const business = getBusiness(businessId, userWorkspace);
+   115→
+   116→  const levels = [
+   117→    {
+   118→      level: "Monthly totals only",
+   119→      question: "What happened",
+   120→      detail: "Which headline metrics changed and where to look first — a baseline diagnosis with zero connections.",
+   121→    },
+   122→    {
+   123→      level: "Totals + funnel or channel data",
+   124→      question: "Where it happened",
+   125→      detail: "Which journey step or marketing channel moved, so effort goes to the right place.",
+   126→    },
+   127→    {
+   128→      level: "Connected sources with history",
+   129→      question: "Why it happened",
+   130→      detail: "Root-cause diagnosis with stated confidence, evidence links and provenance on every fact.",
+   131→    },
+   132→  ];
+   133→
+   134→  const options = [
+   135→    {
+   136→      icon: ClipboardList,
+   137→      title: "Start the private checkup",
+   138→      detail:
+   139→        "Answer a few questions about how the business runs. No connections needed — you get a first diagnosis and a short list of what to add next.",
+   140→      cta: "Start checkup",
+   141→      primary: true,
+   142→      onClick: () => navigate("welcome"),
+   143→    },
+   144→    {
+   145→      icon: PenLine,
+   146→      title: "Enter data manually",
+   147→      detail:
+   148→        "Type in monthly totals — spend, enquiries, customers and revenue (or traffic and orders). Estimates are fine and are always labelled in analysis.",
+   149→      cta: "Enter data",
+   150→      primary: false,
+   151→      onClick: () => navigate("manual-entry"),
+   152→    },
+   153→    {
+   154→      icon: Plug,
+   155→      title: "Connect a source",
+   156→      detail:
+   157→        "Link Shopify, Meta Ads, Google Analytics or Paystack. Connectors are read-only by default — nothing on your accounts can be changed.",
+   158→      cta: "Connect source",
+   159→      primary: false,
+   160→      onClick: () => navigate("integrations"),
+   161→    },
+   162→    {
+   163→      icon: Compass,
+   164→      title: "Explore a demo business",
+   165→      detail:
+   166→        "Open SwiftHaul Logistics, a fully populated service workspace, to see what a complete diagnosis looks like before adding your own data.",
+   167→      cta: "Explore demo",
+   168→      primary: false,
+   169→      onClick: () => {
+   170→        setBusiness("swifthaul");
+   171→        navigate("home");
+   172→      },
+   173→    },
+   174→  ];
+   175→
+   176→  return (
+   177→    <div className="mx-auto w-full max-w-4xl">
+   178→      <PageHeader
+   179→        title="Let's get your first signal"
+   180→        description={`You haven't added enough information yet to understand performance in ${business.name}. That is expected for a new workspace — bizzGrowth works from the very first number you add, and grows sharper as coverage grows.`}
+   181→        badge={<SystemStateChip />}
+   182→      />
+   183→
+   184→      <SectionCard
+   185→        title="What bizzGrowth can tell you at each level of data"
+   186→        description="The product is useful from day one — each level answers a bigger question."
+   187→      >
+   188→        <ol className="space-y-4">
+   189→          {levels.map((l, i) => (
+   190→            <li key={l.level} className="flex gap-3">
+   191→              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700" aria-hidden>
+   192→                {i + 1}
+   193→              </span>
+   194→              <div>
+   195→                <p className="text-sm font-medium">
+   196→                  {l.question} <span className="font-normal text-muted-foreground">— {l.level}</span>
+   197→                </p>
+   198→                <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{l.detail}</p>
+   199→              </div>
+   200→            </li>
+   201→          ))}
+   202→        </ol>
+   203→      </SectionCard>
+   204→
+   205→      <div className="mt-5">
+   206→        <h2 className="mb-3 text-sm font-semibold">Four ways to start — pick whichever is easiest today</h2>
+   207→        <div className="grid gap-4 sm:grid-cols-2">
+   208→          {options.map((o) => (
+   209→            <Card key={o.title} className="flex flex-col p-5">
+   210→              <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+   211→                <o.icon className="size-4.5" aria-hidden />
+   212→              </div>
+   213→              <h3 className="mt-3 text-sm font-semibold">{o.title}</h3>
+   214→              <p className="mt-1 flex-1 text-sm leading-relaxed text-muted-foreground">{o.detail}</p>
+   215→              <div className="mt-4 border-t pt-3">
+   216→                <Button size="sm" variant={o.primary ? "default" : "outline"} className="w-full" onClick={o.onClick}>
+   217→                  {o.cta}
+   218→                  <ArrowRight className="ml-1.5 size-3.5" aria-hidden />
+   219→                </Button>
+   220→              </div>
+   221→            </Card>
+   222→          ))}
+   223→        </div>
+   224→      </div>
+   225→
+   226→      <p className="mt-5 text-center text-xs text-muted-foreground">
+   227→        Nothing here is wasted — manual totals and connected sources combine into one coverage picture in the Data Centre.
+   228→      </p>
+   229→    </div>
+   230→  );
+   231→}
+   232→
+   233→// ---------- Screen 96 — Insufficient Data for Diagnosis (signature state) ----------
+   234→
+   235→function InsufficientScreen() {
+   236→  const navigate = useBizz((s) => s.navigate);
+   237→  const goBack = useGoBack("insights");
+   238→
+   239→  const known = [
+   240→    { text: "Customers declined compared with last month", prov: "measured" as const, src: "Payments / order records" },
+   241→    { text: "Revenue declined compared with last month", prov: "measured" as const, src: "Payment settlements" },
+   242→    { text: "Marketing spend is known for the period", prov: "measured" as const, src: "Connected ad accounts" },
+   243→  ];
+   244→
+   245→  const unknown = [
+   246→    {
+   247→      text: "Lead source — which channels actually produced the customers",
+   248→      blocks: "Blocks channel-level attribution and budget guidance",
+   249→    },
+   250→    {
+   251→      text: "Website conversion — how visitors behaved before buying",
+   252→      blocks: "Blocks upstream funnel diagnosis and checkout analysis",
+   253→    },
+   254→  ];
+   255→
+   256→  const unlocks = [
+   257→    {
+   258→      icon: Plug,
+   259→      label: "Connect Google Analytics",
+   260→      detail: "Adds sessions, devices and visitor-to-enquiry behaviour. Unlocks the upstream funnel — what happens before customers appear.",
+   261→      cta: "Connect Google Analytics",
+   262→      onClick: () => navigate("connect/google-analytics"),
+   263→    },
+   264→    {
+   265→      icon: PenLine,
+   266→      label: "Add funnel data",
+   267→      detail: "Adds step counts between visit and purchase. Unlocks step-level diagnosis — exactly where in the journey visitors drop off.",
+   268→      cta: "Add funnel data",
+   269→      onClick: () => navigate("manual-entry"),
+   270→    },
+   271→  ];
+   272→
+   273→  return (
+   274→    <div className="mx-auto w-full max-w-4xl">
+   275→      <PageHeader
+   276→        title="We can see the problem, but not yet the cause"
+   277→        description="There is enough information to know that something changed — not enough to say why. This is a normal stage, and one more data connection usually resolves it."
+   278→        badge={<SystemStateChip />}
+   279→        back={
+   280→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={goBack}>
+   281→            Back to previous page
+   282→          </Button>
+   283→        }
+   284→      />
+   285→
+   286→      <InfoBanner tone="info" title="Example framing">
+   287→        This state is shown for an ecommerce workspace (KoraHome Store) where customers and revenue declined while channel
+   288→        and website data were unavailable. In your workspace it appears whenever a diagnosis is requested with partial coverage.
+   289→      </InfoBanner>
+   290→
+   291→      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+   292→        <SectionCard title="What we know" className="border-emerald-200">
+   293→          <ul className="space-y-3">
+   294→            {known.map((k) => (
+   295→              <li key={k.text} className="flex flex-col gap-1.5">
+   296→                <span className="flex items-start gap-2 text-sm">
+   297→                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+   298→                  {k.text}
+   299→                </span>
+   300→                <ProvenanceBadge provenance={k.prov} source={k.src} className="ml-6 w-fit" />
+   301→              </li>
+   302→            ))}
+   303→          </ul>
+   304→        </SectionCard>
+   305→
+   306→        <SectionCard title="What we don't know" className="border-amber-200">
+   307→          <ul className="space-y-3">
+   308→            {unknown.map((u) => (
+   309→              <li key={u.text} className="flex flex-col gap-1">
+   310→                <span className="flex items-start gap-2 text-sm">
+   311→                  <HelpCircle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+   312→                  {u.text}
+   313→                </span>
+   314→                <span className="ml-6 text-xs text-muted-foreground">{u.blocks}</span>
+   315→              </li>
+   316→            ))}
+   317→          </ul>
+   318→          <Separator className="my-3" />
+   319→          <p className="text-xs leading-relaxed text-muted-foreground">
+   320→            Confidence for this diagnosis is currently Low. Low confidence is not an error — it means the evidence is not yet
+   321→            complete enough to isolate a cause.
+   322→          </p>
+   323→        </SectionCard>
+   324→
+   325→        <SectionCard title="What would unlock the answer" className="border-violet-200">
+   326→          <div className="space-y-4">
+   327→            <div className="flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+   328→              <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
+   329→              <p className="text-sm leading-relaxed text-violet-900">
+   330→                With either addition, this diagnosis upgrades from &ldquo;what changed&rdquo; to a root cause with stated confidence —
+   331→                and the recommendation engine can act on it.
+   332→              </p>
+   333→            </div>
+   334→            <p className="text-xs leading-relaxed text-muted-foreground">
+   335→              Any single option below is enough to start. Neither takes more than a few minutes, and both are read-only or
+   336→              manually supplied by you.
+   337→            </p>
+   338→          </div>
+   339→        </SectionCard>
+   340→      </div>
+   341→
+   342→      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+   343→        {unlocks.map((u) => (
+   344→          <Card key={u.label} className="flex flex-col p-5">
+   345→            <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+   346→              <u.icon className="size-4.5" aria-hidden />
+   347→            </div>
+   348→            <h3 className="mt-3 text-sm font-semibold">{u.label}</h3>
+   349→            <p className="mt-1 flex-1 text-sm leading-relaxed text-muted-foreground">{u.detail}</p>
+   350→            <div className="mt-4 border-t pt-3">
+   351→              <Button size="sm" className="w-full" onClick={u.onClick}>
+   352→                {u.cta}
+   353→                <ArrowRight className="ml-1.5 size-3.5" aria-hidden />
+   354→              </Button>
+   355→            </div>
+   356→          </Card>
+   357→        ))}
+   358→      </div>
+   359→
+   360→      <div className="mt-6 flex flex-col items-center gap-3">
+   361→        <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
+   362→          <ShieldCheck className="size-4 text-slate-500" aria-hidden />
+   363→          We never invent a diagnosis when evidence is missing.
+   364→        </p>
+   365→        <Button variant="ghost" size="sm" onClick={() => navigate("insights")}>
+   366→          Back to insights
+   367→        </Button>
+   368→      </div>
+   369→    </div>
+   370→  );
+   371→}
+   372→
+   373→// ---------- Screen 97 — Data Syncing ----------
+   374→
+   375→const SYNC_SOURCES = [
+   376→  { name: "Shopify", detail: "Orders & checkout analytics — importing the last 3 months" },
+   377→  { name: "Paystack", detail: "Payments — success rates, failure reasons and settlement totals" },
+   378→];
+   379→
+   380→function SyncingScreen() {
+   381→  const navigate = useBizz((s) => s.navigate);
+   382→  const [progress, setProgress] = useState(8);
+   383→  const [done, setDone] = useState(false);
+   384→  const mountedRef = useRef(true);
+   385→
+   386→  useEffect(() => {
+   387→    mountedRef.current = true;
+   388→    const iv = window.setInterval(() => {
+   389→      setProgress((p) => (p >= 100 ? 100 : Math.min(100, p + 4 + Math.round(Math.random() * 7))));
+   390→    }, 550);
+   391→    const t = window.setTimeout(() => {
+   392→      if (!mountedRef.current) return;
+   393→      setProgress(100);
+   394→      setDone(true);
+   395→      toast.success("Sync complete", {
+   396→        description: "Orders, payments and workspace metrics are up to date.",
+   397→      });
+   398→    }, 10000);
+   399→    return () => {
+   400→      mountedRef.current = false;
+   401→      window.clearInterval(iv);
+   402→      window.clearTimeout(t);
+   403→    };
+   404→  }, []);
+   405→
+   406→  const shopifyDone = progress >= 60;
+   407→  const paystackDone = done;
+   408→
+   409→  return (
+   410→    <div className="mx-auto w-full max-w-3xl">
+   411→      <PageHeader
+   412→        title="Importing your data"
+   413→        description="This usually takes under a minute. You can leave this screen — we'll notify you when it's ready."
+   414→        badge={<SystemStateChip />}
+   415→      />
+   416→
+   417→      <SectionCard title="Sync progress" description="Workspace-level import across connected sources.">
+   418→        <div className="flex items-center gap-3">
+   419→          {done ? (
+   420→            <span className="flex size-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+   421→              <CheckCircle2 className="size-5" aria-hidden />
+   422→            </span>
+   423→          ) : (
+   424→            <Loader2 className="size-6 animate-spin text-blue-600" aria-hidden />
+   425→          )}
+   426→          <div className="flex-1">
+   427→            <div className="flex items-baseline justify-between">
+   428→              <p className="text-sm font-medium">{done ? "Sync complete" : "Importing your data…"}</p>
+   429→              <span className="text-sm font-medium text-muted-foreground tnum">{progress}%</span>
+   430→            </div>
+   431→            <Progress value={progress} className="mt-2 h-2" aria-label={`Sync progress ${progress}%`} />
+   432→          </div>
+   433→        </div>
+   434→
+   435→        <Separator className="my-4" />
+   436→
+   437→        <ul className="space-y-3">
+   438→          {SYNC_SOURCES.map((src, i) => {
+   439→            const isDone = i === 0 ? shopifyDone : paystackDone;
+   440→            return (
+   441→              <li key={src.name} className="flex items-start gap-3">
+   442→                <span className="mt-0.5">
+   443→                  {isDone ? (
+   444→                    <CheckCircle2 className="size-4.5 text-emerald-600" aria-label={`${src.name} complete`} />
+   445→                  ) : (
+   446→                    <Loader2 className="size-4.5 animate-spin text-blue-600" aria-label={`${src.name} syncing`} />
+   447→                  )}
+   448→                </span>
+   449→                <div>
+   450→                  <p className="text-sm font-medium">
+   451→                    {src.name}
+   452→                    <span className="ml-2 text-xs font-normal text-muted-foreground">{isDone ? "Done" : "Syncing…"}</span>
+   453→                  </p>
+   454→                  <p className="text-xs text-muted-foreground">{src.detail}</p>
+   455→                </div>
+   456→              </li>
+   457→            );
+   458→          })}
+   459→        </ul>
+   460→      </SectionCard>
+   461→
+   462→      {done ? (
+   463→        <InfoBanner tone="success" title="Your data is up to date" >
+   464→          Metrics, funnel charts and diagnoses now include everything just imported.
+   465→        </InfoBanner>
+   466→      ) : (
+   467→        <InfoBanner tone="info" title="You can leave this screen">
+   468→          The sync continues in the background and we&apos;ll notify you the moment it&apos;s ready — nothing is lost by navigating away.
+   469→        </InfoBanner>
+   470→      )}
+   471→
+   472→      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+   473→        <Button variant="outline" className="flex-1" onClick={() => navigate("home")}>
+   474→          Continue in background
+   475→        </Button>
+   476→        <Button className="flex-1" onClick={() => navigate("data")} variant={done ? "default" : "ghost"}>
+   477→          {done ? "View performance" : "Go to Data Centre"}
+   478→        </Button>
+   479→      </div>
+   480→    </div>
+   481→  );
+   482→}
+   483→
+   484→// ---------- Screen 98 — Data Stale / Sync Delayed ----------
+   485→
+   486→function StaleScreen() {
+   487→  const navigate = useBizz((s) => s.navigate);
+   488→  const [syncing, setSyncing] = useState(false);
+   489→  const [refreshed, setRefreshed] = useState(false);
+   490→
+   491→  const affected = ["Checkout diagnosis", "Funnel charts", "Revenue reporting"];
+   492→
+   493→  function syncNow() {
+   494→    setSyncing(true);
+   495→    window.setTimeout(() => {
+   496→      setSyncing(false);
+   497→      setRefreshed(true);
+   498→      toast.success("Data refreshed", {
+   499→        description: "Checkout diagnosis, funnel charts and revenue now include all of today's data.",
+   500→      });
+   501→    }, 2200);
+   502→  }
+   503→
+   504→  return (
+   505→    <div className="mx-auto w-full max-w-4xl">
+   506→      <PageHeader
+   507→        title="Data is older than usual"
+   508→        description="Scheduled syncs have not completed since 14:00. Analyses below are built on data up to 11:02 today — still useful, no longer current."
+   509→        badge={<SystemStateChip />}
+   510→        back={
+   511→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("home")}>
+   512→            Back to Home
+   513→          </Button>
+   514→        }
+   515→      />
+   516→
+   517→      <InfoBanner tone="warning" title="Data is older than usual">
+   518→        The last successful update landed at <strong>Today 11:02</strong>. Three scheduled syncs since then did not complete.
+   519→      </InfoBanner>
+   520→
+   521→      <div className="mt-5 space-y-5">
+   522→        <SectionCard title="Sync status">
+   523→          <div className="space-y-2.5">
+   524→            <KeyValue label="Last successful update">Today 11:02</KeyValue>
+   525→            <KeyValue label="Failed attempts">14:00 · 15:03 · 16:00 (3 of 3 failed)</KeyValue>
+   526→            <KeyValue label="Current status">
+   527→              <Badge variant="outline" className="border-amber-200 bg-amber-50 font-normal text-amber-700">
+   528→                <Clock className="mr-1 size-3" aria-hidden /> Delayed
+   529→              </Badge>
+   530→            </KeyValue>
+   531→          </div>
+   532→        </SectionCard>
+   533→
+   534→        <div className="grid gap-5 lg:grid-cols-2">
+   535→          <SectionCard title="What this affects">
+   536→            <ul className="space-y-2">
+   537→              {affected.map((a) => (
+   538→                <li key={a} className="flex items-center gap-2 text-sm">
+   539→                  <History className="size-4 shrink-0 text-amber-600" aria-hidden />
+   540→                  {a} — frozen at 11:02
+   541→                </li>
+   542→              ))}
+   543→            </ul>
+   544→            <Separator className="my-3" />
+   545→            <p className="text-xs leading-relaxed text-muted-foreground">
+   546→              AI interpretations that relied on pre-11:02 data are flagged with a &ldquo;stale data&rdquo; marker in Insights —
+   547→              nothing is silently treated as current.
+   548→            </p>
+   549→          </SectionCard>
+   550→
+   551→          <SectionCard title="Possible reason">
+   552→            <p className="text-sm leading-relaxed">
+   553→              The Shopify authorization token expired during the 14:00 sync attempt. The connection itself is intact — it needs a
+   554→              token refresh, which either a sync or a re-authorization can provide.
+   555→            </p>
+   556→            <Separator className="my-3" />
+   557→            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recommended response</p>
+   558→            <ol className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+   559→              <li>1. Try &ldquo;Sync now&rdquo; first — a token refresh often resolves it within a minute.</li>
+   560→              <li>2. If it fails again, review the connection and re-authorize Shopify.</li>
+   561→              <li>3. Treat AI conclusions from before 11:02 as provisional until data is current.</li>
+   562→            </ol>
+   563→          </SectionCard>
+   564→        </div>
+   565→
+   566→        {refreshed ? (
+   567→          <InfoBanner tone="success" title="You're up to date">
+   568→            All analyses now include today&apos;s data. No further action is needed.
+   569→          </InfoBanner>
+   570→        ) : null}
+   571→
+   572→        <div className="flex flex-col gap-2 sm:flex-row">
+   573→          <Button onClick={syncNow} disabled={syncing} className="flex-1 sm:flex-none">
+   574→            {syncing ? (
+   575→              <>
+   576→                <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden /> Syncing…
+   577→              </>
+   578→            ) : (
+   579→              <>
+   580→                <RefreshCw className="mr-1.5 size-4" aria-hidden /> Sync now
+   581→              </>
+   582→            )}
+   583→          </Button>
+   584→          <Button variant="outline" onClick={() => navigate("connection-error")} className="flex-1 sm:flex-none">
+   585→            Review connection
+   586→          </Button>
+   587→        </div>
+   588→      </div>
+   589→    </div>
+   590→  );
+   591→}
+   592→
+   593→// ---------- Screen 99 — Integration Disconnected ----------
+   594→
+   595→function DisconnectedScreen() {
+   596→  const navigate = useBizz((s) => s.navigate);
+   597→
+   598→  const affected = [
+   599→    { label: "Orders and revenue reporting", detail: "Paused — no new orders after 11:02 today will appear until reconnected." },
+   600→    { label: "Funnel and checkout analysis", detail: "Paused — charts show data through 11:02 and will not advance." },
+   601→    { label: "Payment reliability analysis", detail: "Paused — the Paystack sync runs in the Shopify window." },
+   602→    { label: "Alerts and new insights for this source", detail: "Paused — existing insights remain available and marked as of 11:02." },
+   603→  ];
+   604→
+   605→  return (
+   606→    <div className="mx-auto w-full max-w-4xl">
+   607→      <PageHeader
+   608→        title="Shopify disconnected"
+   609→        description="A connected source stopped syncing. Historical data is retained — reconnecting restores everything."
+   610→        badge={<SystemStateChip />}
+   611→        back={
+   612→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("data")}>
+   613→            Back to Data Centre
+   614→          </Button>
+   615→        }
+   616→      />
+   617→
+   618→      <Card className="border-red-200 bg-red-50/50 p-5">
+   619→        <div className="flex items-start gap-3">
+   620→          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+   621→            <WifiOff className="size-5" aria-hidden />
+   622→          </span>
+   623→          <div className="min-w-0 flex-1">
+   624→            <div className="flex flex-wrap items-center gap-2">
+   625→              <h2 className="text-sm font-semibold text-red-900">Shopify — disconnected</h2>
+   626→              <Badge variant="outline" className="border-red-200 bg-white font-normal text-red-700">
+   627→                <AlertTriangle className="mr-1 size-3" aria-hidden /> Action needed
+   628→              </Badge>
+   629→            </div>
+   630→            <div className="mt-3 space-y-2.5">
+   631→              <KeyValue label="Source">Shopify (Ecommerce) — korahome-store.myshopify.com</KeyValue>
+   632→              <KeyValue label="Disconnected">Today at 14:03</KeyValue>
+   633→              <KeyValue label="Reason">
+   634→                Authorization expired — the access token issued to bizzGrowth timed out during the 14:00 sync attempt.
+   635→              </KeyValue>
+   636→            </div>
+   637→          </div>
+   638→        </div>
+   639→      </Card>
+   640→
+   641→      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+   642→        <SectionCard title="What intelligence is affected">
+   643→          <ul className="space-y-3">
+   644→            {affected.map((a) => (
+   645→              <li key={a.label}>
+   646→                <p className="text-sm font-medium">{a.label}</p>
+   647→                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.detail}</p>
+   648→              </li>
+   649→            ))}
+   650→          </ul>
+   651→        </SectionCard>
+   652→
+   653→        <div className="space-y-5">
+   654→          <SectionCard title="What still works">
+   655→            <ul className="space-y-2 text-sm">
+   656→              {["Home overview and health score", "Goals and assigned actions", "Manual entries and CSV imports", "Insights based on Meta Ads and Google Ads"].map((w) => (
+   657→                <li key={w} className="flex items-center gap-2">
+   658→                  <CheckCircle2 className="size-4 shrink-0 text-emerald-600" aria-hidden /> {w}
+   659→                </li>
+   660→              ))}
+   661→            </ul>
+   662→          </SectionCard>
+   663→          <InfoBanner tone="success" title="Historical data is retained">
+   664→            Nothing is deleted. Reconnecting restores full history — data is only removed if a source stays disconnected for
+   665→            more than 30 days.
+   666→          </InfoBanner>
+   667→        </div>
+   668→      </div>
+   669→
+   670→      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+   671→        <Button onClick={() => navigate("connection-error")} className="flex-1 sm:flex-none">
+   672→          <RefreshCw className="mr-1.5 size-4" aria-hidden /> Reconnect Shopify
+   673→        </Button>
+   674→        <Button variant="outline" onClick={() => navigate("data")} className="flex-1 sm:flex-none">
+   675→          <Database className="mr-1.5 size-4" aria-hidden /> Open Data Centre
+   676→        </Button>
+   677→      </div>
+   678→    </div>
+   679→  );
+   680→}
+   681→
+   682→// ---------- Screen 100 — Permission Denied ----------
+   683→
+   684→function PermissionDeniedScreen() {
+   685→  const navigate = useBizz((s) => s.navigate);
+   686→  const goBack = useGoBack("home");
+   687→
+   688→  const whoCan = [
+   689→    { role: "Owner", who: "Amara Okafor", note: "Full access, including billing and plan changes." },
+   690→    { role: "Admin", who: "Tunde Bakare", note: "Can manage billing, members and connected sources." },
+   691→  ];
+   692→
+   693→  return (
+   694→    <div className="mx-auto w-full max-w-3xl">
+   695→      <PageHeader
+   696→        title="You don't have permission for this action"
+   697→        description="This screen appears when a role tries to open something restricted. Here is exactly what happened and what to do next."
+   698→        badge={<SystemStateChip />}
+   699→        back={
+   700→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={goBack}>
+   701→            Back to previous page
+   702→          </Button>
+   703→        }
+   704→      />
+   705→
+   706→      <InfoBanner tone="info" title="Prototype note">
+   707→        This state is shown from the perspective of a Member role. Your demo account (Amara Okafor) is normally the workspace
+   708→        Owner.
+   709→      </InfoBanner>
+   710→
+   711→      <div className="mt-5 space-y-5">
+   712→        <SectionCard title="What cannot be performed">
+   713→          <p className="text-sm leading-relaxed">
+   714→            <span className="font-medium">Only workspace owners and admins can manage billing.</span> Opening plan, payment and
+   715→            invoice management requires one of those roles.
+   716→          </p>
+   717→        </SectionCard>
+   718→
+   719→        <SectionCard title="Your current access">
+   720→          <div className="space-y-2.5">
+   721→            <KeyValue label="Current role">
+   722→              <Badge variant="outline" className="bg-slate-100 font-normal text-slate-700">
+   723→                <Lock className="mr-1 size-3" aria-hidden /> Member
+   724→              </Badge>
+   725→            </KeyValue>
+   726→            <KeyValue label="Can do">View dashboards, read insights, complete assigned actions, update your own profile</KeyValue>
+   727→            <KeyValue label="Cannot do">Manage billing, invite or remove members, connect or disconnect data sources</KeyValue>
+   728→          </div>
+   729→        </SectionCard>
+   730→
+   731→        <SectionCard title="Who can perform this action" description="Either of the following can make the change — or grant you access.">
+   732→          <ul className="space-y-3">
+   733→            {whoCan.map((p) => (
+   734→              <li key={p.role} className="flex items-start justify-between gap-3 rounded-xl border p-3.5">
+   735→                <div>
+   736→                  <p className="text-sm font-medium">{p.who}</p>
+   737→                  <p className="mt-0.5 text-xs text-muted-foreground">{p.note}</p>
+   738→                </div>
+   739→                <Badge variant="outline" className="shrink-0 border-blue-200 bg-blue-50 font-normal text-blue-700">
+   740→                  {p.role}
+   741→                </Badge>
+   742→              </li>
+   743→            ))}
+   744→          </ul>
+   745→        </SectionCard>
+   746→
+   747→        <div className="flex flex-col gap-2 sm:flex-row">
+   748→          <Button
+   749→            onClick={() =>
+   750→              toast.success("Request sent to Amara Okafor", {
+   751→                description: "She'll be asked to grant you billing access as the workspace Owner.",
+   752→              })
+   753→            }
+   754→            className="flex-1 sm:flex-none"
+   755→          >
+   756→            Request access
+   757→          </Button>
+   758→          <Button variant="outline" onClick={goBack} className="flex-1 sm:flex-none">
+   759→            Back to previous page
+   760→          </Button>
+   761→          <Button variant="ghost" onClick={() => navigate("home")} className="flex-1 sm:flex-none">
+   762→            Go Home
+   763→          </Button>
+   764→        </div>
+   765→      </div>
+   766→    </div>
+   767→  );
+   768→}
+   769→
+   770→// ---------- Screen 101 — Plan Limit ----------
+   771→
+   772→function PlanLimitScreen() {
+   773→  const navigate = useBizz((s) => s.navigate);
+   774→
+   775→  return (
+   776→    <div className="mx-auto w-full max-w-3xl">
+   777→      <PageHeader
+   778→        title="You've reached your plan's source limit"
+   779→        description="The feature you tried to use is limited on your current plan. Here is what is included today and what upgrading changes."
+   780→        badge={<SystemStateChip />}
+   781→        back={
+   782→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("integrations")}>
+   783→            Back to sources
+   784→          </Button>
+   785→        }
+   786→      />
+   787→
+   788→      <SectionCard title="What you tried to do">
+   789→        <div className="space-y-2.5">
+   790→          <KeyValue label="Feature requested">Additional data source (4th connection)</KeyValue>
+   791→          <KeyValue label="Current plan">
+   792→            <Badge variant="outline" className="bg-slate-100 font-normal text-slate-700">
+   793→              Private Beta
+   794→            </Badge>
+   795→          </KeyValue>
+   796→          <KeyValue label="Plan limitation">3 connected data sources per workspace</KeyValue>
+   797→          <KeyValue label="Currently connected">Meta Ads · Google Ads · Shopify (3 of 3)</KeyValue>
+   798→        </div>
+   799→      </SectionCard>
+   800→
+   801→      <SectionCard
+   802→        title="What upgrading unlocks"
+   803→        description="Everything in your current plan stays available — upgrading adds to it."
+   804→        className="mt-5"
+   805→      >
+   806→        <div className="space-y-3">
+   807→          <div className="flex items-start gap-2.5">
+   808→            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+   809→            <p className="text-sm">
+   810→              <span className="font-medium">Unlimited data sources</span> — add Google Analytics, Paystack, Flutterwave, CSV and
+   811→              more, in any combination.
+   812→            </p>
+   813→          </div>
+   814→          <div className="flex items-start gap-2.5">
+   815→            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+   816→            <p className="text-sm">
+   817→              <span className="font-medium">24 months of history</span> — seasonality baselines and year-over-year comparisons
+   818→              instead of the Beta window.
+   819→            </p>
+   820→          </div>
+   821→          <div className="flex items-start gap-2.5">
+   822→            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+   823→            <p className="text-sm">
+   824→              <span className="font-medium">Deeper diagnosis</span> — every added source raises data coverage, which raises
+   825→              diagnosis confidence.
+   826→            </p>
+   827→          </div>
+   828→        </div>
+   829→        <Separator className="my-4" />
+   830→        <p className="text-xs text-muted-foreground">
+   831→          In the meantime, manual entries and CSV uploads are unlimited on every plan — you can keep improving coverage without
+   832→          upgrading.
+   833→        </p>
+   834→      </SectionCard>
+   835→
+   836→      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+   837→        <Button onClick={() => navigate("settings/plan")} className="flex-1 sm:flex-none">
+   838→          View plans
+   839→          <ArrowRight className="ml-1.5 size-4" aria-hidden />
+   840→        </Button>
+   841→        <Button variant="outline" onClick={() => navigate("feedback")} className="flex-1 sm:flex-none">
+   842→          Contact us
+   843→        </Button>
+   844→      </div>
+   845→    </div>
+   846→  );
+   847→}
+   848→
+   849→// ---------- Screen 102 — Session Expired (bare) ----------
+   850→
+   851→function SessionExpiredScreen() {
+   852→  const navigate = useBizz((s) => s.navigate);
+   853→
+   854→  return (
+   855→    <BareShell link={{ label: "Return to landing page", onClick: () => navigate("landing") }}>
+   856→      <Card className="p-6 text-center sm:p-10">
+   857→        <div className="mx-auto flex size-12 items-center justify-center rounded-full border bg-amber-50 text-amber-600 shadow-sm">
+   858→          <KeyRound className="size-5" aria-hidden />
+   859→        </div>
+   860→        <h1 className="mt-5 text-xl font-bold tracking-tight sm:text-2xl">Your session expired for security</h1>
+   861→        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+   862→          For your protection, bizzGrowth signs you out after a period of inactivity. Nothing was lost — your workspace and data
+   863→          are exactly as you left them.
+   864→        </p>
+   865→        <div className="mt-6 flex justify-center">
+   866→          <Button onClick={() => navigate("signin")} className="w-full sm:w-auto">
+   867→            <LogIn className="mr-1.5 size-4" aria-hidden /> Sign in again
+   868→          </Button>
+   869→        </div>
+   870→        <p className="mt-4 text-xs text-muted-foreground">Your intended destination will be restored after signing in.</p>
+   871→      </Card>
+   872→    </BareShell>
+   873→  );
+   874→}
+   875→
+   876→// ---------- Screen 103 — 404 / Page Not Found (bare) ----------
+   877→
+   878→function NotFoundScreen() {
+   879→  const navigate = useBizz((s) => s.navigate);
+   880→  const goBack = useGoBack("home");
+   881→
+   882→  const suggestions = [
+   883→    { label: "Home", route: "home" },
+   884→    { label: "Performance", route: "performance" },
+   885→    { label: "Insights", route: "insights" },
+   886→    { label: "Data", route: "data" },
+   887→  ];
+   888→
+   889→  return (
+   890→    <BareShell>
+   891→      <Card className="p-6 text-center sm:p-10">
+   892→        <p aria-hidden className="select-none bg-gradient-to-b from-slate-200 to-slate-100 bg-clip-text text-7xl font-black tracking-tight text-transparent sm:text-8xl">
+   893→          404
+   894→        </p>
+   895→        <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">Page not found</h1>
+   896→        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+   897→          The page you&apos;re looking for doesn&apos;t exist, was moved, or the link may be out of date. Everything else is still
+   898→          where you left it.
+   899→        </p>
+   900→        <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+   901→          <Button onClick={() => navigate("home")} className="w-full sm:w-auto">
+   902→            <Home className="mr-1.5 size-4" aria-hidden /> Go Home
+   903→          </Button>
+   904→          <Button variant="outline" onClick={goBack} className="w-full sm:w-auto">
+   905→            Back to previous page
+   906→          </Button>
+   907→        </div>
+   908→        <Separator className="my-6" />
+   909→        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Were you looking for</p>
+   910→        <div className="mt-3 flex flex-wrap justify-center gap-2">
+   911→          {suggestions.map((s) => (
+   912→            <Button key={s.route} variant="outline" size="sm" onClick={() => navigate(s.route)}>
+   913→              {s.label}
+   914→            </Button>
+   915→          ))}
+   916→        </div>
+   917→      </Card>
+   918→    </BareShell>
+   919→  );
+   920→}
+   921→
+   922→// ---------- Screen 104 — General Error / Service Unavailable (bare) ----------
+   923→
+   924→const ERROR_REFERENCE = "REF-2026-0930-4172";
+   925→
+   926→function ServiceErrorScreen() {
+   927→  const navigate = useBizz((s) => s.navigate);
+   928→
+   929→  function copyReference() {
+   930→    try {
+   931→      void navigator.clipboard?.writeText(ERROR_REFERENCE);
+   932→      toast.success("Reference copied", { description: ERROR_REFERENCE });
+   933→    } catch {
+   934→      toast(`Reference: ${ERROR_REFERENCE}`);
+   935→    }
+   936→  }
+   937→
+   938→  return (
+   939→    <BareShell link={{ label: "Go to the app", onClick: () => navigate("home") }}>
+   940→      <Card className="p-6 text-center sm:p-10">
+   941→        <div className="mx-auto flex size-12 items-center justify-center rounded-full border bg-slate-100 text-slate-600 shadow-sm">
+   942→          <ServerOff className="size-5" aria-hidden />
+   943→        </div>
+   944→        <h1 className="mt-5 text-xl font-bold tracking-tight sm:text-2xl">Service unavailable</h1>
+   945→        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+   946→          bizzGrowth couldn&apos;t reach its analysis service. This is a technical problem on our side, not an issue with your
+   947→          data — nothing was lost and nothing needs fixing on your end.
+   948→        </p>
+   949→
+   950→        <button
+   951→          onClick={copyReference}
+   952→          className="mx-auto mt-5 flex items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 font-mono text-xs text-slate-600 transition-colors hover:bg-slate-100"
+   953→          aria-label={`Copy reference code ${ERROR_REFERENCE}`}
+   954→        >
+   955→          Reference: {ERROR_REFERENCE}
+   956→          <Copy className="size-3.5" aria-hidden />
+   957→        </button>
+   958→
+   959→        <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+   960→          <Button onClick={() => window.location.reload()} className="w-full sm:w-auto">
+   961→            <RefreshCw className="mr-1.5 size-4" aria-hidden /> Retry
+   962→          </Button>
+   963→          <Button variant="outline" onClick={() => navigate("home")} className="w-full sm:w-auto">
+   964→            <Home className="mr-1.5 size-4" aria-hidden /> Go Home
+   965→          </Button>
+   966→          <Button variant="ghost" onClick={() => navigate("feedback")} className="w-full sm:w-auto">
+   967→            Contact support
+   968→          </Button>
+   969→        </div>
+   970→        <p className="mt-4 text-xs text-muted-foreground">
+   971→          If it persists, contact support with the reference code so we can trace the exact request.
+   972→        </p>
+   973→      </Card>
+   974→    </BareShell>
+   975→  );
+   976→}
+   977→
+   978→// ---------- Group registration ----------
+   979→
+   980→export const views: ViewMap = {
+   981→  "state/no-data": NoDataScreen,
+   982→  "state/insufficient": InsufficientScreen,
+   983→  "state/syncing": SyncingScreen,
+   984→  "state/stale": StaleScreen,
+   985→  "state/disconnected": DisconnectedScreen,
+   986→  "state/permission-denied": PermissionDeniedScreen,
+   987→  "state/plan-limit": PlanLimitScreen,
+   988→  "state/session-expired": SessionExpiredScreen,
+   989→  "state/404": NotFoundScreen,
+   990→  "state/error": ServiceErrorScreen,
+   991→};
+   992→

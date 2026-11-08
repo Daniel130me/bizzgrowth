@@ -12,6 +12,7 @@ import type {
   DateRangeId,
   ExperimentRecord,
   GoalRecord,
+  ManualEntry,
   NotificationItem,
 } from "./types";
 import type { UserWorkspaceMeta, WorkspaceId } from "./data/businesses";
@@ -52,7 +53,11 @@ interface BizzState {
   actions: ActionRecord[];
   experiments: ExperimentRecord[];
   goals: GoalRecord[];
+  /** Totals the owner entered by hand (their own workspace only). */
+  manualEntries: ManualEntry[];
   connections: Record<string, ConnectionStatus>;
+  /** Source connections created inside the OWNER'S OWN workspace (starts empty). */
+  ownConnections: Record<string, ConnectionStatus>;
   recommendationState: Record<string, "open" | "dismissed" | "saved">;
   settings: BizzSettings;
   pendingInvite: { business: string; inviter: string; role: string; expires: string } | null;
@@ -79,6 +84,10 @@ interface BizzState {
   setRecommendationState: (id: string, state: "open" | "dismissed" | "saved") => void;
 
   createWorkspace: (meta: UserWorkspaceMeta) => void;
+  /** Store the signed-up/in person's identity AND persist it (survives reload). */
+  setAuthUser: (name: string, email: string) => void;
+  addManualEntry: (entry: ManualEntry) => void;
+  deleteManualEntry: (id: string) => void;
   setCheckupFacts: (facts: BusinessFacts, transcript: TranscriptTurn[]) => void;
   setCheckupJourney: (journey: string[]) => void;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
@@ -93,6 +102,13 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [];
 
 const SETTINGS_KEY = "bizzgrowth-settings-v1";
 const CHECKUP_KEY = "bizzgrowth-checkup-v1";
+const MANUAL_KEY = "bizzgrowth-manual-v1";
+
+function persistManual(entries: ManualEntry[]) {
+  try {
+    localStorage.setItem(MANUAL_KEY, JSON.stringify(entries));
+  } catch {}
+}
 
 function persistCheckup(state: { userWorkspace: UserWorkspaceMeta | null; checkup: CheckupState }) {
   try {
@@ -113,7 +129,9 @@ export const useBizz = create<BizzState>((set, get) => ({
   actions: [],
   experiments: [],
   goals: [],
+  manualEntries: [],
   connections: { "meta-ads": "connected", "google-ads": "connected", shopify: "error", manual: "connected" },
+  ownConnections: {},
   recommendationState: {},
   checkup: EMPTY_CHECKUP,
   settings: {
@@ -222,7 +240,12 @@ export const useBizz = create<BizzState>((set, get) => ({
   },
   updateGoal: (id, patch) => set((s) => ({ goals: s.goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) })),
 
-  setConnection: (id, status) => set((s) => ({ connections: { ...s.connections, [id]: status } })),
+  setConnection: (id, status) =>
+    set((s) =>
+      s.businessId === "user-workspace"
+        ? { ownConnections: { ...s.ownConnections, [id]: status } }
+        : { connections: { ...s.connections, [id]: status } },
+    ),
   setRecommendationState: (id, state) => {
     set((s) => ({ recommendationState: { ...s.recommendationState, [id]: state } }));
     if (state === "dismissed") toast("Recommendation dismissed", { description: "You can find it again in the Action Centre → Dismissed." });
@@ -230,9 +253,39 @@ export const useBizz = create<BizzState>((set, get) => ({
   },
 
   createWorkspace: (meta) => {
-    set({ userWorkspace: meta, businessId: "user-workspace", checkup: { ...EMPTY_CHECKUP } });
+    // The workspace is the user's own — settings must reflect it immediately,
+    // never the sample business name.
+    const settings = { ...get().settings, businessName: meta.name };
+    set({ userWorkspace: meta, businessId: "user-workspace", checkup: { ...EMPTY_CHECKUP }, settings });
     persistCheckup({ userWorkspace: meta, checkup: EMPTY_CHECKUP });
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ settings, user: get().user }));
+    } catch {}
     toast.success("Workspace created", { description: `${meta.name} is ready for its private checkup.` });
+  },
+  setAuthUser: (name, email) => {
+    const user = { ...get().user, name, email };
+    set({ user });
+    try {
+      const { settings } = get();
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ settings, user }));
+    } catch {}
+  },
+  addManualEntry: (entry) => {
+    set((s) => {
+      // Re-saving a month is a correction — replace the earlier entry for the
+      // same period instead of stacking duplicates.
+      const manualEntries = [entry, ...s.manualEntries.filter((e) => !(e.businessId === entry.businessId && e.period === entry.period))];
+      persistManual(manualEntries);
+      return { manualEntries };
+    });
+  },
+  deleteManualEntry: (id) => {
+    set((s) => {
+      const manualEntries = s.manualEntries.filter((e) => e.id !== id);
+      persistManual(manualEntries);
+      return { manualEntries };
+    });
   },
   setCheckupFacts: (facts, transcript) => {
     const s = get();
@@ -296,12 +349,29 @@ export const useBizz = create<BizzState>((set, get) => ({
       if (raw) {
         const parsed = JSON.parse(raw) as { userWorkspace?: UserWorkspaceMeta | null; checkup?: CheckupState };
         if (parsed.checkup && parsed.checkup.facts) {
+          const userWorkspace = parsed.userWorkspace ?? get().userWorkspace;
           set({
-            userWorkspace: parsed.userWorkspace ?? get().userWorkspace,
+            userWorkspace,
             checkup: { ...EMPTY_CHECKUP, ...parsed.checkup },
             businessId: parsed.userWorkspace ? "user-workspace" : get().businessId,
           });
+          // Old sessions may still carry the sample business name in settings —
+          // the owner's workspace name always wins.
+          if (parsed.userWorkspace && get().settings.businessName !== parsed.userWorkspace.name) {
+            const settings = { ...get().settings, businessName: parsed.userWorkspace.name };
+            set({ settings });
+            try {
+              localStorage.setItem(SETTINGS_KEY, JSON.stringify({ settings, user: get().user }));
+            } catch {}
+          }
         }
+      }
+    } catch {}
+    try {
+      const rawManual = localStorage.getItem(MANUAL_KEY);
+      if (rawManual) {
+        const parsedManual = JSON.parse(rawManual) as ManualEntry[];
+        if (Array.isArray(parsedManual)) set({ manualEntries: parsedManual });
       }
     } catch {}
     set({ hydrated: true });
@@ -321,10 +391,15 @@ export function useGoalsFor(businessId: string): GoalRecord[] {
 
 import { NOTIFICATIONS } from "./data/operations";
 
-/** Header notifications for the current business + any seeded demo items. */
+/** Header notifications for the current business. Sample items NEVER leak into a user's own workspace. */
 export function useBizzNotifications(businessId: string, _all?: NotificationItem[]): { items: NotificationItem[]; unread: number } {
   const storeItems = useBizz((s) => s.notifications);
-  const items = storeItems.length ? storeItems : NOTIFICATIONS;
+  const items = businessId === "user-workspace" ? storeItems : storeItems.length ? storeItems : NOTIFICATIONS;
   const scoped = items.filter((n) => n.businessId === businessId);
   return { items: scoped, unread: scoped.filter((n) => !n.read).length };
+}
+
+/** Connection statuses for the ACTIVE workspace — sample presets never leak into a real owner's workspace. */
+export function useConnectionsFor(businessId: string): Record<string, ConnectionStatus> {
+  return useBizz((s) => (businessId === "user-workspace" ? s.ownConnections : s.connections));
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader, SectionCard } from "@/components/shared/layout";
 import { InfoBanner } from "@/components/shared/layout";
-import { useBizz } from "@/lib/store";
+import { useBizz, useConnectionsFor } from "@/lib/store";
 
 interface UsageRow {
   label: string;
@@ -20,7 +20,8 @@ interface UsageRow {
 export function PlanSettings() {
   const navigate = useBizz((s) => s.navigate);
   const plan = useBizz((s) => s.settings.plan);
-  const connections = useBizz((s) => s.connections);
+  const businessId = useBizz((s) => s.businessId);
+  const connections = useConnectionsFor(businessId);
 
   // Connected external sources (manual entry is not counted against integration limits).
   const connectedSources = Object.entries(connections).filter(

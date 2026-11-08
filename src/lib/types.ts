@@ -15,6 +15,8 @@ export type DateRangeId = "last-7" | "last-30" | "this-month" | "last-month";
 export interface MonthlyPoint {
   key: string; // e.g. "2026-09"
   label: string; // e.g. "Sep"
+  /** Full period name when available (owner-entered months), e.g. "September 2026". */
+  fullLabel?: string;
   spend: number;
   enquiries: number;
   customers: number;

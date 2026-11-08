@@ -20,10 +20,15 @@ const KIND_CLS: Record<string, string> = {
 
 export function ReportsArchive({ params: _params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
+  const businessId = useBizz((s) => s.businessId);
+  const userWorkspace = useBizz((s) => s.userWorkspace);
   const [tab, setTab] = useState<"weekly" | "monthly" | "custom">("weekly");
 
-  const weekly = BRIEF_ARCHIVE.filter((b) => b.kind === "Weekly");
-  const monthly = BRIEF_ARCHIVE.filter((b) => b.kind === "Monthly");
+  // Briefs belong to the workspace that generated them — sample reports never
+  // appear inside a user's own workspace.
+  const allBriefs = BRIEF_ARCHIVE.filter((b) => b.businessId === businessId);
+  const weekly = allBriefs.filter((b) => b.kind === "Weekly");
+  const monthly = allBriefs.filter((b) => b.kind === "Monthly");
   const visible = tab === "weekly" ? weekly : tab === "monthly" ? monthly : [];
 
   return (
@@ -57,7 +62,11 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
             <EmptyState
               icon={<FileText className="size-5" />}
               title="No reports in this view"
-              description="Reports appear here as soon as the first brief is generated for this workspace."
+              description={
+                businessId === "user-workspace"
+                  ? `No briefs yet for ${userWorkspace?.name ?? "your workspace"}. Reports start once real data flows in — entered totals, an upload or a connected source.`
+                  : "Reports appear here as soon as the first brief is generated for this workspace."
+              }
             />
           ) : (
             <div className="overflow-x-auto rounded-xl border">
@@ -99,7 +108,9 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
       </Tabs>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        {BRIEF_ARCHIVE.length} archived reports · status shows whether the brief finished generating and is ready to read.
+        {allBriefs.length
+          ? `${allBriefs.length} archived report${allBriefs.length === 1 ? "" : "s"} · status shows whether the brief finished generating and is ready to read.`
+          : "Briefs are written from your workspace's own data — they appear here once the first one is generated."}
       </p>
     </div>
   );

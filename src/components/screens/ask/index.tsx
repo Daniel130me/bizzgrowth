@@ -34,6 +34,7 @@ import { PageHeader } from "@/components/shared/layout";
 import { ProvenanceBadge } from "@/components/shared/badges";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
+import { ownerMonthsFromEntries } from "@/lib/data/user-business";
 import type { AskWorkspaceContext } from "@/lib/checkup";
 import type { BusinessType, Provenance } from "@/lib/types";
 import type { ViewMap } from "../view-types";
@@ -268,8 +269,9 @@ function AskScreen() {
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const checkupFacts = useBizz((s) => s.checkup.facts);
   const checkupImproved = useBizz((s) => s.checkup.improved);
+  const manualEntries = useBizz((s) => s.manualEntries);
   const navigate = useBizz((s) => s.navigate);
-  const business = getBusiness(businessId, userWorkspace);
+  const business = getBusiness(businessId, userWorkspace, checkupFacts, manualEntries);
 
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -287,15 +289,39 @@ function AskScreen() {
   /** Snapshot of the workspace the server-side analyst reasons over. */
   function buildContext(): AskWorkspaceContext {
     if (businessId === "user-workspace") {
-      // The owner's own workspace: no connected platform data yet — be honest about it.
+      // The owner's own workspace: ground the analyst in their entered totals
+      // when they exist, otherwise be honest that nothing is measured yet.
+      const months = ownerMonthsFromEntries(manualEntries);
+      const last = months.length ? months[months.length - 1] : undefined;
+      const prev = months.length > 1 ? months[months.length - 2] : undefined;
       return {
         name: business.name,
         type: business.type,
         location: business.location,
         currency: "₦",
         isUserWorkspace: true,
-        hasMeasuredData: false,
-        periodLabel: "Last full month (your own estimates)",
+        hasMeasuredData: Boolean(last),
+        periodLabel: last ? last.label : "No measured month yet — your checkup answers only",
+        metrics: last
+          ? {
+              spend: last.spend ?? 0,
+              enquiries: last.enquiries,
+              customers: last.customers,
+              orders: last.orders,
+              traffic: last.traffic,
+              revenue: last.revenue ?? 0,
+              prev: prev
+                ? {
+                    spend: prev.spend ?? 0,
+                    enquiries: prev.enquiries,
+                    customers: prev.customers,
+                    orders: prev.orders,
+                    traffic: prev.traffic,
+                    revenue: prev.revenue ?? 0,
+                  }
+                : undefined,
+            }
+          : undefined,
         channelCounts: checkupImproved?.channelRows ?? undefined,
         userFacts: checkupFacts
           ? {

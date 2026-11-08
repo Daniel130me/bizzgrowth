@@ -14,6 +14,7 @@ type Touched = { name?: boolean; email?: boolean; password?: boolean; agreed?: b
 
 export default function SignupScreen() {
   const navigate = useBizz((s) => s.navigate);
+  const setAuthUser = useBizz((s) => s.setAuthUser);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,8 +47,9 @@ export default function SignupScreen() {
       const cleanEmail = email.trim().toLowerCase();
       pendingSignup.name = cleanName;
       pendingSignup.email = cleanEmail;
-      // Make name/email available to onboarding screens (prototype state only).
-      useBizz.setState({ user: { ...useBizz.getState().user, name: cleanName, email: cleanEmail } });
+      // Make name/email available to onboarding screens AND persist them —
+      // a reload must never greet the owner with a sample identity.
+      setAuthUser(cleanName, cleanEmail);
       setSubmitting(false);
       toast.success("Account created", { description: `We sent a verification link to ${cleanEmail}.` });
       navigate("verify-email");

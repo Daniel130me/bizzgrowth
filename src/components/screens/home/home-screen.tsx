@@ -14,6 +14,7 @@ import { InfoBanner, SectionCard } from "@/components/shared/layout";
 import { useBizz } from "@/lib/store";
 import { getBusiness, getPeriod } from "@/lib/data/businesses";
 import { deltaPct, fmtDateShort, fmtDelta } from "@/lib/format";
+import OwnerHome from "./owner-home";
 import {
   fmtMoneyMajor,
   insightsForBusiness,
@@ -51,8 +52,17 @@ export default function HomeScreen(_props: ScreenProps) {
   const dateRange = useBizz((s) => s.dateRange);
   const user = useBizz((s) => s.user);
   const navigate = useBizz((s) => s.navigate);
+  const facts = useBizz((s) => s.checkup.facts);
+  const manualEntries = useBizz((s) => s.manualEntries);
 
-  const business = getBusiness(businessId, userWorkspace);
+  // A real owner's home is a DIFFERENT surface: their own facts, their own
+  // diagnosis and honest data paths — never a sample business dressed up
+  // with their workspace name.
+  if (businessId === "user-workspace") {
+    return <OwnerHome />;
+  }
+
+  const business = getBusiness(businessId, userWorkspace, facts, manualEntries);
   const period = getPeriod(business, dateRange);
 
   const firstName = user.name.split(" ")[0];

@@ -60,6 +60,7 @@ export default function Welcome(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const userName = useBizz((s) => s.user.name);
+  const hasDiagnosis = useBizz((s) => Boolean(s.checkup.facts));
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -72,6 +73,19 @@ export default function Welcome(_props: ScreenProps) {
       </div>
 
       <div className="space-y-3">
+        {hasDiagnosis && userWorkspace ? (
+          <OptionCard
+            icon={CheckCircle2}
+            iconCls="bg-emerald-600 text-white"
+            title="Open my business overview"
+            body={`Your checkup for ${userWorkspace.name} is complete — continue there.`}
+            badge="Your workspace"
+            onClick={() => {
+              useBizz.getState().setBusiness("user-workspace");
+              navigate("home");
+            }}
+          />
+        ) : null}
         <OptionCard
           icon={Building2}
           iconCls="bg-blue-600 text-white"

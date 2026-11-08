@@ -40,7 +40,7 @@ import {
 import { EmptyState } from "@/components/shared/states";
 import { InfoBanner, KeyValue, PageHeader, SectionCard } from "@/components/shared/layout";
 import { StatusBadge } from "@/components/shared/badges";
-import { useBizz } from "@/lib/store";
+import { useBizz, useConnectionsFor } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { INTEGRATIONS, integrationById } from "@/lib/data/operations";
 import { getPendingConnection, setPendingConnection } from "./session";
@@ -111,7 +111,7 @@ function accountNameFor(int: IntegrationDef, business: Business): string {
 function IntegrationsLibraryScreen() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
-  const connections = useBizz((s) => s.connections);
+  const connections = useConnectionsFor(businessId);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);
 
@@ -192,7 +192,7 @@ function IntegrationsLibraryScreen() {
 function IntegrationDetailScreen({ params }: { params: Record<string, string> }) {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
-  const connections = useBizz((s) => s.connections);
+  const connections = useConnectionsFor(businessId);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);
   const int = integrationById(params.id);
@@ -608,7 +608,7 @@ function ConnectionErrorScreen() {
 function SourceSettingsScreen({ params }: { params: Record<string, string> }) {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
-  const connections = useBizz((s) => s.connections);
+  const connections = useConnectionsFor(businessId);
   const setConnection = useBizz((s) => s.setConnection);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);

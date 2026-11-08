@@ -155,15 +155,17 @@ function WorkspaceSwitcher() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const setBusiness = useBizz((s) => s.setBusiness);
-  const business = getBusiness(businessId, userWorkspace);
+  const facts = useBizz((s) => s.checkup.facts);
+  const manualEntries = useBizz((s) => s.manualEntries);
+  const business = getBusiness(businessId, userWorkspace, facts, manualEntries);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-9 gap-2 px-2 font-semibold">
+        <Button variant="ghost" size="sm" className="h-9 gap-1.5 px-1.5 font-semibold sm:gap-2 sm:px-2">
           <span className="flex size-6 items-center justify-center rounded bg-gradient-to-br from-blue-600 to-violet-600 text-[10px] font-bold text-white">
             {business.name.slice(0, 1)}
           </span>
-          <span className="max-w-36 truncate">{business.name}</span>
+          <span className="max-w-24 truncate sm:max-w-36">{business.name}</span>
           <Badge variant="outline" className="hidden bg-slate-50 px-1.5 text-[10px] font-normal text-slate-500 sm:inline-flex">
             {business.type === "service" ? "Service" : "Ecommerce"}
           </Badge>
@@ -171,25 +173,30 @@ function WorkspaceSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72">
-        <DropdownMenuLabel className="text-xs text-muted-foreground">Your workspaces</DropdownMenuLabel>
+        {userWorkspace && (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">Your workspace</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setBusiness("user-workspace")}>
+              <Building2 className="size-4 text-slate-400" aria-hidden />
+              <span className="flex-1">{userWorkspace.name}</span>
+              {businessId === "user-workspace" && <Badge className="bg-blue-600 text-[10px]">Current</Badge>}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuLabel className="text-xs text-muted-foreground">Sample businesses — demo data</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => setBusiness("swifthaul")}>
           <Building2 className="size-4 text-slate-400" aria-hidden />
           <span className="flex-1">SwiftHaul Logistics</span>
+          <Badge variant="outline" className="text-[10px] font-normal">Sample</Badge>
           {businessId === "swifthaul" && <Badge className="bg-blue-600 text-[10px]">Current</Badge>}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setBusiness("korahome")}>
           <Building2 className="size-4 text-slate-400" aria-hidden />
           <span className="flex-1">KoraHome Store</span>
-          <Badge variant="outline" className="text-[10px] font-normal">Ecommerce</Badge>
+          <Badge variant="outline" className="text-[10px] font-normal">Sample</Badge>
           {businessId === "korahome" && <Badge className="bg-blue-600 text-[10px]">Current</Badge>}
         </DropdownMenuItem>
-        {userWorkspace && (
-          <DropdownMenuItem onClick={() => setBusiness("user-workspace")}>
-            <Building2 className="size-4 text-slate-400" aria-hidden />
-            <span className="flex-1">{userWorkspace.name}</span>
-            <Badge variant="outline" className="text-[10px] font-normal">{userWorkspace.type === "service" ? "Service" : "Ecommerce"}</Badge>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("create-workspace")}>
           <Plus className="size-4" aria-hidden />
@@ -207,10 +214,12 @@ function DateRangeControl() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 gap-2 text-xs font-medium">
-          <CalendarDays className="size-3.5 text-slate-400" aria-hidden />
+        <Button variant="outline" size="sm" className="h-9 gap-2 px-0 text-xs font-medium sm:px-3">
+          <span className="mx-2 sm:mx-0">
+            <CalendarDays className="size-3.5 text-slate-400" aria-hidden />
+          </span>
           <span className="hidden sm:inline">{current?.label}</span>
-          <span className="sm:hidden">Dates</span>
+          <span className="sr-only sm:hidden">Change date range</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
@@ -303,7 +312,11 @@ function UserMenu() {
 
 export function AppShell({ children, route }: { children: React.ReactNode; route: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const business = getBusiness(useBizz((s) => s.businessId), useBizz((s) => s.userWorkspace));
+  const businessId = useBizz((s) => s.businessId);
+  const userWorkspace = useBizz((s) => s.userWorkspace);
+  const facts = useBizz((s) => s.checkup.facts);
+  const manualEntries = useBizz((s) => s.manualEntries);
+  const business = getBusiness(businessId, userWorkspace, facts, manualEntries);
   return (
     <div className="flex min-h-screen w-full">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 border-r bg-white lg:block" aria-label="Primary sidebar">
@@ -315,7 +328,7 @@ export function AppShell({ children, route }: { children: React.ReactNode; route
             <Menu className="size-5" aria-hidden />
           </Button>
           <WorkspaceSwitcher />
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5">
             <span
               className={cn(
                 "mr-1 hidden items-center gap-1.5 text-[11px] text-muted-foreground xl:flex",
@@ -328,7 +341,7 @@ export function AppShell({ children, route }: { children: React.ReactNode; route
             </span>
             <DateRangeControl />
             <NotificationsMenu />
-            <Button variant="ghost" size="icon" className="size-9" onClick={() => navigate("help")} aria-label="Help">
+            <Button variant="ghost" size="icon" className="hidden size-9 sm:inline-flex" onClick={() => navigate("help")} aria-label="Help">
               <CircleHelp className="size-4.5" aria-hidden />
             </Button>
             <UserMenu />

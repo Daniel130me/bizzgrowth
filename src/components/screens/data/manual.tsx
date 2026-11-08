@@ -1,5 +1,7 @@
 "use client";
 // Screens 57–58 — Manual Data Entry + Manual Data History.
+// For a USER'S OWN workspace these screens are real: entered totals persist to
+// the store, appear on Home as "Your numbers", and never carry sample values.
 
 import { useState } from "react";
 import { Eye, FileSpreadsheet, PenLine, Plus, Trash2 } from "lucide-react";
@@ -42,10 +44,11 @@ import { ProvenanceBadge } from "@/components/shared/badges";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { MANUAL_ENTRIES } from "@/lib/data/operations";
+import { recentMonthLabels } from "@/lib/data/user-business";
 import type { ManualEntry } from "@/lib/types";
 import type { ViewMap } from "../view-types";
 
-const PERIODS = ["September 2026", "August 2026", "July 2026"];
+const DEMO_PERIODS = ["September 2026", "August 2026", "July 2026"];
 
 interface FieldDef {
   id: string;
@@ -82,20 +85,29 @@ function ManualEntryScreen() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const navigate = useBizz((s) => s.navigate);
+  const addManualEntry = useBizz((s) => s.addManualEntry);
+  const userName = useBizz((s) => s.user.name);
   const business = getBusiness(businessId, userWorkspace);
 
   const type: BusinessTypeKey = business.type;
   const fields = FIELDS[type];
 
-  const [period, setPeriod] = useState(PERIODS[0]);
-  const [values, setValues] = useState<Record<string, string>>(SEPTEMBER_PREFILL[type]);
+  // A real owner's workspace starts BLANK — sample totals are never prefilled.
+  const isUserWorkspace = businessId === "user-workspace";
+  // Real calendar months for the owner; the sample periods stay for demo workspaces.
+  const periods = isUserWorkspace ? recentMonthLabels(3) : DEMO_PERIODS;
+
+  const [period, setPeriod] = useState(periods[0]);
+  const [values, setValues] = useState<Record<string, string>>(
+    !isUserWorkspace && periods[0] === DEMO_PERIODS[0] ? SEPTEMBER_PREFILL[type] : {}
+  );
   const [precisions, setPrecisions] = useState<Record<string, Precision>>(
     Object.fromEntries(fields.map((f) => [f.id, "exact" as Precision]))
   );
 
   function switchPeriod(p: string) {
     setPeriod(p);
-    if (p === PERIODS[0]) {
+    if (!isUserWorkspace && p === DEMO_PERIODS[0]) {
       setValues(SEPTEMBER_PREFILL[type]);
       setPrecisions(Object.fromEntries(fields.map((f) => [f.id, "exact" as Precision])));
     } else {
@@ -110,8 +122,27 @@ function ManualEntryScreen() {
       toast.error("Enter at least one value", { description: "Partial months are fine — leave fields you don't know blank." });
       return;
     }
+
+    if (isUserWorkspace) {
+      // Persist the owner's own numbers — these power "Your numbers" on Home.
+      const entry: ManualEntry = {
+        id: `own-${Date.now().toString(36)}`,
+        businessId: "user-workspace",
+        period,
+        metrics: filled.map((f) => ({
+          label: f.label,
+          value: (values[f.id] ?? "").trim(),
+          precision: (precisions[f.id] ?? "exact") as Precision,
+        })),
+        updatedBy: userName || "You",
+        lastModified: new Date().toISOString().slice(0, 10),
+        status: "unverified",
+      };
+      addManualEntry(entry);
+    }
+
     const approximate = filled.filter((f) => (precisions[f.id] ?? "exact") !== "exact").length;
-    toast.success(`${period} totals recorded — diagnosis updated`, {
+    toast.success(`${period} totals recorded${isUserWorkspace ? " — your Home now shows them" : " — diagnosis updated"}`, {
       description:
         approximate > 0
           ? `${approximate} value${approximate > 1 ? "s" : ""} labelled as approximate and marked in analysis.`
@@ -145,7 +176,7 @@ function ManualEntryScreen() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PERIODS.map((p) => (
+                {periods.map((p) => (
                   <SelectItem key={p} value={p}>
                     {p}
                   </SelectItem>
@@ -206,9 +237,11 @@ function ManualEntryScreen() {
             })}
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            {period === PERIODS[0]
-              ? "September values are prefilled from your last submission — adjust if needed."
-              : `No values recorded yet for ${period}.`}
+            {isUserWorkspace
+              ? `Enter what you know for ${period} — leave unknown fields blank. Values are stored against your workspace only.`
+              : period === DEMO_PERIODS[0]
+                ? "September values are prefilled from your last submission — adjust if needed."
+                : `No values recorded yet for ${period}.`}
           </p>
         </SectionCard>
       </div>
@@ -248,12 +281,21 @@ function ManualHistoryScreen() {
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);
+  const storeEntries = useBizz((s) => s.manualEntries);
+  const deleteManualEntry = useBizz((s) => s.deleteManualEntry);
 
-  const [entries, setEntries] = useState<ManualEntry[]>(() => MANUAL_ENTRIES.filter((e) => e.businessId === businessId));
+  const isUserWorkspace = businessId === "user-workspace";
+  // Owner's own entries come from the store; sample workspaces keep (locally editable) static records.
+  const [demoEntries, setDemoEntries] = useState<ManualEntry[]>(() => MANUAL_ENTRIES.filter((e) => e.businessId === businessId));
+  const entries = isUserWorkspace ? storeEntries : demoEntries;
 
   function removeEntry(id: string) {
-    setEntries((list) => list.filter((e) => e.id !== id));
     const entry = entries.find((e) => e.id === id);
+    if (isUserWorkspace) {
+      deleteManualEntry(id);
+    } else {
+      setEntries((list) => list.filter((e) => e.id !== id));
+    }
     toast.success("Entry deleted", { description: `${entry?.period ?? "Entry"} removed from manual records.` });
   }
 
@@ -288,7 +330,11 @@ function ManualHistoryScreen() {
         <EmptyState
           icon={<PenLine className="size-5" />}
           title={`No manual entries for ${business.name} yet`}
-          description="Enter monthly totals to unlock a Level-2 baseline diagnosis with zero connections — spend, enquiries, customers and revenue (or traffic and orders for ecommerce)."
+          description={
+            isUserWorkspace
+              ? "Enter monthly totals and they appear on your Home as ‘Your numbers’ — labelled user supplied, never mixed with sample data."
+              : "Enter monthly totals to unlock a Level-2 baseline diagnosis with zero connections — spend, enquiries, customers and revenue (or traffic and orders for ecommerce)."
+          }
           actions={
             <>
               <Button size="sm" onClick={() => navigate("manual-entry")}>

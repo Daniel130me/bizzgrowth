@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/layout";
-import { useBizz } from "@/lib/store";
+import { useBizz, useConnectionsFor } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { DATA_QUALITY, provenanceFor } from "@/lib/data/operations";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,7 @@ function coverageSummary(overall: number): string {
 function DataCoverageScreen() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
-  const connections = useBizz((s) => s.connections);
+  const connections = useConnectionsFor(businessId);
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace);
 

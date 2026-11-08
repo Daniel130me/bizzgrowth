@@ -11,6 +11,7 @@ import { AuthShell, DemoHint, Field, PasswordField, SubmitButton, isEmail } from
 
 export default function SigninScreen() {
   const navigate = useBizz((s) => s.navigate);
+  const setAuthUser = useBizz((s) => s.setAuthUser);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -27,6 +28,19 @@ export default function SigninScreen() {
     if (!valid) return;
     setSubmitting(true);
     window.setTimeout(() => {
+      const cleanEmail = email.trim().toLowerCase();
+      // Keep the name they signed up with (already in the store); if this is a
+      // fresh sign-in, derive a display name from the email — never a sample identity.
+      const current = useBizz.getState().user;
+      const isSampleIdentity = current.email === "amara@swifthaul.ng";
+      const derived = cleanEmail
+        .split("@")[0]
+        .split(/[._-]/)[0]
+        .replace(/[^a-zA-Z]/g, "");
+      const displayName = isSampleIdentity && derived
+        ? derived.charAt(0).toUpperCase() + derived.slice(1)
+        : current.name;
+      setAuthUser(displayName || current.name, cleanEmail);
       setSubmitting(false);
       toast.success("Signed in", { description: "Continuing where you left off." });
       navigate("welcome");

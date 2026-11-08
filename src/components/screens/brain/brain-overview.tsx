@@ -38,7 +38,9 @@ export function BrainOverview({ params: _params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
-  const business = getBusiness(businessId, userWorkspace);
+  const factsFromCheckup = useBizz((s) => s.checkup.facts);
+  const isUserWorkspace = businessId === "user-workspace";
+  const business = getBusiness(businessId, userWorkspace, factsFromCheckup);
 
   const [tab, setTab] = useState("overview");
   const onTabChange = (v: string) => {
@@ -68,30 +70,48 @@ export function BrainOverview({ params: _params }: ScreenProps) {
   const activeCount = business.services?.filter((s) => s.active).length ?? 0;
   const productCount = business.products?.length ?? 0;
 
+  // For a user's own workspace every "fact" line comes from their checkup —
+  // the sample segments/mixes shown for demo workspaces never appear here.
   const sectionCards = [
     {
       route: "brain/products",
       title: "Products & services",
       description: "What you sell, at what prices, and what is currently active. Feeds revenue and conversion analysis.",
-      fact: business.type === "service" ? `${serviceCount} services · ${activeCount} active` : `${productCount} products tracked via ${business.platform ?? "your store"}`,
+      fact: isUserWorkspace
+        ? factsFromCheckup?.whatTheySell ?? "From your checkup conversation"
+        : business.type === "service"
+          ? `${serviceCount} services · ${activeCount} active`
+          : `${productCount} products tracked via ${business.platform ?? "your store"}`,
     },
     {
       route: "brain/customers",
       title: "Customers",
       description: "Primary segments, the B2B/B2C mix, locations and the typical customer.",
-      fact: business.type === "service" ? "B2B SMEs 60% of revenue · B2C individuals 40%" : "Home-decor shoppers, 25–45, urban and mobile-first",
+      fact: isUserWorkspace
+        ? factsFromCheckup?.customers ?? "Described in your checkup"
+        : business.type === "service"
+          ? "B2B SMEs 60% of revenue · B2C individuals 40%"
+          : "Home-decor shoppers, 25–45, urban and mobile-first",
     },
     {
       route: "brain/journey",
       title: "Customer journey",
       description: "The steps customers take from discovery to repeat purchase. Funnel analysis uses this model.",
-      fact: `${business.journey.length} steps · ${business.journey[0]} → ${business.journey[business.journey.length - 1]}`,
+      fact: business.journey.length
+        ? `${business.journey.length} steps · ${business.journey[0]} → ${business.journey[business.journey.length - 1]}`
+        : isUserWorkspace
+          ? "Draft a journey from your checkup"
+          : "Not set yet",
     },
     {
       route: "brain/channels",
       title: "Channels",
       description: "Acquisition, sales, marketing and communication channels, marked tracked or untracked.",
-      fact: `${tracked} of ${total} channels tracked`,
+      fact: isUserWorkspace
+        ? factsFromCheckup?.channels?.length
+          ? `${factsFromCheckup.channels.join(", ")} — not measured yet`
+          : "From your checkup conversation"
+        : `${tracked} of ${total} channels tracked`,
     },
     {
       route: "brain/priorities",

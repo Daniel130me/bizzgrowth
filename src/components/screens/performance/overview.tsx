@@ -1,23 +1,31 @@
 "use client";
 // Screen 24 — Performance overview. One place to understand performance areas.
+// For a user's own workspace with no data yet, this page shows an honest
+// early-state — sample areas are never displayed with the owner's name on them.
 
 import React from "react";
 import {
   ArrowUpRight,
+  Database,
+  FileSpreadsheet,
   Filter,
   Globe,
   Megaphone,
   Package,
+  PenLine,
+  Plug,
   Repeat,
   Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendBadge } from "@/components/shared/badges";
 import { PageHeader } from "@/components/shared/layout";
 import { DATE_RANGES, REPORTING_MONTH } from "@/lib/data/businesses";
+import { useBizz } from "@/lib/store";
 import { deltaPct, fmtDelta, fmtNaira, fmtNum, fmtPct, goodnessFor } from "@/lib/format";
 import type { DateRangeId } from "@/lib/types";
 import { useBiz, fmtMoneyMajor } from "./biz";
@@ -64,8 +72,58 @@ function AreaCard({ icon: Icon, title, value, badge, summary, onClick }: AreaCar
 }
 
 export default function PerformanceOverview(_props: ScreenProps) {
-  const { business, period, dateRange, setDateRange, navigate } = useBiz();
+  const { business, period, dateRange, setDateRange, navigate, businessId } = useBiz();
+  const userWorkspace = useBizz((s) => s.userWorkspace);
   const ecom = business.type === "ecommerce";
+
+  // Honest early-state: a real owner's workspace needs at least two entered
+  // months before period comparisons (deltas) mean anything.
+  if (businessId === "user-workspace" && business.monthly.length < 2) {
+    const recorded = business.monthly.length;
+    const paths = [
+      { icon: PenLine, title: "Type your totals", body: "Monthly spend, enquiries, customers and revenue — estimates welcome.", route: "manual-entry", cta: recorded ? "Add another month" : "Enter totals" },
+      { icon: FileSpreadsheet, title: "Upload a file", body: "Bring a CSV export from your spreadsheet or tool.", route: "csv-upload", cta: "Upload CSV" },
+      { icon: Plug, title: "Connect a service", body: "Meta Ads, Google Ads, Shopify, Paystack — read-only, automatic.", route: "integrations", cta: "See sources" },
+    ];
+    return (
+      <div className="mx-auto w-full max-w-4xl">
+        <PageHeader
+          title="Performance"
+          description={`${userWorkspace?.name ?? "Your business"} · performance opens here the moment your own numbers exist.`}
+        />
+        <Card className="p-6">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+            <Database className="size-5" aria-hidden />
+          </span>
+          <h2 className="mt-3 text-lg font-semibold">
+            {recorded
+              ? `${recorded} month recorded — one more unlocks comparisons.`
+              : "Nothing measured yet — and nothing is made up to fill the page."}
+          </h2>
+          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            {recorded
+              ? `Your ${business.monthly[0].label} totals are in. Performance compares periods side by side, so a second month is what switches this page on.`
+              : "Seven performance areas (revenue, funnel, marketing, website, retention and more) activate from your own data. Add it whichever way suits you — each area will show its provenance, and sample figures are never substituted."}
+          </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {paths.map((p) => (
+              <div key={p.route} className="flex flex-col rounded-xl border p-4">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                  <p.icon className="size-4" aria-hidden />
+                </span>
+                <p className="mt-2 text-sm font-semibold">{p.title}</p>
+                <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">{p.body}</p>
+                <Button size="sm" variant="outline" className="mt-3 w-fit" onClick={() => navigate(p.route)}>
+                  {p.cta}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   const cur = period.current;
   const prev = period.previous;
 

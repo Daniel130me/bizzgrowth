@@ -1,6 +1,12 @@
 // bizzGrowth coherent demo dataset — ONE shared source of truth.
 // Every screen must read from here so the same fact never contradicts itself.
+// NOTE: demo businesses (SwiftHaul / KoraHome) are SAMPLES. A user's own
+// workspace is built honestly by buildUserBusiness() — never from these.
 import type { Business, BusinessType, DateRangeId, DailyPoint, MonthlyPoint } from "../types";
+import type { BusinessFacts } from "../checkup";
+import { buildUserBusiness } from "./user-business";
+import type { ManualEntry } from "../types";
+import { useBizz } from "@/lib/store";
 
 // Deterministic daily shaping (no Math.random — must be SSR-safe & stable)
 function dailySeries(
@@ -205,16 +211,29 @@ const TEMPLATE_BY_TYPE: Record<BusinessType, Business> = {
   ecommerce: KORAHOME,
 };
 
-export function getBusiness(id: WorkspaceId | undefined, userWorkspace?: UserWorkspaceMeta | null): Business {
+/**
+ * Resolve the active business. For a user's own workspace this is built from
+ * their checkup facts and manual entries ONLY — sample numbers never leak in.
+ *
+ * `facts`/`entries` are optional: when a caller omits them we read the live
+ * store so low-context screens still resolve the owner's real workspace
+ * instead of a thinner (or worse, sample-shaped) one.
+ */
+export function getBusiness(
+  id: WorkspaceId | undefined,
+  userWorkspace?: UserWorkspaceMeta | null,
+  facts?: BusinessFacts | null,
+  entries?: ManualEntry[],
+): Business {
   if (id === "user-workspace" && userWorkspace) {
-    const base = TEMPLATE_BY_TYPE[userWorkspace.type];
-    return {
-      ...base,
-      id: "user-workspace",
-      name: userWorkspace.name,
-      location: userWorkspace.country,
-      platform: userWorkspace.type === "ecommerce" ? "Shopify" : null,
-    };
+    // Late import avoided: the store owns this data; reading the snapshot here
+    // keeps ~25 screens correct without each one subscribing to facts.
+    const state = useBizz.getState();
+    return buildUserBusiness({
+      workspace: userWorkspace,
+      facts: facts !== undefined ? facts : state.checkup.facts ?? null,
+      entries: entries ?? state.manualEntries,
+    });
   }
   if (id === "korahome") return KORAHOME;
   return SWIFTHAUL;
@@ -241,6 +260,11 @@ export interface PeriodSelection {
 }
 
 const EMPTY: PeriodMetrics = { spend: 0, enquiries: 0, customers: 0, revenue: 0, orders: 0, traffic: 0 };
+
+/** Full month label ("October 2026") for owner-entered months; sample months keep fixed labels. */
+function fullLabelOf(m?: MonthlyPoint): string | null {
+  return m?.fullLabel ?? null;
+}
 
 function fromMonthly(m?: MonthlyPoint): PeriodMetrics {
   return {
@@ -271,11 +295,25 @@ export function getPeriod(business: Business, range: DateRangeId): PeriodSelecti
   const monthly = business.monthly;
   const current = monthly[monthly.length - 1];
   const prev = monthly[monthly.length - 2];
+  // A workspace with no measured months yet gets an honest empty period —
+  // never a sample month borrowed from a demo business.
+  if (!current) {
+    return {
+      label: "No measured period yet",
+      compareLabel: "waiting for your first data",
+      current: { ...EMPTY },
+      previous: { ...EMPTY },
+      seriesKind: "monthly",
+      series: [],
+    };
+  }
   switch (range) {
     case "this-month": {
+      const curLabel = fullLabelOf(current);
+      const prevLabel = fullLabelOf(prev);
       return {
-        label: "September 2026",
-        compareLabel: "vs August 2026",
+        label: curLabel ?? "September 2026",
+        compareLabel: prevLabel ? `vs ${prevLabel}` : "vs August 2026",
         current: fromMonthly(current),
         previous: fromMonthly(prev),
         seriesKind: "daily",
@@ -283,11 +321,14 @@ export function getPeriod(business: Business, range: DateRangeId): PeriodSelecti
       };
     }
     case "last-month": {
+      const prevLabel = fullLabelOf(prev);
+      const before = monthly[monthly.length - 3];
+      const beforeLabel = fullLabelOf(before);
       return {
-        label: "August 2026",
-        compareLabel: "vs July 2026",
+        label: prevLabel ?? "August 2026",
+        compareLabel: beforeLabel ? `vs ${beforeLabel}` : "vs July 2026",
         current: fromMonthly(prev),
-        previous: fromMonthly(monthly[monthly.length - 3]),
+        previous: fromMonthly(before),
         seriesKind: "daily",
         series: business.daily.map((d) => ({ label: d.label, current: d.revenue })),
       };
@@ -306,9 +347,11 @@ export function getPeriod(business: Business, range: DateRangeId): PeriodSelecti
     }
     case "last-30":
     default: {
+      const curLabel = fullLabelOf(current);
+      const prevLabel = fullLabelOf(prev);
       return {
-        label: "Last 30 days (September 2026)",
-        compareLabel: "vs previous 30 days",
+        label: curLabel ? `Last 30 days (${curLabel})` : "Last 30 days (September 2026)",
+        compareLabel: prevLabel ? `vs previous 30 days (${prevLabel})` : "vs previous 30 days",
         current: sumDaily(business.daily),
         previous: fromMonthly(prev),
         seriesKind: "daily",
@@ -321,8 +364,8 @@ export function getPeriod(business: Business, range: DateRangeId): PeriodSelecti
 export const DATE_RANGES: { id: DateRangeId; label: string }[] = [
   { id: "last-7", label: "Last 7 days" },
   { id: "last-30", label: "Last 30 days" },
-  { id: "this-month", label: "This month (September 2026)" },
-  { id: "last-month", label: "Last month (August 2026)" },
+  { id: "this-month", label: "This month" },
+  { id: "last-month", label: "Last month" },
 ];
 
 export const REPORTING_MONTH = { current: "September 2026", previous: "August 2026" };

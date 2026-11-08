@@ -13,29 +13,37 @@ export const METRIC_IDS: MetricId[] = ["revenue", "customers", "enquiries", "ord
 const SERVICE_ONLY: MetricId[] = ["customers", "enquiries"];
 const ECOM_ONLY: MetricId[] = ["orders", "traffic"];
 
-/** User-created workspaces inherit their template story — intelligence falls back by type. */
-export function demoFallbackId(business: Business): string {
+/**
+ * User-created workspaces inherit their template story — intelligence falls back by type.
+ * EXCEPTION: a user's OWN workspace never inherits sample intelligence.
+ */
+export function demoFallbackId(business: Business): string | null {
+  if (business.id === "user-workspace") return null; // no sample insights for a real owner
   return business.type === "ecommerce" ? "korahome" : "swifthaul";
 }
 
 export function insightsForBusiness(business: Business): Insight[] {
   const direct = insightsFor(business.id);
-  return direct.length ? direct : insightsFor(demoFallbackId(business));
+  const fb = demoFallbackId(business);
+  return direct.length ? direct : fb ? insightsFor(fb) : [];
 }
 
 export function recommendationsForBusiness(business: Business): Recommendation[] {
   const direct = recommendationsFor(business.id);
-  return direct.length ? direct : recommendationsFor(demoFallbackId(business));
+  const fb = demoFallbackId(business);
+  return direct.length ? direct : fb ? recommendationsFor(fb) : [];
 }
 
 export function timelineForBusiness(business: Business): TimelineEvent[] {
   const direct = timelineFor(business.id);
-  return direct.length ? direct : TIMELINE.filter((t) => t.businessId === demoFallbackId(business));
+  const fb = demoFallbackId(business);
+  return direct.length ? direct : fb ? TIMELINE.filter((t) => t.businessId === fb) : [];
 }
 
 export function goalsForBusiness(business: Business): GoalRecord[] {
   const direct = GOALS.filter((g) => g.businessId === business.id);
-  return direct.length ? direct : GOALS.filter((g) => g.businessId === demoFallbackId(business));
+  const fb = demoFallbackId(business);
+  return direct.length ? direct : fb ? GOALS.filter((g) => g.businessId === fb) : [];
 }
 
 /** The goal the Home screen should highlight: the first active / at-risk one. */

@@ -401,3 +401,38 @@ Verification (browser E2E as "ApexClean Services", fresh session):
 
 Stage Summary:
 - Trust rule enforced end-to-end: words for described directions, numbers only from owner-entered or connected data. Journey confirmation is now a self-explanatory 30-second check with visible provenance.
+
+---
+Task ID: fix-real-owner-workspace-1
+Agent: Z.ai Code (main)
+Task: A registered owner must never see sample data; support the financial-data paths (estimates / upload / connect)
+
+Owner reports:
+1. Onboarding must consider owners willing to give financial figures/estimates, upload financial or business data, or connect a third-party service.
+2. After signing up, signing in and getting diagnosed, Home greeted "Good morning Amara" and showed a wall of data they had never provided — seeded sample content in a real owner's workspace. "Check other pages too."
+
+Root causes:
+- getBusiness("user-workspace") CLONED the SwiftHaul/KoraHome demo template and only renamed it — every screen (metrics, insights, timeline, goals, coverage, briefs, team) inherited sample numbers under the owner's workspace name.
+- Identity: signup wrote user.name to memory only (never persisted); signin never set identity at all — any reload fell back to the seeded "Amara Okafor".
+- Global leakage paths: notifications fell back to demo items; connections defaulted to sample presets ("Meta connected, Shopify error"); reports archive/briefs were static; intelligence functions (metric-defs / performance biz) fell back to sample insights; settings.businessName stayed "SwiftHaul Logistics" after workspace creation; manual-entry screen prefilled SwiftHaul's totals for a real owner; team page showed SwiftHaul staff; brain-overview showed fabricated segment mixes.
+
+Fixes:
+- NEW src/lib/data/user-business.ts — buildUserBusiness(): an honest Business for the owner's workspace. Channels/funnel/monthly/health start EMPTY; goal/journey/model come from checkup facts; dataCoverage computed from what actually exists (context / entered totals / connected sources); lastSyncNote states plainly "No data sources connected yet — your checkup answers are the only data so far".
+- getBusiness() now delegates "user-workspace" to buildUserBusiness and falls back to the live store (facts + manualEntries) when callers don't pass them — ~25 screens fixed centrally without sample-shaped output. getPeriod() safe for empty months ("No measured period yet"), and uses real month labels ("October 2026 vs September 2026") via MonthlyPoint.fullLabel for owner data.
+- Identity: store.setAuthUser() persists to SETTINGS_KEY; signup uses it; signin keeps the registered name or derives one from the email (never a sample identity). createWorkspace() and hydrate() keep settings.businessName in sync with the owner's workspace name. Welcome offers "Open my business overview" for returning diagnosed users.
+- NEW OwnerHome (screens/home/owner-home.tsx): Home for a real owner is a different surface — their diagnosis card, "What your checkup established" (facts + trend words, provenance badges), "Your numbers" from their manual entries with real deltas vs their previous entered month, honest empty state ("No measured numbers yet — and that is stated plainly here. bizzGrowth will not fill this space with sample figures."), and three data paths (Type your totals / Upload a file / Connect a service). Demo home untouched for sample workspaces.
+- Financial-data paths: checkup-intro advertises "Happy to share numbers or files? enter figures, upload CSV, or connect a service" + "Connect data instead" button; setup-complete summary is fully facts-driven (no more hardcoded "42%" / "1 investigation found") with an "Add data your way" 3-path panel; manual-entry now PERSISTS owner totals to the store (localStorage), uses real recent months, starts blank for owners, re-saving a month corrects it; manual history reads store records for owners; Ask grounds answers in entered months when present; performance overview shows an honest early-state until 2 owner months unlock comparisons; briefs/reports show workspace-scoped empty states ("No briefs yet for Node71 Digital Services"); team shows just the owner; brain-overview section cards show the owner's own facts (no "B2B SMEs 60% / B2C 40%").
+- Anti-leak guards: useBizzNotifications never falls back to demo items for user-workspace; insights/recommendations/timeline/goals fallbacks return [] for user-workspace (metric-defs + performance biz); useConnectionsFor() serves sample presets only to sample workspaces (ownConnections starts empty; setConnection writes per active workspace); workspace switcher groups "Your workspace" vs "Sample businesses — demo data" with Sample badges.
+
+Verification (browser E2E, fresh signup as "Tunde Bakare / Node71 Digital Services"):
+- Full journey: signup → workspace → checkup chat (all 8 slots learned from one comprehensive answer, wrap + CTA) → journey-confirm → business-understanding → first diagnosis (personalised, words only, zero invented figures) → improve paths → setup-complete (facts-driven, 3 data paths) → Home.
+- Home: "Good evening, Tunde", their diagnosis, their facts, honest empty numbers + 3 paths. Reload persistence confirmed (no "Amara" regression).
+- Manual entry: blank form for owner, real months (Sep–Nov 2026), saved totals appear on Home as "September 2026 · entered by you [User supplied]"; second month (October) → real deltas (+29% revenue, +50% customers — computed from their counts); Performance unlocks at 2 months with real labels; Ask answered grounded in the entered figures (its 15% = 6/40 derived from owner data, limitations stated).
+- Leaks checked: Data centre (0 connected sources, honest coverage 60%), Insights (empty state), Reports (0 briefs, workspace-scoped), Goals (0), Team (owner only), Performance early-state, Ask, Brain (own facts), switcher grouping, notifications (0 demo items).
+- Sample regression: SwiftHaul/KoraHome demo experience unchanged (full metrics home, performance areas, labelled "Sample" in switcher).
+- Mobile 390px: header overflow found and fixed (compact switcher, icon-only date control, help hidden on mobile) — no horizontal scroll; screenshots captured.
+- Tooling note: agent-browser trusted input dies after SPA navigation (pre-verified hit-testing on first load + DOM .click() used for flows); two real bugs found and fixed during verification (stale PERIODS reference crashed manual-entry; alphabetical month sort broke owner deltas).
+- Lint clean; dev.log compiles clean; no page errors.
+
+Stage Summary:
+- A registered owner's workspace is now THEIRS: their identity, their checkup facts, their diagnosis and only their numbers — sample data is unreachable from their workspace and demo workspaces are explicitly labelled Sample. The three financial-data paths (type estimates, upload a file, connect a service) are offered at checkup-intro, setup-complete, Home empty-state and Performance early-state, each optional and each labelled with provenance once data arrives.

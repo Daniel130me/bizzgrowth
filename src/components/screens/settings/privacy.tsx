@@ -7,12 +7,13 @@ import { Brain, Database, FileDown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader, SectionCard } from "@/components/shared/layout";
-import { useBizz } from "@/lib/store";
+import { useBizz, useConnectionsFor } from "@/lib/store";
 import { INTEGRATIONS } from "@/lib/data/operations";
 
 export function PrivacySettings() {
   const navigate = useBizz((s) => s.navigate);
-  const connections = useBizz((s) => s.connections);
+  const businessId = useBizz((s) => s.businessId);
+  const connections = useConnectionsFor(businessId);
 
   const [improve, setImprove] = useState(true);
   const [productEmails, setProductEmails] = useState(false);
