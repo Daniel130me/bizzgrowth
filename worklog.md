@@ -323,3 +323,33 @@ Stage Summary:
 - Persistence verified across reload (workspace + facts + improved diagnosis survive)
 - Known remaining demo-data area: home metric tiles for user workspaces still show template-shaped metric history (documented, honest in UI)
 - tsc clean (src/), eslint clean, dev.log no runtime errors
+
+---
+Task ID: fix-consultant-ai-1
+Agent: Z.ai Code (main)
+Task: Make the onboarding consultant actually listen — every turn AI-driven, corrections honored, no fabricated trends
+
+Problem (owner-reported):
+- Mid-conversation replies were canned: user's correction "No, our target is not just local businesses, we work with any businesses all over the world" (sent twice, on the enquiries AND customers trend questions) was mis-parsed by the regex parseTrend() as "About the same" → "Roughly flat enquiries — useful to know." Felt like a survey robot, not a consultant.
+
+Root cause:
+- Only the first message + final extraction used the LLM (/api/checkup/extract). All middle turns (enquiry/customers/revenue/changes) ran through hardcoded per-stage handlers with naive regex — non-answers silently defaulted to "About the same".
+
+Fix:
+- New API POST /api/checkup/chat — a per-turn consultant brain (z-ai-web-dev-sdk, backend only). Each turn the LLM receives transcript + stage + slot state + askNumber, and MUST first classify the owner's message (answer/correction/partial/dodge/question) before replying.
+- Prompt encodes: corrections are acknowledged specifically + re-asked in the same breath and never scored as trends; dodges get one indirect rephrase (askNumber 1) then are accepted as honest gaps (askNumber 2); replies react to the owner's specifics; one question per reply; never invent facts.
+- Server guardrails: stage can't go backwards/skip; a topic holds max 3 turns then force-advances with a bridge question + honest "Don't know"; slot sanitization (trend enum, string caps); reply capped.
+- Slot model CheckupSlots (businessType/sells/targetMarket/location/goal/channels/trends/changes/declined/corrections) shared in src/lib/checkup.ts; corrections counter tracks how often the owner fixed us.
+- onboarding-chat.tsx rewritten: every user message goes through /api/checkup/chat; "Understood as" chips now show per-turn model changes (e.g. "Updated: serves clients worldwide"); "What I'm learning" panel is driven by real slot status (added Target market + What you sell rows); suggested chips come from the LLM per question; network-failure fallback never advances or guesses; final extraction (/api/checkup/extract) unchanged.
+
+Verification (agent-browser E2E, replaying the owner's exact failing conversation as "Node 71 Limited"):
+- Turn 1 "We build websites and web applications" → classified partial, natural follow-up ("Who specifically do you build these for…") — not a fake "Understood".
+- Correction on the enquiries trend question → read=correction, reply acknowledges "you serve businesses worldwide, not just local ones" and re-asks the trend; chip "Updated: serves clients worldwide". The old reply "Roughly flat enquiries" is impossible now.
+- Dodge "I would rather not share revenue details" → graceful skip, no guilt-trip, conversation moves on.
+- Follow-up on changes ("redesigned our own site") → consultant asked one natural clarifier before wrapping.
+- Persisted facts: sells/goal/customers in the owner's own words; channels [referrals, website]; trends enquiries/customers "About the same", revenue "Don't know" (honest gap, not fabricated); journey AI-mapped as "Discovery via website or referral → Initial enquiry → Quote/proposal → Customer conversion"; CTA → journey-confirm works; Service radio pre-checked.
+- API-level tests: correction on trend question (read=correction), revenue dodge (read=dodge, stage advances).
+- Zero console errors, zero page errors; all /api/checkup/chat 200s (~1.2-1.8s); mobile 390px renders; lint clean.
+
+Stage Summary:
+- The checkup conversation is now a real consultant loop: listens, classifies, corrects itself, re-asks indirectly, accepts gaps honestly. Owner answers still drive business-understanding, diagnosis, journey and Ask screens.

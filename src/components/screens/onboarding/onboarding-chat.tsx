@@ -1,42 +1,44 @@
 "use client";
 // Screen 14 — Conversational onboarding: the Business Context Engine.
-// The opening answer and the closing extraction hit a real LLM
-// (POST /api/checkup/extract); regex parsers remain as offline fallback.
-// Extracted facts persist to the store (localStorage) and drive the
+// EVERY turn is run by the real consultant brain (POST /api/checkup/chat):
+// the engine classifies each owner message (answer / correction / partial /
+// dodge / question), reacts to specifics, re-asks indirectly when dodged,
+// and never turns a non-answer into a trend. The closing structured
+// extraction still hits POST /api/checkup/extract; regex parsers remain
+// only as offline fallback. Extracted facts persist to the store and drive
 // business-understanding, diagnosis and Ask screens.
 import React, { useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleDashed, Lock, SendHorizontal, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBizz } from "@/lib/store";
-import type { BusinessFacts, TranscriptTurn } from "@/lib/checkup";
+import {
+  emptySlots,
+  type BusinessFacts,
+  type ChatTurnResult,
+  type CheckupSlots,
+  type CheckupStage,
+  type TranscriptTurn,
+} from "@/lib/checkup";
 import { cn } from "@/lib/utils";
 import type { ScreenProps } from "../view-types";
 
-type Trend = "Increased" | "Decreased" | "About the same" | "Don't know";
-type Stage = "intro" | "enquiry" | "customers" | "revenue" | "changes" | "done";
 type LearnStatus = "done" | "active" | "pending";
 
 interface Msg {
   id: number;
   role: "ai" | "user";
   text: string;
-  chips?: string[]; // violet extraction chips (AI messages only)
+  learned?: string[]; // "Understood as" chips — what the engine learned/updated this turn
   cta?: boolean; // final "review journey" call to action
 }
 
-const TREND_CHIPS: Trend[] = ["Increased", "Decreased", "About the same", "Don't know"];
-const CHANGE_CHIPS = ["More ad spend", "Changed pricing", "Grew the team", "Nothing major"];
-const INTRO_CHIPS = ["We run a cleaning company in Lagos. Most customers come through Instagram and referrals.", "We sell handmade furniture online and get most visitors from Instagram."];
+const INTRO_CHIPS = [
+  "We run a cleaning company in Lagos. Most customers come through Instagram and referrals.",
+  "We sell handmade furniture online and get most visitors from Instagram.",
+];
 
-function parseTrend(text: string): Trend {
-  const t = text.toLowerCase();
-  if (/decreas|down|less|fewer|drop|fell|worse|slower/.test(t)) return "Decreased";
-  if (/increas|up|more|grew|rise|rose|better|higher|lot/.test(t)) return "Increased";
-  if (/don'|do not|no idea|not sure|know/.test(t)) return "Don't know";
-  return "About the same";
-}
-
+/** Client-side regex extraction — offline fallback only, never the primary path. */
 function extractFromIntro(text: string): string[] {
   const t = text.toLowerCase();
   const chips: string[] = [];
@@ -46,14 +48,18 @@ function extractFromIntro(text: string): string[] {
   const loc = text.match(/in\s+([A-Z][a-z]+)/);
   if (loc) chips.push(`Location: ${loc[1]}`);
   if (/instagram|\big\b/.test(t)) chips.push("Channel: Instagram");
-  if (/google|search/.test(t)) chips.push("Channel: Google Search");
   if (/referr|word of mouth|recommend/.test(t)) chips.push("Channel: Referrals");
   if (/whatsapp/.test(t)) chips.push("Enquiries via WhatsApp");
   if (/website|site/.test(t)) chips.push("Enquiries via website");
-  if (/spend|ads|advertis|budget/.test(t)) chips.push("Recent change: more ad spend");
-  if (/customer|client|sales|bookings/.test(t)) chips.push("Goal: customers not growing despite activity");
-  if (chips.length <= 2) chips.push("Goal: understand why growth is slow");
   return chips;
+}
+
+function parseTrendLoose(text: string): BusinessFacts["trends"]["enquiries"] {
+  const t = text.toLowerCase();
+  if (/decreas|down|less|fewer|drop|fell|worse|slower/.test(t)) return "Decreased";
+  if (/increas|up|more|grew|rise|rose|better|higher/.test(t)) return "Increased";
+  if (/don'|do not|no idea|not sure/.test(t)) return "Don't know";
+  return "About the same";
 }
 
 export default function OnboardingChat(_props: ScreenProps) {
@@ -63,35 +69,37 @@ export default function OnboardingChat(_props: ScreenProps) {
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [chips, setChips] = useState<string[]>([]);
-  const [stage, setStage] = useState<Stage>("intro");
+  const [stage, setStage] = useState<CheckupStage>("intro");
+  const [slots, setSlots] = useState<CheckupSlots>(emptySlots);
   const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
-  const [signalsDone, setSignalsDone] = useState(false);
-  const [changesDone, setChangesDone] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const started = useRef(false);
   const idRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const transcriptRef = useRef<TranscriptTurn[]>([]);
+  const stageRef = useRef<CheckupStage>("intro");
+  const slotsRef = useRef<CheckupSlots>(emptySlots());
+  const attemptsRef = useRef(0);
+  const busyRef = useRef(false);
 
   const nextId = () => {
     idRef.current += 1;
     return idRef.current;
   };
 
-  function aiSay(text: string, opts?: { chips?: string[]; delay?: number; then?: () => void }) {
+  function pushAi(text: string, opts?: { learned?: string[]; then?: () => void; delay?: number }) {
     setTyping(true);
-    setChips([]);
     window.setTimeout(() => {
       setTyping(false);
       transcriptRef.current.push({ role: "ai", text });
-      setMessages((m) => [...m, { id: nextId(), role: "ai", text, chips: opts?.chips }]);
-      setChips([]);
+      setMessages((m) => [...m, { id: nextId(), role: "ai", text, learned: opts?.learned }]);
       opts?.then?.();
-    }, opts?.delay ?? 900);
+    }, opts?.delay ?? 850);
   }
 
-  /** Call the real Context Engine. Returns facts + optional ack, or null when offline. */
+  /** Call the real Context Engine for the closing structured extraction. */
   async function extractFacts(): Promise<{ facts: BusinessFacts; ack: string | null } | null> {
     try {
       const res = await fetch("/api/checkup/extract", {
@@ -122,15 +130,15 @@ export default function OnboardingChat(_props: ScreenProps) {
       businessType: chips.some((c) => c.startsWith("Ecommerce")) ? "ecommerce" : "service",
       whatTheySell: chips[0] ?? "Described during the checkup",
       primaryGoal: "Understand why growth is slow and what to fix next",
-      customers: "Described during the checkup",
+      customers: slots.targetMarket ?? "Described during the checkup",
       channels: chips.filter((c) => c.startsWith("Channel:")).map((c) => c.replace("Channel: ", "")),
       journey: [],
       trends: {
-        enquiries: parseTrend(userText),
-        customers: parseTrend(userText),
-        revenue: parseTrend(userText),
+        enquiries: slots.enquiries ?? parseTrendLoose(userText),
+        customers: slots.customers ?? parseTrendLoose(userText),
+        revenue: slots.revenue ?? parseTrendLoose(userText),
       },
-      recentChanges: ["Reported during the checkup"],
+      recentChanges: slots.changes?.length ? slots.changes : ["Reported during the checkup"],
       chips,
       facts: [
         { section: "Business", value: `${userWorkspace?.name ?? "Your business"} — described in your checkup conversation`, provenance: "user-supplied", source: "Workspace setup" },
@@ -156,89 +164,9 @@ export default function OnboardingChat(_props: ScreenProps) {
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, typing, chips]);
 
-  function onIntroAnswer(text: string) {
-    const fallbackChips = extractFromIntro(text);
-    const ig = fallbackChips.some((c) => c.startsWith("Channel: Instagram"));
-    const ref = fallbackChips.includes("Channel: Referrals");
-    const fallbackAck = ig && ref
-      ? "I understand that most customers find you through Instagram and referrals."
-      : "I understand — I have noted what you do, where customers come from, and what you want to improve.";
-
-    // Real extraction — the acknowledgement and chips come from the LLM reading
-    // the owner's own words. Regex is only the offline fallback.
-    setTyping(true);
-    setChips([]);
-    void (async () => {
-      const result = await extractFacts();
-      const ack = result?.ack ?? fallbackAck;
-      const chips = result?.facts.chips.length ? result.facts.chips : fallbackChips;
-      setTyping(false);
-      transcriptRef.current.push({ role: "ai", text: ack });
-      setMessages((m) => [...m, { id: nextId(), role: "ai", text: ack, chips }]);
-      setStage("enquiry");
-      aiSay(
-        "Compared with the previous month, did the number of enquiries increase, decrease, or stay roughly the same?",
-        { then: () => setChips(TREND_CHIPS) },
-      );
-    })();
-  }
-
-  function onEnquiryAnswer(text: string) {
-    const trend = parseTrend(text);
-    setStage("customers");
-    const ack =
-      trend === "Increased"
-        ? "Enquiries up — that is a strong demand signal, especially if activity increased too."
-        : trend === "Decreased"
-          ? "Enquiries down — noted. I will keep that in mind when I look at where customers come from."
-          : trend === "Don't know"
-            ? "That is fine — directions can be added later in the Business Brain."
-            : "Roughly flat enquiries — useful to know.";
-    aiSay(ack, {
-      then: () =>
-        aiSay("And the number of paying customers — increased, decreased, or about the same?", { then: () => setChips(TREND_CHIPS) }),
-    });
-  }
-
-  function onCustomersAnswer(text: string) {
-    const trend = parseTrend(text);
-    setStage("revenue");
-    const gap =
-      trend === "About the same" || trend === "Don't know"
-        ? "Interesting — demand moved more than customers did. That is a pattern worth investigating."
-        : trend === "Decreased"
-          ? "So customers moved less than enquiries. There may be something happening between enquiry and signup."
-          : "Customers up as well — good. I will check how the growth splits across channels.";
-    aiSay(gap, {
-      then: () =>
-        aiSay(
-          "One more trend question, and it is optional: revenue. I don't need the exact amount — would you say it increased, decreased, or stayed about the same? An estimate or a direction is enough, and it stays inside your workspace.",
-          { then: () => setChips(TREND_CHIPS) },
-        ),
-    });
-  }
-
-  function onRevenueAnswer(text: string) {
-    const trend = parseTrend(text);
-    setStage("changes");
-    const ack =
-      trend === "Don't know"
-        ? "No problem — revenue can be added or estimated later in the Business Brain."
-        : `Revenue ${trend.toLowerCase()} — noted as your own estimate.`;
-    aiSay(ack, {
-      then: () =>
-        aiSay("Has anything changed recently in how you run the business — pricing, the team, or how you market?", {
-          then: () => setChips(CHANGE_CHIPS),
-        }),
-    });
-  }
-
-  function onChangesAnswer(text: string) {
-    setStage("done");
-    setSignalsDone(true);
-    setChangesDone(true);
-    // Final extraction: the full transcript becomes the persistent business model
-    // used by business-understanding, first-diagnosis and Ask.
+  /** Closing flow: structured extraction → persist → journey CTA. */
+  function finishConversation() {
+    setFinishing(true);
     setTyping(true);
     setChips([]);
     void (async () => {
@@ -246,7 +174,8 @@ export default function OnboardingChat(_props: ScreenProps) {
       const facts = result?.facts ?? offlineFacts();
       setCheckupFacts(facts, [...transcriptRef.current]);
       setTyping(false);
-      aiSay(
+      setFinishing(false);
+      pushAi(
         "I have enough to produce your first diagnosis. I have also mapped the buying journey I believe your customers use — review it and correct anything before it is used.",
         {
           then: () => {
@@ -257,25 +186,84 @@ export default function OnboardingChat(_props: ScreenProps) {
     })();
   }
 
+  /** One consultant turn — the engine classifies, reacts, and decides pacing. */
+  async function consultantTurn(text: string) {
+    busyRef.current = true;
+    setTyping(true);
+    setChips([]);
+    const payload = {
+      workspaceName: userWorkspace?.name ?? "Your business",
+      country: userWorkspace?.country ?? "Nigeria",
+      transcript: transcriptRef.current,
+      stage: stageRef.current,
+      slots: slotsRef.current,
+      attempts: attemptsRef.current,
+    };
+    try {
+      const res = await fetch("/api/checkup/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json()) as { ok?: boolean } & Partial<ChatTurnResult>;
+      if (!data?.ok || typeof data.reply !== "string" || data.reply.length === 0) throw new Error("bad response");
+
+      const nextStage = (data.stage ?? stageRef.current) as CheckupStage;
+      const nextSlots = data.slots ?? slotsRef.current;
+      const learned = data.learnedChips ?? [];
+
+      setTyping(false);
+      transcriptRef.current.push({ role: "ai", text: data.reply });
+      setMessages((m) => [...m, { id: nextId(), role: "ai", text: data.reply as string, learned }]);
+
+      attemptsRef.current = nextStage === stageRef.current ? attemptsRef.current + 1 : 0;
+      stageRef.current = nextStage;
+      slotsRef.current = nextSlots;
+      setStage(nextStage);
+      setSlots(nextSlots);
+      setChips(data.chips ?? []);
+
+      if (nextStage === "done") finishConversation();
+    } catch {
+      // Network hiccup — never advance, never guess. Ask the owner to try again.
+      setTyping(false);
+      setMessages((m) => [
+        ...m,
+        { id: nextId(), role: "ai", text: "Sorry — my connection dropped for a moment. Could you send that once more?" },
+      ]);
+      setChips([]);
+    } finally {
+      busyRef.current = false;
+    }
+  }
+
   function send(raw?: string) {
     const text = (raw ?? input).trim();
-    if (!text || typing || stage === "done") return;
+    if (!text || typing || busyRef.current || finishing || stageRef.current === "done") return;
     transcriptRef.current.push({ role: "user", text });
     setMessages((m) => [...m, { id: nextId(), role: "user", text }]);
     setInput("");
-    if (stage === "intro") onIntroAnswer(text);
-    else if (stage === "enquiry") onEnquiryAnswer(text);
-    else if (stage === "customers") onCustomersAnswer(text);
-    else if (stage === "revenue") onRevenueAnswer(text);
-    else if (stage === "changes") onChangesAnswer(text);
+    void consultantTurn(text);
   }
 
+  // Side panel — what the engine has actually learned, driven by real slots.
+  const trendResolved = (v?: string, topic?: CheckupStage) => Boolean(v) || (topic ? slots.declined.includes(topic) : false);
   const LEARN: { label: string; status: LearnStatus }[] = [
-    { label: "Business type", status: messages.some((m) => m.role === "user") ? "done" : "pending" },
-    { label: "Goal", status: messages.some((m) => m.role === "user") ? "done" : "pending" },
-    { label: "Customer journey", status: messages.some((m) => m.role === "user") ? "active" : "pending" },
-    { label: "Performance signals", status: signalsDone ? "done" : stage === "enquiry" || stage === "customers" || stage === "revenue" ? "active" : "pending" },
-    { label: "Recent changes", status: changesDone ? "done" : stage === "changes" ? "active" : "pending" },
+    { label: "Business type", status: slots.businessType ? "done" : stage === "intro" ? "active" : "pending" },
+    { label: "What you sell", status: slots.sells ? "done" : stage === "intro" ? "active" : "pending" },
+    { label: "Target market", status: slots.targetMarket ? "done" : stage === "intro" ? "active" : "pending" },
+    { label: "Goal", status: slots.goal ? "done" : stage === "intro" ? "active" : "pending" },
+    { label: "Customer journey", status: stage === "done" ? "done" : "active" },
+    {
+      label: "Performance signals",
+      status:
+        trendResolved(slots.enquiries, "enquiry") && trendResolved(slots.customers, "customers") && trendResolved(slots.revenue, "revenue")
+          ? "done"
+          : stage === "enquiry" || stage === "customers" || stage === "revenue"
+            ? "active"
+            : "pending",
+    },
+    { label: "Recent changes", status: slots.changes?.length || slots.declined.includes("changes") ? "done" : stage === "changes" ? "active" : "pending" },
   ];
 
   return (
@@ -310,11 +298,11 @@ export default function OnboardingChat(_props: ScreenProps) {
                     </span>
                     <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed shadow-sm">
                       {m.text ? <p>{m.text}</p> : null}
-                      {m.chips && m.chips.length > 0 ? (
+                      {m.learned && m.learned.length > 0 ? (
                         <div className="mt-2 border-t border-dashed border-violet-100 pt-2">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500">Understood as</p>
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {m.chips.map((c) => (
+                            {m.learned.map((c) => (
                               <span key={c} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
                                 {c}
                               </span>
@@ -353,7 +341,7 @@ export default function OnboardingChat(_props: ScreenProps) {
 
             {/* Quick chips + composer */}
             <div className="border-t bg-slate-50/70 p-3 sm:p-4">
-              {chips.length > 0 && !typing ? (
+              {chips.length > 0 && !typing && stage !== "done" ? (
                 <div className="mb-2.5 flex flex-wrap gap-1.5" aria-label="Suggested answers">
                   {chips.map((c) => (
                     <button
@@ -388,7 +376,7 @@ export default function OnboardingChat(_props: ScreenProps) {
                 </Button>
               </form>
               <p className="mt-2 text-[11px] text-muted-foreground">
-                Estimates are fine. Exact figures are optional. You can connect accounts later.
+                Estimates are fine. Exact figures are optional. Correct me any time — I update as we talk.
               </p>
             </div>
           </div>
@@ -397,7 +385,7 @@ export default function OnboardingChat(_props: ScreenProps) {
           <aside className="border-t border-violet-100 bg-violet-50/40 p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="What I'm learning">
             <h2 className="text-sm font-semibold">What I&apos;m learning</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Built from this conversation. Nothing is shared.</p>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1">
               {LEARN.map((item) => (
                 <li key={item.label} className="flex items-center gap-2.5">
                   {item.status === "done" ? (
@@ -424,7 +412,7 @@ export default function OnboardingChat(_props: ScreenProps) {
             </ul>
             <div className="mt-5 rounded-lg border border-violet-100 bg-white p-3">
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                The engine reads your own words, fills a structured model of your business, and stops asking once it has enough evidence for a first diagnosis. Your answers drive every screen that follows.
+                The engine reads your own words, corrects itself when you do, and only moves on once it genuinely understands — or honestly records what it does not know. Your answers drive every screen that follows.
               </p>
             </div>
           </aside>
