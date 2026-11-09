@@ -436,3 +436,29 @@ Verification (browser E2E, fresh signup as "Tunde Bakare / Node71 Digital Servic
 
 Stage Summary:
 - A registered owner's workspace is now THEIRS: their identity, their checkup facts, their diagnosis and only their numbers — sample data is unreachable from their workspace and demo workspaces are explicitly labelled Sample. The three financial-data paths (type estimates, upload a file, connect a service) are offered at checkup-intro, setup-complete, Home empty-state and Performance early-state, each optional and each labelled with provenance once data arrives.
+
+---
+Task ID: verify-final-1
+Agent: Z.ai Code (main)
+Task: Re-verify the four owner reports end-to-end on the live app (fresh signup); fix the one remaining fabricated-content leak found during verification
+
+Context: All four reports (onboarding data channels; seeded "good morning Amara" home; "believed journey" UX; invented "15 percent") were implemented in fix-trust-journey-1 and fix-real-owner-workspace-1. This pass re-verified them on the live app with a brand-new owner and fixed one remaining leak.
+
+Verification (agent-browser E2E, fresh signup as "Chidi Eze / FreshLink Media"):
+1. Onboarding data channels — checkup-intro offers "Connect data instead"; it lands in the Data Centre sources library with all three paths present (Google Analytics etc. connect, CSV/Excel upload, Manual data entry); setup-complete advertises "three ways to add real numbers — all optional"; Home empty-state offers Type your totals / Upload a file / Connect a service.
+2. Consultation quality — one comprehensive owner message covered all required slots; phase=done automatically; extract + journey + diagnosis all in the owner's own words ("social media ad campaign management for small ecommerce brands…", goal "double monthly revenue").
+3. Journey-confirm UX — heading "Here's how customers find and pay you", explicit "What to do here" 3-step box, "Draft — your customer journey", CTA "Yes, that's how it happens"; no "believed journey" wording anywhere.
+4. No invented figures — first-diagnosis tiles render direction words only ("Up / Increasing / Direction you described", "Not reported / No data yet / Not mentioned in your checkup") with the trust line "bizzGrowth never invents figures you did not give"; API prompt enforces NUMBERS ARE SACRED (no percentage, money amount, count, or ratio in LLM text).
+5. Seeded data purge — Home greets "Good morning, Chidi" with FreshLink Media workspace; full leak audit across performance / insights / actions / ask / data / goals / reports / brain / team / timeline / metric pages: 0 hits for Amara/SwiftHaul/KoraHome; honest empty states everywhere ("Nothing measured yet — and nothing is made up to fill the page."); reload persistence confirmed; sample businesses in the switcher are explicitly labelled "Sample" and the SwiftHaul demo home is unchanged for demo use.
+
+Fix (found during this verification):
+- first-diagnosis.tsx: while the personalized diagnosis was generating (or if generation failed), real owners saw the hardcoded sample TEMPLATE story — including fabricated lines like "Enquiries grew roughly 12 times faster than customers did" and a canned narrative mentioning channels they may never have used. Now: pendingPersonal owners get an honest building state ("state only what you told us. Nothing here is sampled or invented: where a figure is unknown, your diagnosis will say so plainly."), and a failed generation shows "We could not finish writing your diagnosis just now. Rather than show you something made up, we stopped here" with a Retry button. The sample TEMPLATE now renders only for workspaces with no checkup facts.
+
+Tooling/ops notes:
+- Dev server was killed twice mid-verification (sandbox reaps plain background processes); restarted via `setsid bash .zscripts/dev.sh` which persists across tool invocations.
+- agent-browser `open` to the same URL with a different hash is a same-document navigation (no reload) — use `reload` to force rehydration from localStorage when testing persistence.
+
+Lint clean; zero page errors across the whole pass; screenshot saved at download/verify-owner-home.png.
+
+Stage Summary:
+- All four owner reports verified live on a fresh signup journey; the last fabricated-content window (diagnosis loading/failure state) is closed. A registered owner now sees only their identity, their facts, their diagnosis and their own numbers — from first click through every page.

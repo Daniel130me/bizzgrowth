@@ -64,13 +64,15 @@ export default function FirstDiagnosis(_props: ScreenProps) {
   const setCheckupDiagnosis = useBizz((s) => s.setCheckupDiagnosis);
 
   const [generating, setGenerating] = useState(false);
+  const [generateFailed, setGenerateFailed] = useState(false);
   const requested = useRef(false);
 
-  // Generate the personalized diagnosis once, when facts exist but none is stored yet.
-  useEffect(() => {
-    if (!facts || storedDiagnosis || improved || requested.current) return;
-    requested.current = true;
+  const isPersonalized = Boolean(facts);
+
+  const generate = React.useCallback(() => {
+    if (!facts) return;
     setGenerating(true);
+    setGenerateFailed(false);
     void (async () => {
       try {
         const res = await fetch("/api/checkup/diagnosis", {
@@ -85,15 +87,76 @@ export default function FirstDiagnosis(_props: ScreenProps) {
         });
         const data = (await res.json()) as { ok?: boolean; diagnosis?: DiagnosisContent };
         if (data?.ok && data.diagnosis) setCheckupDiagnosis(data.diagnosis);
+        else setGenerateFailed(true);
       } catch {
-        // Silent — the template fallback is already rendered.
+        // Honest failure state — never fall back to invented sample content.
+        setGenerateFailed(true);
       } finally {
         setGenerating(false);
       }
     })();
-  }, [facts, storedDiagnosis, improved, userWorkspace, setCheckupDiagnosis]);
+  }, [facts, userWorkspace, setCheckupDiagnosis]);
 
-  const isPersonalized = Boolean(facts);
+  // Generate the personalized diagnosis once, when facts exist but none is stored yet.
+  useEffect(() => {
+    if (!facts || storedDiagnosis || improved || requested.current) return;
+    requested.current = true;
+    generate();
+  }, [facts, storedDiagnosis, improved, generate]);
+  // A real owner NEVER sees the sample template: while their diagnosis is being
+  // written (or if writing failed) we show an honest pending/failure state.
+  const pendingPersonal = isPersonalized && !improved && !storedDiagnosis;
+
+  if (pendingPersonal) {
+    return (
+      <div className="mx-auto w-full max-w-3xl">
+        <section
+          aria-label="Your first diagnosis is being prepared"
+          className="relative overflow-hidden rounded-2xl border border-violet-200 bg-violet-50/60 p-6 sm:p-10"
+        >
+          <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-violet-200/40 blur-3xl" />
+          <div className="relative">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-violet-700">
+              <Sparkles className="size-4" aria-hidden />
+              Your first diagnosis
+            </p>
+            <h1 className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">
+              {generating ? "Building your diagnosis from your answers…" : "Your diagnosis is ready to be written."}
+            </h1>
+            <blockquote className="mt-5 max-w-2xl border-l-2 border-violet-400 pl-4 text-base leading-relaxed text-slate-700 sm:text-lg">
+              We read your checkup answers — what you sell, who you serve, your channels and the trends you described — and
+              state only what you told us. Nothing here is sampled or invented: where a figure is unknown, your diagnosis
+              will say so plainly.
+            </blockquote>
+            {generating ? (
+              <p className="mt-6 flex items-center gap-2 text-sm text-violet-800" role="status">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                Writing your personalized diagnosis from your checkup answers…
+              </p>
+            ) : null}
+            {generateFailed ? (
+              <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                <p className="text-sm font-semibold text-amber-900">We could not finish writing your diagnosis just now.</p>
+                <p className="mt-1 text-sm text-amber-900/85">
+                  Rather than show you something made up, we stopped here. Nothing was fabricated — please retry.
+                </p>
+                <Button size="sm" className="mt-3 bg-violet-600 hover:bg-violet-700" onClick={generate}>
+                  Retry writing my diagnosis
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+        <div className="mt-8">
+          <Button variant="outline" onClick={() => navigate("first-diagnosis-evidence")} className="w-full sm:w-auto">
+            <Eye className="size-4" aria-hidden />
+            See the evidence from my checkup
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const content: DiagnosisContent = improved
     ? {
         headline: improved.headline,
