@@ -509,3 +509,25 @@ Ops note: the sandbox reaps background processes between tool commands in this s
 
 Stage Summary:
 - Every intelligence surface in the product is now genuinely AI-driven: the consultation (adaptive, self-correcting, never scripted even when degraded), the journey, first diagnosis, improved diagnosis, Ask, Insights and Reports. When the AI is briefly unreachable the product says so, keeps the owner's answers, and never degrades into a repeating script.
+
+---
+
+## fix/ask-real-intelligence — Node 71 feedback: "there is no intelligence here at all. it keeps repeating the same thing"
+
+User screenshot (finally visible) showed the **Ask** screen: two DIFFERENT questions ("where are we in this business?" / "what can we do now?") rendered the IDENTICAL templated paragraph.
+
+Root cause (two compounding problems):
+1. `ask/index.tsx` had a silent client-side fallback: on ANY /api/ask failure the `catch` swapped in `userFallbackAnswer(q)` — a hardcoded template that IGNORED the question entirely (param `q` unused) yet rendered under the "Answer / AI interpretation" header as if it were AI. With the dev server dead (the sandbox reaps it), every question instantly "answered" with the same template → "no intelligence, repeats the same thing". The API itself was fine (LLM answers verified via curl).
+2. The "Conversation history" screen showed hardcoded fake SwiftHaul conversations to EVERY service workspace — Node 71's owner saw analyses they never had ("Conversations are stored per workspace" was false).
+
+Fixes:
+- ask/index.tsx: ALL canned answer content deleted (~210 lines: SH_*/KH_* matcher tables, answerFor, userFallbackAnswer). New thread item kind "failed" renders an honest amber card: "The analyst couldn't be reached just now — rather than show you a canned reply, we stopped here" + Retry (re-asks the same question, removes the failed marker on success).
+- Every successful answer is recorded via new store action `recordAsk` (per-workspace, persisted in localStorage `bizzgrowth-asklog-v1`, capped 100).
+- Ask history screen rebuilt on real askLog scoped by workspace: search filter, honest empty state ("never seeded with sample conversations"), Clear-history action. Fake HISTORY/HISTORY_TYPES removed.
+- api/ask/route.ts: prompt rewritten for conversational intelligence — answer the exact question in sentence one; if a previous answer exists and the question follows up, build on it and never recycle wording; evidence array may be empty rather than padded. completeText returning null now short-circuits to 503 with a clear "AI analyst is temporarily unavailable" message (no extractJson(null) gamble).
+
+Verification:
+- API: same workspace, three questions → three distinct answers (stage-of-business / actions-now / referral-program-first follow-up that uses history). All 200 in ~2-3s.
+- Browser E2E (seeded "Node 71 limited" workspace, #/ask): Q1 "Where are we in this business right now?" → "You're in a stable but early stage…"; Q2 "what can we do now?" → "You can focus on creating case studies and testimonials…" — different, question-aware (exact repro now fixed).
+- Outage drill: fetch monkey-patched to reject → honest amber failure card (answer count unchanged, no canned text); fetch restored + Retry → real answer for "how do I price my services?" ("Since you have no measured data on costs… I can't provide specific numbers"), failed card gone.
+- History: shows exactly the 3 real questions; survives reload; no sample leakage. Mobile 390px layout holds. Console + dev.log clean; lint clean.

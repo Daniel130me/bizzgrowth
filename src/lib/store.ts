@@ -34,6 +34,17 @@ export interface BizzUser {
   jobRole: string;
 }
 
+/** A question the owner actually asked the AI analyst, with a short answer summary.
+ *  Real history only — nothing here is seeded or canned. */
+export interface AskLogEntry {
+  id: string;
+  workspaceId: string;
+  question: string;
+  summary: string;
+  period: string;
+  at: string;
+}
+
 interface BizzSettings {
   businessName: string;
   currency: string;
@@ -67,6 +78,8 @@ interface BizzState {
   aiInsights: Insight[];
   /** AI-generated first brief for the owner's own workspace. */
   aiBrief: Brief | null;
+  /** Real Ask conversations (per workspace), persisted. Never seeded. */
+  askLog: AskLogEntry[];
 
   navigate: (path: string) => void;
   setBusiness: (id: WorkspaceId) => void;
@@ -99,6 +112,8 @@ interface BizzState {
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   setAiInsights: (items: Insight[]) => void;
   setAiBrief: (brief: Brief) => void;
+  recordAsk: (entry: Omit<AskLogEntry, "id" | "at">) => void;
+  clearAskLog: (workspaceId: string) => void;
   updateSettings: (patch: Partial<BizzSettings>) => void;
   updateProfile: (patch: Partial<BizzUser>) => void;
   sendInvite: (email: string, role: string) => void;
@@ -111,6 +126,13 @@ const SETTINGS_KEY = "bizzgrowth-settings-v1";
 const CHECKUP_KEY = "bizzgrowth-checkup-v1";
 const MANUAL_KEY = "bizzgrowth-manual-v1";
 const AI_KEY = "bizzgrowth-ai-v1";
+const ASKLOG_KEY = "bizzgrowth-asklog-v1";
+
+function persistAskLog(entries: AskLogEntry[]) {
+  try {
+    localStorage.setItem(ASKLOG_KEY, JSON.stringify(entries));
+  } catch {}
+}
 
 function persistManual(entries: ManualEntry[]) {
   try {
@@ -150,6 +172,7 @@ export const useBizz = create<BizzState>((set, get) => ({
   checkup: EMPTY_CHECKUP,
   aiInsights: [],
   aiBrief: null,
+  askLog: [],
   settings: {
     businessName: "SwiftHaul Logistics",
     currency: "₦ (Nigerian Naira)",
@@ -341,6 +364,21 @@ export const useBizz = create<BizzState>((set, get) => ({
     set({ aiBrief: brief });
     persistAi({ aiInsights: get().aiInsights, aiBrief: brief });
   },
+  recordAsk: (entry) => {
+    const full: AskLogEntry = {
+      ...entry,
+      id: `ask-${Math.random().toString(36).slice(2, 10)}`,
+      at: new Date().toISOString(),
+    };
+    const askLog = [full, ...get().askLog].slice(0, 100);
+    set({ askLog });
+    persistAskLog(askLog);
+  },
+  clearAskLog: (workspaceId) => {
+    const askLog = get().askLog.filter((e) => e.workspaceId !== workspaceId);
+    set({ askLog });
+    persistAskLog(askLog);
+  },
   updateSettings: (patch) => {
     set((s) => ({ settings: { ...s.settings, ...patch } }));
     try {
@@ -407,6 +445,13 @@ export const useBizz = create<BizzState>((set, get) => ({
           aiInsights: Array.isArray(parsedAi.aiInsights) ? parsedAi.aiInsights : [],
           aiBrief: parsedAi.aiBrief ?? null,
         });
+      }
+    } catch {}
+    try {
+      const rawAsk = localStorage.getItem(ASKLOG_KEY);
+      if (rawAsk) {
+        const parsedAsk = JSON.parse(rawAsk) as AskLogEntry[];
+        if (Array.isArray(parsedAsk)) set({ askLog: parsedAsk.filter((e) => e && e.question && e.workspaceId) });
       }
     } catch {}
     set({ hydrated: true });

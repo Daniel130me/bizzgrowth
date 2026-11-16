@@ -1,0 +1,914 @@
+     1→"use client";
+     2→// Screens 48–49 — Ask Your Business + Conversation History.
+     3→// Questions go to the real analyst (POST /api/ask) with a snapshot of the
+     4→// workspace data; the answer is grounded, labelled with provenance and shows
+     5→// its limitations. The canned matcher below remains as an offline fallback.
+     6→
+     7→import { useEffect, useRef, useState } from "react";
+     8→import {
+     9→  BarChart3,
+    10→  CalendarDays,
+    11→  CheckCircle2,
+    12→  CircleDashed,
+    13→  Database,
+    14→  History,
+    15→  MessageCircleQuestion,
+    16→  Search,
+    17→  Send,
+    18→  Sparkles,
+    19→} from "lucide-react";
+    20→import { toast } from "sonner";
+    21→import { Button } from "@/components/ui/button";
+    22→import { Card } from "@/components/ui/card";
+    23→import { Input } from "@/components/ui/input";
+    24→import { Badge } from "@/components/ui/badge";
+    25→import {
+    26→  Select,
+    27→  SelectContent,
+    28→  SelectItem,
+    29→  SelectTrigger,
+    30→  SelectValue,
+    31→} from "@/components/ui/select";
+    32→import { EmptyState } from "@/components/shared/states";
+    33→import { PageHeader } from "@/components/shared/layout";
+    34→import { ProvenanceBadge } from "@/components/shared/badges";
+    35→import { useBizz } from "@/lib/store";
+    36→import { getBusiness } from "@/lib/data/businesses";
+    37→import { ownerMonthsFromEntries } from "@/lib/data/user-business";
+    38→import type { AskWorkspaceContext } from "@/lib/checkup";
+    39→import type { BusinessType, Provenance } from "@/lib/types";
+    40→import type { ViewMap } from "../view-types";
+    41→
+    42→// ---------- Canned answer model ----------
+    43→
+    44→interface AskEvidence {
+    45→  label: string;
+    46→  value: string;
+    47→  provenance: Provenance;
+    48→  source: string;
+    49→  factId?: string;
+    50→}
+    51→
+    52→interface AnswerContent {
+    53→  grounded: string[];
+    54→  interpretation?: string;
+    55→  limitations?: string[];
+    56→  evidence: AskEvidence[];
+    57→  referencedPeriod: string;
+    58→}
+    59→
+    60→const SH_ENQUIRY: AnswerContent = {
+    61→  grounded: [
+    62→    "Instagram produced 184 enquiries during September but only 11 became customers (6.0%), compared with 24 customers from 62 Google enquiries (38.7%). Referral converted 31 enquiries into 14 customers (45.2%).",
+    63→    "Enquiries grew 50% month over month while customers grew only 4% — the top of the funnel is working; conversion is not. We do not currently know whether lower conversion is caused by lead quality or follow-up speed — the faster-follow-up experiment is tracking toward 8–9%.",
+    64→  ],
+    65→  interpretation:
+    66→    "The main issue therefore appears to be conversion quality rather than enquiry volume.",
+    67→  limitations: [
+    68→    "Response times are not recorded, so lead quality and follow-up speed cannot be separated yet.",
+    69→    "23% of September customers have no recorded acquisition source, so channel conversion figures could shift slightly.",
+    70→  ],
+    71→  evidence: [
+    72→    { label: "Instagram enquiries → customers", value: "184 → 11", provenance: "measured", source: "Meta Ads + manual reconciliation", factId: "prov-sh-instagram-enquiries" },
+    73→    { label: "Google enquiries → customers", value: "62 → 24", provenance: "measured", source: "Google Ads integration" },
+    74→    { label: "Referral enquiries → customers", value: "31 → 14", provenance: "user-supplied", source: "Entered by Tunde Bakare (Sales Manager)", factId: "prov-sh-referral" },
+    75→    { label: "Instagram CAC", value: "₦18,182", provenance: "estimated", source: "₦200,000 spend ÷ 11 customers", factId: "prov-sh-cac-instagram" },
+    76→  ],
+    77→  referencedPeriod: "September 2026",
+    78→};
+    79→
+    80→const KH_ORDERS: AnswerContent = {
+    81→  grounded: [
+    82→    "Traffic grew 24% to 18,430 visitors, but orders fell 8% to 740.",
+    83→    "Mobile checkout completion fell from 71% to 48% and payment failures rose 31%; desktop completion was broadly stable (78% → 77%).",
+    84→  ],
+    85→  interpretation: "Demand is healthy — the checkout is the constraint.",
+    86→  limitations: [
+    87→    "Exit-step error logs are not captured, so the exact failing checkout step is not yet known.",
+    88→    "Heatmaps and session recordings would pinpoint where mobile users abandon.",
+    89→  ],
+    90→  evidence: [
+    91→    { label: "Traffic (September)", value: "18,430 (+24%)", provenance: "measured", source: "Shopify" },
+    92→    { label: "Orders (September)", value: "740 (−8%)", provenance: "measured", source: "Shopify" },
+    93→    { label: "Mobile checkout completion", value: "48% (Aug: 71%)", provenance: "measured", source: "Shopify checkout analytics", factId: "prov-kh-checkout" },
+    94→    { label: "Payment failures", value: "+31% vs August", provenance: "measured", source: "Paystack via Shopify", factId: "prov-kh-payment-failures" },
+    95→  ],
+    96→  referencedPeriod: "September 2026",
+    97→};
+    98→
+    99→const SH_FOCUS: AnswerContent = {
+   100→  grounded: [
+   101→    "Three things: (1) keep the faster-follow-up experiment unchanged — 18 days remain; (2) complete lead-status tracking (2 checklist items); (3) avoid budget changes until the experiment closes.",
+   102→  ],
+   103→  interpretation:
+   104→    "Holding spend steady keeps the experiment attributable — a budget change now would confound the result.",
+   105→  evidence: [
+   106→    { label: "Faster-follow-up experiment", value: "18 days remaining", provenance: "measured", source: "Experiment exp-sh-1" },
+   107→    { label: "Instagram conversion (baseline)", value: "6.0%", provenance: "measured", source: "Meta Ads + manual reconciliation", factId: "prov-sh-instagram-enquiries" },
+   108→    { label: "Lead-status checklist", value: "2 items open", provenance: "user-supplied", source: "Action act-sh-1" },
+   109→  ],
+   110→  referencedPeriod: "Week of Sep 28 – Oct 4",
+   111→};
+   112→
+   113→const KH_FOCUS: AnswerContent = {
+   114→  grounded: [
+   115→    "Three things: (1) reconnect Shopify — the sync has been paused since authorization expired at 14:03; (2) start the mobile checkout repair — completion fell from 71% to 48%; (3) hold ad budget changes until checkout recovers, since traffic is already growing (+24%).",
+   116→  ],
+   117→  interpretation:
+   118→    "Fixing the checkout converts demand you have already paid for — it is cheaper than buying more traffic.",
+   119→  evidence: [
+   120→    { label: "Shopify sync", value: "Paused — authorization expired", provenance: "measured", source: "Data Centre" },
+   121→    { label: "Mobile checkout completion", value: "48% (Aug: 71%)", provenance: "measured", source: "Shopify checkout analytics", factId: "prov-kh-checkout" },
+   122→    { label: "Traffic (September)", value: "18,430 (+24%)", provenance: "measured", source: "Shopify" },
+   123→  ],
+   124→  referencedPeriod: "Week of Sep 28 – Oct 4",
+   125→};
+   126→
+   127→const SH_CHANNEL: AnswerContent = {
+   128→  grounded: [
+   129→    "Referral converts best (45.2%) but is small (31 enquiries). Google Search is the best scalable channel: 38.7% conversion at ₦6,250 CAC.",
+   130→    "Instagram is the largest volume channel (184 enquiries) but converts at 6.0% with a CAC of ₦18,182.",
+   131→  ],
+   132→  interpretation:
+   133→    "Shifting incremental budget toward Google Search is the most reliable growth lever while the Instagram conversion question is being tested.",
+   134→  evidence: [
+   135→    { label: "Referral conversion", value: "45.2%", provenance: "user-supplied", source: "Entered by Tunde Bakare (Sales Manager)", factId: "prov-sh-referral" },
+   136→    { label: "Google conversion", value: "38.7%", provenance: "measured", source: "Google Ads integration" },
+   137→    { label: "Google CAC", value: "₦6,250", provenance: "estimated", source: "₦150,000 spend ÷ 24 customers" },
+   138→    { label: "Instagram CAC", value: "₦18,182", provenance: "estimated", source: "₦200,000 spend ÷ 11 customers", factId: "prov-sh-cac-instagram" },
+   139→  ],
+   140→  referencedPeriod: "September 2026",
+   141→};
+   142→
+   143→const KH_CHANNEL: AnswerContent = {
+   144→  grounded: [
+   145→    "Instagram Ads produced the most orders (296 of 740) and revenue (₦2.48m) at ₦1,081 CAC. Google Search followed with 222 orders at ₦946 CAC.",
+   146→    "Organic social (133 orders) and direct/repeat visits (89 orders) carry no ad spend — they are the most profitable order sources.",
+   147→  ],
+   148→  interpretation:
+   149→    "Paid channels are buying traffic efficiently, but the lost orders are recoverable at the checkout rather than at the ad level.",
+   150→  evidence: [
+   151→    { label: "Instagram Ads orders", value: "296", provenance: "measured", source: "Shopify + Meta Ads spend" },
+   152→    { label: "Google Search orders", value: "222", provenance: "measured", source: "Shopify + Google Ads spend" },
+   153→    { label: "Organic + repeat orders", value: "222 combined", provenance: "measured", source: "Shopify" },
+   154→    { label: "Blended CAC", value: "₦716 (Aug: ₦696)", provenance: "estimated", source: "₦530,000 spend ÷ 740 orders" },
+   155→  ],
+   156→  referencedPeriod: "September 2026",
+   157→};
+   158→
+   159→const SH_CHANGED: AnswerContent = {
+   160→  grounded: [
+   161→    "Spend +40% (₦370k), enquiries +50% (277), customers +4% (49), revenue +3% (₦6.0m).",
+   162→    "Instagram spend rose ~10% during the experiment window (detected Sep 24). It is tracked as an external change so it does not contaminate experiment attribution.",
+   163→  ],
+   164→  limitations: [
+   165→    "Revenue is user-supplied and cannot yet be verified against an accounting source.",
+   166→  ],
+   167→  evidence: [
+   168→    { label: "Marketing spend", value: "₦370,000 (+40%)", provenance: "measured", source: "Meta Ads + Google Ads" },
+   169→    { label: "Enquiries", value: "277 (+50%)", provenance: "measured", source: "Manual entry + channel reconciliation" },
+   170→    { label: "Customers", value: "49 (+4%)", provenance: "user-supplied", source: "Manual monthly submission" },
+   171→    { label: "Revenue", value: "₦6,000,000 (+3%)", provenance: "user-supplied", source: "Manual monthly submission", factId: "prov-sh-revenue" },
+   172→    { label: "Instagram spend", value: "+~10% from Sep 24", provenance: "measured", source: "Meta Ads (detected)" },
+   173→  ],
+   174→  referencedPeriod: "Sep vs Aug 2026",
+   175→};
+   176→
+   177→const KH_CHANGED: AnswerContent = {
+   178→  grounded: [
+   179→    "Traffic +24% (18,430), orders −8% (740), revenue −8% (₦6.2m). Average order value was roughly stable at ₦8,378.",
+   180→    "Mobile checkout completion fell 71% → 48% and payment failures rose 31% — both measured up to the last successful Shopify sync at 11:02.",
+   181→  ],
+   182→  limitations: [
+   183→    "Data after 11:02 today is pending the Shopify reconnection.",
+   184→  ],
+   185→  evidence: [
+   186→    { label: "Traffic", value: "18,430 (+24%)", provenance: "measured", source: "Shopify" },
+   187→    { label: "Orders", value: "740 (−8%)", provenance: "measured", source: "Shopify" },
+   188→    { label: "Revenue", value: "₦6,200,000 (−8%)", provenance: "measured", source: "Shopify" },
+   189→    { label: "Payment failures", value: "+31% vs August", provenance: "measured", source: "Paystack via Shopify", factId: "prov-kh-payment-failures" },
+   190→  ],
+   191→  referencedPeriod: "Sep vs Aug 2026",
+   192→};
+   193→
+   194→const SH_TRIED: AnswerContent = {
+   195→  grounded: [
+   196→    "You completed a Google budget reallocation test (August): Google conversion improved from 38.7% to 44.1%, with attribution confidence medium.",
+   197→    "Conclusion: keep the reallocation.",
+   198→  ],
+   199→  interpretation:
+   200→    "The improvement may have been contributed to by the reallocation; other September changes cannot be fully ruled out, hence medium confidence.",
+   201→  evidence: [
+   202→    { label: "Google conversion before → after", value: "38.7% → 44.1%", provenance: "measured", source: "Experiment outcome exp-sh-0" },
+   203→    { label: "Attribution confidence", value: "Medium", provenance: "ai-interpretation", source: "Calculated from August and September totals" },
+   204→  ],
+   205→  referencedPeriod: "August 2026",
+   206→};
+   207→
+   208→const KH_TRIED: AnswerContent = {
+   209→  grounded: [
+   210→    "No completed experiments are recorded for KoraHome yet.",
+   211→    "The closest active change is the open recommendation to repair mobile checkout (completion 48% vs 71% in August). Once a change is started, its outcome will be tracked here with attribution confidence.",
+   212→  ],
+   213→  evidence: [
+   214→    { label: "Completed experiments", value: "None yet", provenance: "measured", source: "Workspace experiment history" },
+   215→    { label: "Mobile checkout completion", value: "48% (Aug: 71%)", provenance: "measured", source: "Shopify checkout analytics", factId: "prov-kh-checkout" },
+   216→  ],
+   217→  referencedPeriod: "All time",
+   218→};
+   219→
+   220→interface Matcher {
+   221→  test: RegExp;
+   222→  content: AnswerContent;
+   223→}
+   224→
+   225→const MATCHERS: Record<BusinessType, { list: Matcher[]; fallback: AnswerContent }> = {
+   226→  service: {
+   227→    list: [
+   228→      { test: /enquir|customer|sales|convers|lead/i, content: SH_ENQUIRY },
+   229→      { test: /channel|best|perform|platform/i, content: SH_CHANNEL },
+   230→      { test: /tried|before|experiment|test|histor/i, content: SH_TRIED },
+   231→      { test: /chang|month|trend|happen/i, content: SH_CHANGED },
+   232→      { test: /focus|week|priorit|next/i, content: SH_FOCUS },
+   233→    ],
+   234→    fallback: SH_FOCUS,
+   235→  },
+   236→  ecommerce: {
+   237→    list: [
+   238→      { test: /order|checkout|payment|cart|sales|customer|convers|traffic|enquir/i, content: KH_ORDERS },
+   239→      { test: /channel|best|perform|ads|platform/i, content: KH_CHANNEL },
+   240→      { test: /tried|before|experiment|test|histor/i, content: KH_TRIED },
+   241→      { test: /chang|month|trend|happen/i, content: KH_CHANGED },
+   242→      { test: /focus|week|priorit|next/i, content: KH_FOCUS },
+   243→    ],
+   244→    fallback: KH_FOCUS,
+   245→  },
+   246→};
+   247→
+   248→function answerFor(question: string, type: BusinessType): AnswerContent {
+   249→  const m = MATCHERS[type];
+   250→  const hit = m.list.find((c) => c.test.test(question));
+   251→  return hit ? hit.content : m.fallback;
+   252→}
+   253→
+   254→// ---------- Screen 48 — Ask Your Business ----------
+   255→
+   256→interface ThreadAnswer {
+   257→  kind: "answer";
+   258→  question: string;
+   259→  content: AnswerContent;
+   260→}
+   261→interface ThreadQuestion {
+   262→  kind: "question";
+   263→  text: string;
+   264→}
+   265→type ThreadItem = ThreadQuestion | ThreadAnswer;
+   266→
+   267→function AskScreen() {
+   268→  const businessId = useBizz((s) => s.businessId);
+   269→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   270→  const checkupFacts = useBizz((s) => s.checkup.facts);
+   271→  const checkupImproved = useBizz((s) => s.checkup.improved);
+   272→  const manualEntries = useBizz((s) => s.manualEntries);
+   273→  const navigate = useBizz((s) => s.navigate);
+   274→  const business = getBusiness(businessId, userWorkspace, checkupFacts, manualEntries);
+   275→
+   276→  const [input, setInput] = useState("");
+   277→  const [typing, setTyping] = useState(false);
+   278→  const [thread, setThread] = useState<ThreadItem[]>([]);
+   279→  const threadRef = useRef<ThreadItem[]>([]);
+   280→  const inputRef = useRef<HTMLInputElement>(null);
+   281→  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   282→
+   283→  useEffect(() => {
+   284→    return () => {
+   285→      if (timerRef.current) clearTimeout(timerRef.current);
+   286→    };
+   287→  }, []);
+   288→
+   289→  /** Snapshot of the workspace the server-side analyst reasons over. */
+   290→  function buildContext(): AskWorkspaceContext {
+   291→    if (businessId === "user-workspace") {
+   292→      // The owner's own workspace: ground the analyst in their entered totals
+   293→      // when they exist, otherwise be honest that nothing is measured yet.
+   294→      const months = ownerMonthsFromEntries(manualEntries);
+   295→      const last = months.length ? months[months.length - 1] : undefined;
+   296→      const prev = months.length > 1 ? months[months.length - 2] : undefined;
+   297→      return {
+   298→        name: business.name,
+   299→        type: business.type,
+   300→        location: business.location,
+   301→        currency: "₦",
+   302→        isUserWorkspace: true,
+   303→        hasMeasuredData: Boolean(last),
+   304→        periodLabel: last ? last.label : "No measured month yet — your checkup answers only",
+   305→        metrics: last
+   306→          ? {
+   307→              spend: last.spend ?? 0,
+   308→              enquiries: last.enquiries,
+   309→              customers: last.customers,
+   310→              orders: last.orders,
+   311→              traffic: last.traffic,
+   312→              revenue: last.revenue ?? 0,
+   313→              prev: prev
+   314→                ? {
+   315→                    spend: prev.spend ?? 0,
+   316→                    enquiries: prev.enquiries,
+   317→                    customers: prev.customers,
+   318→                    orders: prev.orders,
+   319→                    traffic: prev.traffic,
+   320→                    revenue: prev.revenue ?? 0,
+   321→                  }
+   322→                : undefined,
+   323→            }
+   324→          : undefined,
+   325→        channelCounts: checkupImproved?.channelRows ?? undefined,
+   326→        userFacts: checkupFacts
+   327→          ? {
+   328→              whatTheySell: checkupFacts.whatTheySell,
+   329→              primaryGoal: checkupFacts.primaryGoal,
+   330→              customers: checkupFacts.customers,
+   331→              channels: checkupFacts.channels,
+   332→              trends: checkupFacts.trends,
+   333→              recentChanges: checkupFacts.recentChanges,
+   334→            }
+   335→          : null,
+   336→      };
+   337→    }
+   338→    const monthly = business.monthly;
+   339→    const last = monthly[monthly.length - 1];
+   340→    const prev = monthly[monthly.length - 2];
+   341→    return {
+   342→      name: business.name,
+   343→      type: business.type,
+   344→      location: business.location,
+   345→      currency: "₦",
+   346→      isUserWorkspace: false,
+   347→      hasMeasuredData: true,
+   348→      periodLabel: `${last.label} 2026`,
+   349→      metrics: {
+   350→        spend: last.spend,
+   351→        enquiries: last.enquiries || undefined,
+   352→        customers: last.customers || undefined,
+   353→        orders: last.orders,
+   354→        traffic: last.traffic,
+   355→        revenue: last.revenue,
+   356→        prev: {
+   357→          spend: prev.spend,
+   358→          enquiries: prev.enquiries || undefined,
+   359→          customers: prev.customers || undefined,
+   360→          orders: prev.orders,
+   361→          traffic: prev.traffic,
+   362→          revenue: prev.revenue,
+   363→        },
+   364→      },
+   365→      channels: business.channels.map((c) => ({
+   366→        name: c.name,
+   367→        enquiries: c.enquiries,
+   368→        customers: c.customers,
+   369→        conversion: c.conversion,
+   370→        cac: c.cac,
+   371→        spend: c.spend,
+   372→      })),
+   373→      userFacts: null,
+   374→    };
+   375→  }
+   376→
+   377→  const suggestions =
+   378→    business.type === "service"
+   379→      ? [
+   380→          "Why are we getting more enquiries but not more customers?",
+   381→          "What should I focus on this week?",
+   382→          "Which channel is performing best?",
+   383→          "What changed this month?",
+   384→          "What have we tried before?",
+   385→        ]
+   386→      : [
+   387→          "Why is traffic growing but orders falling?",
+   388→          "What should I focus on this week?",
+   389→          "Which channel is performing best?",
+   390→          "What changed this month?",
+   391→          "What have we tried before?",
+   392→        ];
+   393→
+   394→  /** Offline fallback for the owner's own workspace — built from THEIR facts,
+   395→   *  never from the demo dataset, so numbers stay honest. */
+   396→  function userFallbackAnswer(q: string): AnswerContent {
+   397→    const rows = checkupImproved?.channelRows ?? [];
+   398→    const best = rows.length > 0 ? rows.reduce((a, b) => (b.conversion > a.conversion ? b : a)) : null;
+   399→    const worst = rows.length > 0 ? rows.reduce((a, b) => (b.conversion < a.conversion ? b : a)) : null;
+   400→    const trendLine = checkupFacts
+   401→      ? `What you reported so far: enquiries ${checkupFacts.trends.enquiries.toLowerCase()}, customers ${checkupFacts.trends.customers.toLowerCase()}, revenue ${checkupFacts.trends.revenue.toLowerCase()}.`
+   402→      : "This workspace has no checkup answers recorded yet.";
+   403→    const countsLine =
+   404→      best && worst
+   405→        ? `From the counts you entered: ${worst.name} converts at ${worst.conversion.toFixed(1)}% (${worst.customers} of ${worst.enquiries}) while ${best.name} converts at ${best.conversion.toFixed(1)}%.`
+   406→        : "No channel counts have been entered yet, so channel conversion cannot be compared.";
+   407→    const grounded = [
+   408→      `${business.name}: ${checkupFacts?.whatTheySell ?? "business details pending"}. ${trendLine}`,
+   409→      `${countsLine} ${checkupFacts ? `Your stated goal: ${checkupFacts.primaryGoal.toLowerCase()}.` : ""}`.trim(),
+   410→    ];
+   411→    const evidence = [
+   412→      ...(rows.length > 0
+   413→        ? rows.slice(0, 2).map((r) => ({
+   414→            label: `${r.name} conversion`,
+   415→            value: `${r.conversion.toFixed(1)}%`,
+   416→            provenance: "user-supplied" as Provenance,
+   417→            source: "Counts you entered",
+   418→          }))
+   419→        : [
+   420→            {
+   421→              label: "Channel conversion",
+   422→              value: "Not available yet",
+   423→              provenance: "estimated" as Provenance,
+   424→              source: "Waiting for your counts or connections",
+   425→            },
+   426→          ]),
+   427→      {
+   428→        label: "Enquiries (your estimate)",
+   429→        value: checkupFacts?.trends.enquiries ?? "Unknown",
+   430→        provenance: "estimated" as Provenance,
+   431→        source: "Your checkup answers",
+   432→      },
+   433→    ];
+   434→    return {
+   435→      grounded,
+   436→      interpretation:
+   437→        best && worst && worst.name !== best.name
+   438→          ? `Based on your own numbers, start with ${worst.name}: same effort there converts ${Math.max(1, Math.round(best.conversion / Math.max(0.1, worst.conversion)))}x worse than ${best.name}. Fastest test: speed and quality of first response on ${worst.name} for two weeks.`
+   439→          : "Run the Improve diagnosis step or connect a source so this answer can be based on measured numbers instead of directions.",
+   440→      limitations: [
+   441→        "No platform accounts are connected yet — answers rely on what you reported.",
+   442→        "Response times and lead quality are not recorded, so causes cannot be separated yet.",
+   443→      ],
+   444→      evidence,
+   445→      referencedPeriod: "Your reported trends (last full month)",
+   446→    } satisfies AnswerContent as AnswerContent;
+   447→  }
+   448→
+   449→  function pushAnswer(question: string, content: AnswerContent) {
+   450→    setThread((t) => {
+   451→      const next: ThreadItem[] = [...t, { kind: "answer" as const, question, content }];
+   452→      threadRef.current = next;
+   453→      return next;
+   454→    });
+   455→    setTyping(false);
+   456→  }
+   457→
+   458→  function ask(raw: string) {
+   459→    const q = raw.trim();
+   460→    if (!q) {
+   461→      toast.error("Type a question first", { description: "Ask in your own words, or pick a suggestion." });
+   462→      return;
+   463→    }
+   464→    if (typing) return;
+   465→    setInput("");
+   466→    setThread((t) => {
+   467→      const next: ThreadItem[] = [...t, { kind: "question" as const, text: q }];
+   468→      threadRef.current = next;
+   469→      return next;
+   470→    });
+   471→    setTyping(true);
+   472→    void (async () => {
+   473→      try {
+   474→        const res = await fetch("/api/ask", {
+   475→          method: "POST",
+   476→          headers: { "Content-Type": "application/json" },
+   477→          body: JSON.stringify({
+   478→            question: q,
+   479→            history: threadRef.current
+   480→              .filter((item): item is ThreadAnswer => item.kind === "answer")
+   481→              .slice(-3)
+   482→              .map((item) => ({ question: item.question, summary: item.content.grounded.join(" ").slice(0, 200) })),
+   483→            workspace: buildContext(),
+   484→          }),
+   485→        });
+   486→        const data = (await res.json()) as { ok?: boolean; answer?: AnswerContent };
+   487→        if (data?.ok && data.answer && Array.isArray(data.answer.grounded) && data.answer.grounded.length > 0) {
+   488→          pushAnswer(q, data.answer);
+   489→          return;
+   490→        }
+   491→        throw new Error("no answer");
+   492→      } catch {
+   493→        // Offline fallback — the owner's own facts for user workspaces,
+   494→        // canned demo-dataset answers for the sample businesses.
+   495→        pushAnswer(q, businessId === "user-workspace" ? userFallbackAnswer(q) : answerFor(q, business.type));
+   496→      }
+   497→    })();
+   498→  }
+   499→
+   500→  return (
+   501→    <div className="mx-auto w-full max-w-4xl">
+   502→      {/* Hero — expressive but serious */}
+   503→      <Card className="overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 via-white to-white p-0">
+   504→        <div className="border-b border-violet-100 px-6 pt-6 pb-5">
+   505→          <div className="flex flex-wrap items-start justify-between gap-3">
+   506→            <div className="flex items-start gap-3">
+   507→              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+   508→                <Sparkles className="size-5" aria-hidden />
+   509→              </div>
+   510→              <div>
+   511→                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Ask anything about your business…</h1>
+   512→                <p className="mt-1 text-sm text-muted-foreground">
+   513→                  Grounded answers from {business.name}&apos;s workspace data.
+   514→                </p>
+   515→              </div>
+   516→            </div>
+   517→            <Button variant="outline" size="sm" onClick={() => navigate("ask/history")}>
+   518→              <History className="mr-1.5 size-4" aria-hidden /> Conversation history
+   519→            </Button>
+   520→          </div>
+   521→          <form
+   522→            className="mt-4 flex flex-col gap-2 sm:flex-row"
+   523→            onSubmit={(e) => {
+   524→              e.preventDefault();
+   525→              ask(input);
+   526→            }}
+   527→          >
+   528→            <label htmlFor="ask-input" className="sr-only">
+   529→              Ask a question about your business
+   530→            </label>
+   531→            <Input
+   532→              id="ask-input"
+   533→              ref={inputRef}
+   534→              value={input}
+   535→              onChange={(e) => setInput(e.target.value)}
+   536→              placeholder="e.g. Why are we getting more enquiries but not more customers?"
+   537→              className="h-12 flex-1 border-violet-200 bg-white text-base"
+   538→              autoComplete="off"
+   539→            />
+   540→            <Button type="submit" className="h-12 bg-violet-600 px-6 text-base hover:bg-violet-700" disabled={typing}>
+   541→              <Send className="mr-2 size-4" aria-hidden /> Ask
+   542→            </Button>
+   543→          </form>
+   544→          <div className="mt-3 flex flex-wrap gap-2">
+   545→            {suggestions.map((s) => (
+   546→              <button
+   547→                key={s}
+   548→                onClick={() => ask(s)}
+   549→                disabled={typing}
+   550→                className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-50"
+   551→              >
+   552→                {s}
+   553→              </button>
+   554→            ))}
+   555→          </div>
+   556→        </div>
+   557→        <p className="px-6 py-3 text-xs text-muted-foreground">
+   558→          Answers are written for this workspace from its recorded data and your checkup answers, marked with sources. AI interpretation is labelled as such.
+   559→        </p>
+   560→      </Card>
+   561→
+   562→      {/* Thread */}
+   563→      <div className="mt-6 space-y-4">
+   564→        {thread.length === 0 && !typing ? (
+   565→          <EmptyState
+   566→            icon={<MessageCircleQuestion className="size-5" />}
+   567→            title="Start with a question"
+   568→            description="Try a suggestion above, or ask in your own words. Every answer references the actual numbers recorded in this workspace and shows where each fact came from."
+   569→          />
+   570→        ) : null}
+   571→
+   572→        {thread.map((item, i) =>
+   573→          item.kind === "question" ? (
+   574→            <div key={i} className="flex justify-end">
+   575→              <p className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-sm leading-relaxed text-white sm:max-w-[70%]">
+   576→                {item.text}
+   577→              </p>
+   578→            </div>
+   579→          ) : (
+   580→            <AnswerCard key={i} answer={item.content} question={item.question} onFollowUp={() => inputRef.current?.focus()} />
+   581→          )
+   582→        )}
+   583→
+   584→        {typing ? (
+   585→          <Card className="flex items-center gap-3 p-4" role="status" aria-label="Preparing answer">
+   586→            <div className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-white">
+   587→              <Sparkles className="size-4" aria-hidden />
+   588→            </div>
+   589→            <div className="flex items-center gap-1.5" aria-hidden>
+   590→              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
+   591→              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
+   592→              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+   593→            </div>
+   594→            <span className="text-sm text-muted-foreground">Reviewing your workspace data…</span>
+   595→          </Card>
+   596→        ) : null}
+   597→      </div>
+   598→    </div>
+   599→  );
+   600→}
+   601→
+   602→function AnswerCard({
+   603→  answer,
+   604→  question,
+   605→  onFollowUp,
+   606→}: {
+   607→  answer: AnswerContent;
+   608→  question: string;
+   609→  onFollowUp: () => void;
+   610→}) {
+   611→  const navigate = useBizz((s) => s.navigate);
+   612→  return (
+   613→    <Card className="border-violet-200 p-5">
+   614→      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+   615→        <div className="flex items-center gap-2">
+   616→          <div className="flex size-7 items-center justify-center rounded-lg bg-violet-600 text-white">
+   617→            <Sparkles className="size-3.5" aria-hidden />
+   618→          </div>
+   619→          <span className="text-sm font-semibold">Answer</span>
+   620→          <ProvenanceBadge provenance="ai-interpretation" />
+   621→        </div>
+   622→        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+   623→          <CalendarDays className="size-3" aria-hidden /> {answer.referencedPeriod}
+   624→        </Badge>
+   625→      </div>
+   626→
+   627→      <p className="sr-only">Re: {question}</p>
+   628→
+   629→      <div className="mt-3 space-y-2.5">
+   630→        {answer.grounded.map((p, i) => (
+   631→          <p key={i} className="text-sm leading-relaxed">
+   632→            {p}
+   633→          </p>
+   634→        ))}
+   635→        {answer.interpretation ? (
+   636→          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-3.5">
+   637→            <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">AI interpretation</p>
+   638→            <p className="mt-1 text-sm leading-relaxed text-violet-900">{answer.interpretation}</p>
+   639→          </div>
+   640→        ) : null}
+   641→        {answer.limitations && answer.limitations.length > 0 ? (
+   642→          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+   643→            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+   644→              <CircleDashed className="size-3.5" aria-hidden /> What we don&apos;t know yet
+   645→            </p>
+   646→            <ul className="mt-1.5 space-y-1">
+   647→              {answer.limitations.map((l, i) => (
+   648→                <li key={i} className="text-sm text-slate-600">
+   649→                  · {l}
+   650→                </li>
+   651→              ))}
+   652→            </ul>
+   653→          </div>
+   654→        ) : null}
+   655→      </div>
+   656→
+   657→      <div className="mt-4">
+   658→        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inline evidence</p>
+   659→        <div className="grid gap-2 sm:grid-cols-2">
+   660→          {answer.evidence.map((e, i) => (
+   661→            <button
+   662→              key={i}
+   663→              onClick={() => {
+   664→                if (e.factId) navigate(`provenance/${e.factId}`);
+   665→                else navigate("data");
+   666→              }}
+   667→              className="rounded-xl border bg-white p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+   668→              aria-label={`${e.label}: ${e.value}. ${e.factId ? "Open fact detail" : "Open data centre"}`}
+   669→            >
+   670→              <div className="flex items-center justify-between gap-2">
+   671→                <span className="text-xs text-muted-foreground">{e.label}</span>
+   672→                <ProvenanceBadge provenance={e.provenance} source={e.source} />
+   673→              </div>
+   674→              <p className="mt-1 text-base font-semibold tnum">{e.value}</p>
+   675→              <p className="mt-0.5 text-xs text-muted-foreground">{e.source}</p>
+   676→            </button>
+   677→          ))}
+   678→        </div>
+   679→      </div>
+   680→
+   681→      <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+   682→        <Button variant="outline" size="sm" onClick={() => navigate("data")}>
+   683→          <Database className="mr-1.5 size-4" aria-hidden /> View supporting data
+   684→        </Button>
+   685→        <Button variant="outline" size="sm" onClick={() => navigate("actions")}>
+   686→          <BarChart3 className="mr-1.5 size-4" aria-hidden /> Create action
+   687→        </Button>
+   688→        <Button variant="ghost" size="sm" onClick={onFollowUp}>
+   689→          <MessageCircleQuestion className="mr-1.5 size-4" aria-hidden /> Ask follow-up
+   690→        </Button>
+   691→      </div>
+   692→    </Card>
+   693→  );
+   694→}
+   695→
+   696→// ---------- Screen 49 — Conversation History ----------
+   697→
+   698→interface HistoryEntry {
+   699→  id: string;
+   700→  type: string;
+   701→  title: string;
+   702→  date: string;
+   703→  summary: string;
+   704→  period: string;
+   705→}
+   706→
+   707→const HISTORY: Record<BusinessType, HistoryEntry[]> = {
+   708→  service: [
+   709→    {
+   710→      id: "h-sh-1",
+   711→      type: "Funnel diagnosis",
+   712→      title: "Why are we getting more enquiries but not more customers?",
+   713→      date: "2026-09-30",
+   714→      summary: "Instagram produced 184 enquiries but converted 6.0% (11 customers); Google converted 38.7%. Conversion quality — not enquiry volume — is the constraint.",
+   715→      period: "September 2026",
+   716→    },
+   717→    {
+   718→      id: "h-sh-2",
+   719→      type: "Planning",
+   720→      title: "What should I focus on this week?",
+   721→      date: "2026-09-29",
+   722→      summary: "Keep the faster-follow-up experiment unchanged (18 days remain), complete lead-status tracking, and hold budget changes until the experiment closes.",
+   723→      period: "Week of Sep 28 – Oct 4",
+   724→    },
+   725→    {
+   726→      id: "h-sh-3",
+   727→      type: "Channel performance",
+   728→      title: "Which channel is performing best?",
+   729→      date: "2026-09-27",
+   730→      summary: "Referral converts best (45.2%) but is small (31 enquiries). Google Search is the best scalable channel at 38.7% conversion and ₦6,250 CAC.",
+   731→      period: "September 2026",
+   732→    },
+   733→    {
+   734→      id: "h-sh-4",
+   735→      type: "Monthly change",
+   736→      title: "What changed this month?",
+   737→      date: "2026-09-26",
+   738→      summary: "Spend +40% (₦370k), enquiries +50% (277), customers +4% (49), revenue +3% (₦6.0m). Instagram spend rose ~10% from Sep 24.",
+   739→      period: "Sep vs Aug 2026",
+   740→    },
+   741→    {
+   742→      id: "h-sh-5",
+   743→      type: "Experiment history",
+   744→      title: "What have we tried before?",
+   745→      date: "2026-09-22",
+   746→      summary: "Google budget reallocation test (August): conversion 38.7% → 44.1%, attribution confidence medium. Conclusion: keep the reallocation.",
+   747→      period: "August 2026",
+   748→    },
+   749→  ],
+   750→  ecommerce: [
+   751→    {
+   752→      id: "h-kh-1",
+   753→      type: "Checkout & payments",
+   754→      title: "Why is traffic growing but orders falling?",
+   755→      date: "2026-09-30",
+   756→      summary: "Traffic +24% (18,430) but orders −8% (740). Mobile checkout completion fell 71% → 48% and payment failures rose 31%. The checkout is the constraint.",
+   757→      period: "September 2026",
+   758→    },
+   759→    {
+   760→      id: "h-kh-2",
+   761→      type: "Planning",
+   762→      title: "What should I focus on this week?",
+   763→      date: "2026-09-29",
+   764→      summary: "Reconnect Shopify to restore sync, start the mobile checkout repair, and hold ad budget changes until checkout recovers.",
+   765→      period: "Week of Sep 28 – Oct 4",
+   766→    },
+   767→    {
+   768→      id: "h-kh-3",
+   769→      type: "Channel performance",
+   770→      title: "Which channel is performing best?",
+   771→      date: "2026-09-27",
+   772→      summary: "Instagram Ads lead on volume (296 orders, ₦2.48m at ₦1,081 CAC); Google Search follows (222 orders, ₦946 CAC). Organic and repeat orders are most profitable.",
+   773→      period: "September 2026",
+   774→    },
+   775→    {
+   776→      id: "h-kh-4",
+   777→      type: "Monthly change",
+   778→      title: "What changed this month?",
+   779→      date: "2026-09-26",
+   780→      summary: "Traffic +24%, orders −8%, revenue −8% (₦6.2m). Mobile checkout completion 71% → 48%; payment failures +31%.",
+   781→      period: "Sep vs Aug 2026",
+   782→    },
+   783→    {
+   784→      id: "h-kh-5",
+   785→      type: "Experiment history",
+   786→      title: "What have we tried before?",
+   787→      date: "2026-09-22",
+   788→      summary: "No completed experiments recorded yet. The open recommendation is to repair mobile checkout; outcomes will be tracked here once started.",
+   789→      period: "All time",
+   790→    },
+   791→  ],
+   792→};
+   793→
+   794→const HISTORY_TYPES = ["All types", "Funnel diagnosis", "Planning", "Channel performance", "Monthly change", "Experiment history", "Checkout & payments"];
+   795→
+   796→function AskHistoryScreen() {
+   797→  const businessId = useBizz((s) => s.businessId);
+   798→  const userWorkspace = useBizz((s) => s.userWorkspace);
+   799→  const navigate = useBizz((s) => s.navigate);
+   800→  const business = getBusiness(businessId, userWorkspace);
+   801→
+   802→  const [query, setQuery] = useState("");
+   803→  const [typeFilter, setTypeFilter] = useState("All types");
+   804→
+   805→  const entries = HISTORY[business.type].filter((h) => {
+   806→    const matchesQuery =
+   807→      query.trim().length === 0 ||
+   808→      `${h.title} ${h.summary}`.toLowerCase().includes(query.trim().toLowerCase());
+   809→    const matchesType = typeFilter === "All types" || h.type === typeFilter;
+   810→    return matchesQuery && matchesType;
+   811→  });
+   812→
+   813→  return (
+   814→    <div className="mx-auto w-full max-w-4xl">
+   815→      <PageHeader
+   816→        title="Conversation history"
+   817→        description="Previous analyses with the questions asked, the period referenced and a short summary of each answer."
+   818→        back={
+   819→          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("ask")}>
+   820→            Back to Ask
+   821→          </Button>
+   822→        }
+   823→        actions={
+   824→          <Button size="sm" onClick={() => navigate("ask")}>
+   825→            <MessageCircleQuestion className="mr-1.5 size-4" aria-hidden /> New question
+   826→          </Button>
+   827→        }
+   828→      />
+   829→
+   830→      <div className="flex flex-col gap-2 sm:flex-row">
+   831→        <div className="relative flex-1">
+   832→          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+   833→          <label htmlFor="history-search" className="sr-only">
+   834→            Search conversations
+   835→          </label>
+   836→          <Input
+   837→            id="history-search"
+   838→            value={query}
+   839→            onChange={(e) => setQuery(e.target.value)}
+   840→            placeholder="Search previous analyses…"
+   841→            className="pl-9"
+   842→          />
+   843→        </div>
+   844→        <div className="w-full sm:w-56">
+   845→          <label htmlFor="history-type" className="sr-only">
+   846→            Filter by type
+   847→          </label>
+   848→          <Select value={typeFilter} onValueChange={setTypeFilter}>
+   849→            <SelectTrigger id="history-type" aria-label="Filter by type">
+   850→              <SelectValue placeholder="All types" />
+   851→            </SelectTrigger>
+   852→            <SelectContent>
+   853→              {HISTORY_TYPES.map((t) => (
+   854→                <SelectItem key={t} value={t}>
+   855→                  {t}
+   856→                </SelectItem>
+   857→              ))}
+   858→            </SelectContent>
+   859→          </Select>
+   860→        </div>
+   861→      </div>
+   862→
+   863→      <div className="mt-4 space-y-3">
+   864→        {entries.length === 0 ? (
+   865→          <EmptyState
+   866→            icon={<Search className="size-5" />}
+   867→            title="No conversations match"
+   868→            description="Try a different search term or clear the type filter."
+   869→          />
+   870→        ) : (
+   871→          entries.map((h) => (
+   872→            <Card
+   873→              key={h.id}
+   874→              className="p-0 transition-colors hover:border-blue-300"
+   875→            >
+   876→              <button
+   877→                onClick={() => {
+   878→                  toast("Conversation view opens in Ask", { description: "The full thread is available in the Ask screen." });
+   879→                  navigate("ask");
+   880→                }}
+   881→                className="w-full p-4 text-left"
+   882→                aria-label={`Open conversation: ${h.title}`}
+   883→              >
+   884→                <div className="flex flex-wrap items-center justify-between gap-2">
+   885→                  <div className="flex flex-wrap items-center gap-2">
+   886→                    <Badge variant="outline" className="bg-violet-50 font-normal text-violet-700">
+   887→                      {h.type}
+   888→                    </Badge>
+   889→                    <span className="text-xs text-muted-foreground">
+   890→                      {h.date.split("-").reverse().join("/")} · Period: {h.period}
+   891→                    </span>
+   892→                  </div>
+   893→                  <CheckCircle2 className="size-4 text-slate-300" aria-hidden />
+   894→                </div>
+   895→                <h3 className="mt-1.5 text-sm font-semibold leading-snug">{h.title}</h3>
+   896→                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{h.summary}</p>
+   897→              </button>
+   898→            </Card>
+   899→          ))
+   900→        )}
+   901→      </div>
+   902→
+   903→      <p className="mt-6 text-xs text-muted-foreground">
+   904→        Conversations are stored per workspace. Answers reference the data available at the time they were generated.
+   905→      </p>
+   906→    </div>
+   907→  );
+   908→}
+   909→
+   910→export const views: ViewMap = {
+   911→  ask: AskScreen,
+   912→  "ask/history": AskHistoryScreen,
+   913→};
+   914→
