@@ -462,3 +462,50 @@ Lint clean; zero page errors across the whole pass; screenshot saved at download
 
 Stage Summary:
 - All four owner reports verified live on a fresh signup journey; the last fabricated-content window (diagnosis loading/failure state) is closed. A registered owner now sees only their identity, their facts, their diagnosis and their own numbers — from first click through every page.
+
+---
+Task ID: fix-ai-everywhere-1
+Agent: Z.ai Code (main)
+Task: The consultant must never degrade into a scripted robot — AI reliability + AI everywhere in the product
+
+Owner reports:
+1. Screenshot: after answering "We design websites and web applications", the checkup asked "What does your business actually sell or do, in your own words?" — twice more, verbatim, even after "i just answered". "this used to be conversational before, why is it now scripted. this is so bad. please connect ai intelligence with it"
+2. "please let the ai work everywhere. this product is useless without the ai intelligence. make sure everything is truly and fully ai driven"
+
+Root cause (the scripted loop):
+- The platform LLM auth token (/etc/.z-ai-config) rotates periodically; during rotation windows every completion fails with 401 "missing X-Token header" (dev.log shows repeated 401 bursts). completeText had NO retry, so those turns silently fell back to the deterministic offline path.
+- The chat route's outer catch called fallbackTurn with emptySlots() — wiping everything already learned. Result: every degraded turn re-asked the first missing slot with the same canned QUESTION_FOR string, forever. The "What I'm learning" panel stayed all-LEARNING. That is the exact screenshot.
+
+Fixes (reliability):
+- src/lib/ai.ts: completeText now retries 3x with backoff, re-creating the ZAI client per attempt so a freshly rotated token is picked up mid-retry; BIZZ_AI_DISABLED=1 env kill switch added for degraded-mode testing.
+- /api/checkup/chat: request state is parsed BEFORE the try so every error path (JSON parse of model output failed, completeText null, exception) now falls back with the conversation's REAL slots/askCounts/transcript — state is never wiped.
+
+Fixes (degraded fallback quality — it must stay human):
+- Question VARIANTS per slot; the fallback never repeats a question already asked in the transcript (asked-set built from AI turns).
+- Acknowledges the owner's own words in the reply (quoted snippet) — no bare "Noted".
+- Lightweight honest harvest: the pending slot (most recently asked, or sells for the first reply) is recorded in the owner's own words; channel/location keywords harvested conservatively. Final extract still re-reads the full transcript.
+- Frustration signals ("i just answered", "as I said", "same question") → apology + a DIFFERENT gap; never repeat, never defend; counted as a correction.
+- AI path also guards against verbatim re-asks (asked-set check with variant swap).
+
+Fix (honesty when degraded):
+- onboarding-chat.tsx renders an amber "Reduced mode — my AI is reconnecting… Your answers are still being recorded" note on degraded replies, so the product never silently pretends the AI is there when it is not.
+
+AI everywhere (new surfaces):
+- NEW /api/insights/generate: 2-3 AI insights from checkup facts (+ owner-entered months). Hard rules: no invented numbers/percentages; evidence copied from facts with provenance; honest "unknown" list naming what connected data would settle. Stored per owner workspace (bizzgrowth-ai-v1, persisted, cleared on new workspace).
+- Insights feed: owner workspaces show a "Generate insights from my checkup" empty-state CTA (AI generating/error states, honest toasts); AI insights flow through the existing type/importance filters and open in the existing insight-detail with full evidence table.
+- NEW /api/brief/generate: AI-written first weekly/monthly brief from facts (sections: This week / What we know / Watch-outs / Next steps / Data gaps; no invented figures). Stored per workspace.
+- Reports archive: owner workspaces get a "Generate my first weekly/monthly brief" CTA; the AI brief lists under its tab (Ready) and renders in brief-weekly/brief-monthly document views.
+- Fixed pre-existing bugs surfaced by tsc: BRIEF_ARCHIVE items lacked businessId (sample briefs appeared in NO workspace — sample archive was silently empty); manual.tsx removeEntry called a non-existent setEntries (demo entry deletion was broken); home-screen OwnerHome missing params prop; chat route union-type casts.
+
+Verification:
+- API: chat turn 1 harvests slots + natural follow-up (degraded:false); insights generate returns grounded, fact-traced insights; brief generate returns a complete honest brief; ask returns grounded answer with limitations. (One earlier 500 was my own test harness sending broken JSON, not the app.)
+- Browser E2E ("Node 71 Digital", seeded workspace + full conversation): "We design websites and web applications" → AI reply reacts + learns chip; "i just answered that" → apology + rephrase (NO verbatim loop); comprehensive answer → learning panel fills (sells/target/goal/channels UNDERSTOOD); wrap + CTA fires.
+- Insights: generate → 3 AI cards in feed (opportunity/improvement/watch) with confidence + provenance; card opens detail with evidence table ("rising interest | enquiries Increased | Your checkup answers | User supplied"); persisted across reload.
+- Reports: generate → listed (Weekly 1, Ready) → View renders the AI brief document (This week / What we know / Watch-outs / Next steps / Data gaps, no invented figures).
+- Sample regression: SwiftHaul still shows its 5 curated insights and 6 sample briefs (now actually visible thanks to the businessId fix); owner and sample artifacts never mix.
+- lint clean, tsc clean (src/).
+
+Ops note: the sandbox reaps background processes between tool commands in this session; verification used combined start+test commands. The 401 bursts in dev.log are platform token rotation — the 3x retry now rides through them.
+
+Stage Summary:
+- Every intelligence surface in the product is now genuinely AI-driven: the consultation (adaptive, self-correcting, never scripted even when degraded), the journey, first diagnosis, improved diagnosis, Ask, Insights and Reports. When the AI is briefly unreachable the product says so, keeps the owner's answers, and never degrades into a repeating script.

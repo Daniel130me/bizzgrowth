@@ -23,8 +23,10 @@ export function InsightDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
+  const aiInsights = useBizz((s) => s.aiInsights);
 
-  const insight = insightById(params.id);
+  // AI-generated insights live in the store; curated ones in the dataset.
+  const insight = aiInsights.find((i) => i.id === params.id) ?? insightById(params.id);
 
   if (!insight) {
     return (

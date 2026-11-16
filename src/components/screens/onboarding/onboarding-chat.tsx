@@ -33,6 +33,7 @@ interface Msg {
   text: string;
   learned?: string[]; // "Understood as" chips — what the engine learned/updated this turn
   cta?: boolean; // final "review journey" call to action
+  degraded?: boolean; // turn produced by the offline fallback (AI briefly unreachable)
 }
 
 const INTRO_CHIPS = [
@@ -225,10 +226,11 @@ export default function OnboardingChat(_props: ScreenProps) {
       const nextPhase = (data.phase ?? "interview") as CheckupPhase;
       const nextSlots = data.slots ?? slotsRef.current;
       const learned = data.learnedChips ?? [];
+      const degraded = data.degraded === true;
 
       setTyping(false);
       transcriptRef.current.push({ role: "ai", text: data.reply });
-      setMessages((m) => [...m, { id: nextId(), role: "ai", text: data.reply as string, learned }]);
+      setMessages((m) => [...m, { id: nextId(), role: "ai", text: data.reply as string, learned, degraded }]);
 
       phaseRef.current = nextPhase;
       slotsRef.current = nextSlots;
@@ -312,6 +314,12 @@ export default function OnboardingChat(_props: ScreenProps) {
                     </span>
                     <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed shadow-sm">
                       {m.text ? <p>{m.text}</p> : null}
+                      {m.degraded ? (
+                        <p className="mt-2 flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800" role="status">
+                          <CircleDashed className="size-3 shrink-0 animate-spin" aria-hidden />
+                          Reduced mode — my AI is reconnecting, so this reply was simpler than usual. Your answers are still being recorded.
+                        </p>
+                      ) : null}
                       {m.learned && m.learned.length > 0 ? (
                         <div className="mt-2 border-t border-dashed border-violet-100 pt-2">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500">Understood as</p>

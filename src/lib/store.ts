@@ -16,6 +16,7 @@ import type {
   NotificationItem,
 } from "./types";
 import type { UserWorkspaceMeta, WorkspaceId } from "./data/businesses";
+import type { Brief, Insight } from "./types";
 import type { BusinessFacts, DiagnosisContent, ImprovedDiagnosis, TranscriptTurn } from "./checkup";
 
 export interface CheckupState {
@@ -62,6 +63,10 @@ interface BizzState {
   settings: BizzSettings;
   pendingInvite: { business: string; inviter: string; role: string; expires: string } | null;
   checkup: CheckupState;
+  /** AI-generated insights for the owner's own workspace (from checkup facts). */
+  aiInsights: Insight[];
+  /** AI-generated first brief for the owner's own workspace. */
+  aiBrief: Brief | null;
 
   navigate: (path: string) => void;
   setBusiness: (id: WorkspaceId) => void;
@@ -92,6 +97,8 @@ interface BizzState {
   setCheckupJourney: (journey: string[]) => void;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
+  setAiInsights: (items: Insight[]) => void;
+  setAiBrief: (brief: Brief) => void;
   updateSettings: (patch: Partial<BizzSettings>) => void;
   updateProfile: (patch: Partial<BizzUser>) => void;
   sendInvite: (email: string, role: string) => void;
@@ -103,10 +110,17 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [];
 const SETTINGS_KEY = "bizzgrowth-settings-v1";
 const CHECKUP_KEY = "bizzgrowth-checkup-v1";
 const MANUAL_KEY = "bizzgrowth-manual-v1";
+const AI_KEY = "bizzgrowth-ai-v1";
 
 function persistManual(entries: ManualEntry[]) {
   try {
     localStorage.setItem(MANUAL_KEY, JSON.stringify(entries));
+  } catch {}
+}
+
+function persistAi(state: { aiInsights: Insight[]; aiBrief: Brief | null }) {
+  try {
+    localStorage.setItem(AI_KEY, JSON.stringify({ aiInsights: state.aiInsights, aiBrief: state.aiBrief }));
   } catch {}
 }
 
@@ -134,6 +148,8 @@ export const useBizz = create<BizzState>((set, get) => ({
   ownConnections: {},
   recommendationState: {},
   checkup: EMPTY_CHECKUP,
+  aiInsights: [],
+  aiBrief: null,
   settings: {
     businessName: "SwiftHaul Logistics",
     currency: "₦ (Nigerian Naira)",
@@ -256,8 +272,9 @@ export const useBizz = create<BizzState>((set, get) => ({
     // The workspace is the user's own — settings must reflect it immediately,
     // never the sample business name.
     const settings = { ...get().settings, businessName: meta.name };
-    set({ userWorkspace: meta, businessId: "user-workspace", checkup: { ...EMPTY_CHECKUP }, settings });
+    set({ userWorkspace: meta, businessId: "user-workspace", checkup: { ...EMPTY_CHECKUP }, aiInsights: [], aiBrief: null, settings });
     persistCheckup({ userWorkspace: meta, checkup: EMPTY_CHECKUP });
+    persistAi({ aiInsights: [], aiBrief: null });
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({ settings, user: get().user }));
     } catch {}
@@ -316,6 +333,14 @@ export const useBizz = create<BizzState>((set, get) => ({
     set({ checkup });
     persistCheckup({ userWorkspace: s.userWorkspace, checkup });
   },
+  setAiInsights: (items) => {
+    set({ aiInsights: items });
+    persistAi({ aiInsights: items, aiBrief: get().aiBrief });
+  },
+  setAiBrief: (brief) => {
+    set({ aiBrief: brief });
+    persistAi({ aiInsights: get().aiInsights, aiBrief: brief });
+  },
   updateSettings: (patch) => {
     set((s) => ({ settings: { ...s.settings, ...patch } }));
     try {
@@ -372,6 +397,16 @@ export const useBizz = create<BizzState>((set, get) => ({
       if (rawManual) {
         const parsedManual = JSON.parse(rawManual) as ManualEntry[];
         if (Array.isArray(parsedManual)) set({ manualEntries: parsedManual });
+      }
+    } catch {}
+    try {
+      const rawAi = localStorage.getItem(AI_KEY);
+      if (rawAi) {
+        const parsedAi = JSON.parse(rawAi) as { aiInsights?: Insight[]; aiBrief?: Brief | null };
+        set({
+          aiInsights: Array.isArray(parsedAi.aiInsights) ? parsedAi.aiInsights : [],
+          aiBrief: parsedAi.aiBrief ?? null,
+        });
       }
     } catch {}
     set({ hydrated: true });

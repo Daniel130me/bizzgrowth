@@ -1,8 +1,12 @@
 "use client";
 // Screen 32 — Insights Feed: the central intelligence feed.
+// For a real owner's workspace, the FIRST insights are AI-generated from their
+// checkup facts (POST /api/insights/generate) — every conclusion still shows
+// evidence + confidence, and says plainly what measured data would settle.
 
 import { useMemo, useState } from "react";
-import { Database } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -12,6 +16,7 @@ import { EmptyState } from "@/components/shared/states";
 import { insightsFor } from "@/lib/data/intelligence";
 import { REPORTING_MONTH } from "@/lib/data/businesses";
 import { useBizz } from "@/lib/store";
+import { ownerMonthsFromEntries } from "@/lib/data/user-business";
 import type { Insight } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
 import { sortInsights } from "./parts";
@@ -30,10 +35,51 @@ const TABS: { id: TabId; label: string }[] = [
 export function InsightsFeed(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
+  const userWorkspace = useBizz((s) => s.userWorkspace);
+  const facts = useBizz((s) => s.checkup.facts);
+  const manualEntries = useBizz((s) => s.manualEntries);
+  const aiInsights = useBizz((s) => s.aiInsights);
+  const setAiInsights = useBizz((s) => s.setAiInsights);
   const [tab, setTab] = useState<TabId>("all");
   const [importance, setImportance] = useState<ImportanceFilter>("all");
+  const [generating, setGenerating] = useState(false);
 
-  const all = useMemo(() => insightsFor(businessId), [businessId]);
+  const isOwnerWorkspace = businessId === "user-workspace";
+
+  async function generateInsights() {
+    if (!facts) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/insights/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceName: userWorkspace?.name,
+          country: userWorkspace?.country,
+          facts,
+          months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; insights?: Insight[]; error?: string };
+      if (data?.ok && data.insights?.length) {
+        setAiInsights(data.insights);
+        toast.success("First insights generated", { description: "Written from your checkup answers — every conclusion shows its evidence." });
+      } else {
+        toast.error("Could not generate insights", { description: "Nothing was invented in the attempt. Please try again in a moment." });
+      }
+    } catch {
+      toast.error("Could not reach the intelligence engine", { description: "Check your connection and try again — nothing was fabricated meanwhile." });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  // Sample workspaces read the curated dataset; the owner's workspace shows
+  // their own AI-generated insights (empty until generated).
+  const all = useMemo(
+    () => (isOwnerWorkspace ? aiInsights : insightsFor(businessId)),
+    [isOwnerWorkspace, aiInsights, businessId]
+  );
   const counts = useMemo(
     () => ({
       all: all.length,
@@ -73,21 +119,49 @@ export function InsightsFeed(_props: ScreenProps) {
 
       {all.length === 0 ? (
         <div className="mt-6">
-          <EmptyState
-            icon={<Database className="size-5" />}
-            title="No insights yet"
-            description="Insights appear once the system has data to reason over — connected sources, manual entries or website analytics. Nothing is invented: every conclusion will trace back to your numbers."
-            actions={
-              <>
-                <Button size="sm" onClick={() => navigate("integrations")}>
-                  Connect data
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => navigate("manual-entry")}>
-                  Enter manually
-                </Button>
-              </>
-            }
-          />
+          {isOwnerWorkspace && facts ? (
+            <EmptyState
+              icon={generating ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
+              title="Your first insights are ready to be written"
+              description="The intelligence engine can already reason over what you told us — what you sell, who you serve, your channels and the trends you described. It will state what you established, flag what is still unknown, and never invent a number."
+              actions={
+                <>
+                  <Button size="sm" className="bg-violet-600 hover:bg-violet-700" disabled={generating} onClick={() => void generateInsights()}>
+                    {generating ? (
+                      <>
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                        Writing your first insights…
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 size-3.5" aria-hidden />
+                        Generate insights from my checkup
+                      </>
+                    )}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => navigate("manual-entry")}>
+                    Enter real numbers instead
+                  </Button>
+                </>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={<Sparkles className="size-5" />}
+              title="No insights yet"
+              description="Insights appear once the system has data to reason over — connected sources, manual entries or website analytics. Nothing is invented: every conclusion will trace back to your numbers."
+              actions={
+                <>
+                  <Button size="sm" onClick={() => navigate("integrations")}>
+                    Connect data
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => navigate("manual-entry")}>
+                    Enter manually
+                  </Button>
+                </>
+              }
+            />
+          )}
         </div>
       ) : (
         <>

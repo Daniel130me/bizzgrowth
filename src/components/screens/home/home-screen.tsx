@@ -59,7 +59,7 @@ export default function HomeScreen(_props: ScreenProps) {
   // diagnosis and honest data paths — never a sample business dressed up
   // with their workspace name.
   if (businessId === "user-workspace") {
-    return <OwnerHome />;
+    return <OwnerHome params={_props.params ?? {}} />;
   }
 
   const business = getBusiness(businessId, userWorkspace, facts, manualEntries);

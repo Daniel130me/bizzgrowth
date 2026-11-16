@@ -18,22 +18,44 @@ export function BriefWeekly({ params: _params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
+  const aiBrief = useBizz((s) => s.aiBrief);
   const business = getBusiness(businessId, userWorkspace);
 
-  // A real owner's workspace has no briefs yet — never show a sample brief
-  // carrying someone else's figures.
+  // A real owner's first weekly brief is the AI-written one from their own
+  // checkup facts — never a sample brief carrying someone else's figures.
   if (businessId === "user-workspace") {
+    if (aiBrief && aiBrief.kind === "weekly") {
+      const thisWeek = aiBrief.sections.find((s) => s.heading === "This week");
+      const rest = aiBrief.sections.filter((s) => s.heading !== "This week");
+      return (
+        <div className="mx-auto w-full max-w-4xl">
+          <BriefDocShell brief={aiBrief} businessName={userWorkspace?.name ?? "Your business"} generated={aiBrief.period} shareable={false}>
+            {thisWeek?.paragraphs?.length ? (
+              <section>
+                <h2 className="text-base font-semibold">{thisWeek.heading}</h2>
+                {thisWeek.paragraphs.map((p, i) => (
+                  <p key={i} className="mt-2 text-sm leading-relaxed text-slate-700">{p}</p>
+                ))}
+              </section>
+            ) : null}
+            {rest.map((s) => (
+              <BriefSectionBlock key={s.heading} section={s} businessId={businessId} />
+            ))}
+          </BriefDocShell>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto w-full max-w-4xl">
         <Card className="p-8">
           <EmptyState
             icon={<FileText className="size-5" />}
             title="Your first weekly brief isn't written yet"
-            description={`Briefs are generated from real numbers — entered totals, an upload or a connected source. Nothing is drafted from sample data for ${userWorkspace?.name ?? "your workspace"}.`}
+            description={`Generate it with AI from your checkup answers, or add real numbers — entered totals, an upload or a connected source. Nothing is drafted from sample data for ${userWorkspace?.name ?? "your workspace"}.`}
             actions={
               <>
-                <Button size="sm" onClick={() => navigate("manual-entry")}>Enter your totals</Button>
-                <Button size="sm" variant="outline" onClick={() => navigate("integrations")}>Connect a source</Button>
+                <Button size="sm" onClick={() => navigate("reports")}>Generate it in Reports</Button>
+                <Button size="sm" variant="outline" onClick={() => navigate("manual-entry")}>Enter your totals</Button>
               </>
             }
           />

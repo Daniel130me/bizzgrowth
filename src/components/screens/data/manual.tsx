@@ -294,7 +294,7 @@ function ManualHistoryScreen() {
     if (isUserWorkspace) {
       deleteManualEntry(id);
     } else {
-      setEntries((list) => list.filter((e) => e.id !== id));
+      setDemoEntries((list) => list.filter((e) => e.id !== id));
     }
     toast.success("Entry deleted", { description: `${entry?.period ?? "Entry"} removed from manual records.` });
   }

@@ -553,10 +553,10 @@ export const MONTHLY_REVIEW: Brief = {
 };
 
 export const BRIEF_ARCHIVE = [
-  { id: "br-1", kind: "Weekly", period: "Sep 21–27, 2026", route: "brief/weekly", status: "Ready" },
-  { id: "br-2", kind: "Weekly", period: "Sep 14–20, 2026", route: "brief/weekly", status: "Ready" },
-  { id: "br-3", kind: "Monthly", period: "September 2026", route: "brief/monthly", status: "Ready" },
-  { id: "br-4", kind: "Weekly", period: "Sep 7–13, 2026", route: "brief/weekly", status: "Ready" },
-  { id: "br-5", kind: "Monthly", period: "August 2026", route: "brief/monthly", status: "Ready" },
-  { id: "br-6", kind: "Weekly", period: "Aug 31 – Sep 6, 2026", route: "brief/weekly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-1", kind: "Weekly", period: "Sep 21–27, 2026", route: "brief/weekly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-2", kind: "Weekly", period: "Sep 14–20, 2026", route: "brief/weekly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-3", kind: "Monthly", period: "September 2026", route: "brief/monthly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-4", kind: "Weekly", period: "Sep 7–13, 2026", route: "brief/weekly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-5", kind: "Monthly", period: "August 2026", route: "brief/monthly", status: "Ready" },
+  { businessId: "swifthaul", id: "br-6", kind: "Weekly", period: "Aug 31 – Sep 6, 2026", route: "brief/weekly", status: "Ready" },
 ] as const;
