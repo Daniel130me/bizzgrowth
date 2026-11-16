@@ -1,4 +1,4 @@
-// Prototype Map registry — all 114 required screens/views/states.
+// Prototype Map registry — all 115 screens/views/states.
 // Group = which screen-group directory owns the implementation.
 
 export type ScreenGroup =
@@ -137,6 +137,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 92, id: "settings/export-delete", route: "settings/export-delete", name: "Export / Delete Business Data", category: "Settings", group: "settings" },
   { num: 93, id: "help", route: "help", name: "Help & Support", category: "Support", group: "settings" },
   { num: 94, id: "feedback", route: "feedback", name: "Send Feedback / Report Problem", category: "Support", group: "settings" },
+  { num: 115, id: "settings/ai", route: "settings/ai", name: "AI Gateway / Providers", category: "Settings", group: "settings" },
   // O. Critical system states
   { num: 95, id: "state/no-data", route: "state/no-data", name: "New Workspace / No Data Yet", category: "System state", group: "states" },
   { num: 96, id: "state/insufficient", route: "state/insufficient", name: "Insufficient Data for Diagnosis", category: "System state", group: "states" },

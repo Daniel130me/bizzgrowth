@@ -1,61 +1,41 @@
-// Server-side helper for calling the LLM via z-ai-web-dev-sdk.
-// MUST only be imported from API routes / server code.
-import ZAI from "z-ai-web-dev-sdk";
+// Server-side helper for calling the LLM. MUST only be imported from API
+// routes / server code.
+//
+// Since the AI gateway (src/lib/ai-gateway.ts) this is a thin wrapper:
+// every completion goes through the multi-provider failover chain
+// (z.ai platform first, then OpenAI / Groq / OpenRouter / Gemini when their
+// keys are configured). All product features — consultation chat, diagnosis,
+// Ask, insights, briefs — share this single entry point.
+//
+// BIZZ_AI_DISABLED=1 remains an ops kill switch that forces honest offline
+// paths (used to verify degraded-mode UX).
+
+import { gatewayChatComplete, type GatewayResult } from "./ai-gateway";
 
 /**
- * Run one text completion with resilience:
- * - Retries with backoff. The platform auth token in /etc/.z-ai-config is
- *   rotated periodically; a brief 401 window ("missing X-Token header") must
- *   not degrade the consultant to its offline fallback, so each attempt
- *   re-creates the client (re-reading the config) before giving up.
- * - BIZZ_AI_DISABLED=1 is an ops kill switch that forces the offline paths
- *   (used to verify degraded-mode UX).
- * Returns null only when the model is genuinely unreachable — callers then
- * use their own honest fallbacks.
+ * Run one text completion through the AI gateway with automatic provider
+ * failover. Returns null only when every configured provider failed —
+ * callers then use their own honest fallbacks.
+ *
+ * See GatewayResult (chatCompleteDetailed) for which provider served.
  */
 export async function completeText(
   system: string,
   user: string,
   opts?: { maxTokens?: number },
 ): Promise<string | null> {
-  if (process.env.BIZZ_AI_DISABLED === "1") {
-    console.warn("[bizzGrowth AI] disabled via BIZZ_AI_DISABLED=1 — using caller fallback");
-    return null;
-  }
+  const result = await completeTextDetailed(system, user, opts);
+  return result.text;
+}
 
-  const attempts = 3;
-  let lastError: unknown = null;
-
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      // ZAI.create() re-reads the config file — a freshly rotated token is
-      // picked up on the next attempt instead of caching a dead one.
-      const zai = await ZAI.create();
-      const completion = await zai.chat.completions.create({
-        messages: [
-          { role: "assistant", content: system },
-          { role: "user", content: user },
-        ],
-        thinking: { type: "disabled" },
-      });
-      const content = completion.choices[0]?.message?.content;
-      if (content && content.trim().length > 0) return content;
-      lastError = new Error("empty completion");
-    } catch (error) {
-      lastError = error;
-      console.error(
-        `[bizzGrowth AI] attempt ${attempt}/${attempts} failed:`,
-        error instanceof Error ? error.message : error,
-      );
-    }
-    if (attempt < attempts) {
-      await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
-    }
-  }
-
-  console.error(
-    "[bizzGrowth AI] all attempts failed — degraded fallback will be used:",
-    lastError instanceof Error ? lastError.message : lastError,
-  );
-  return null;
+/**
+ * Same as completeText but returns gateway metadata (which provider served,
+ * latency, per-route attempts) for observability and the status screen.
+ */
+export async function completeTextDetailed(
+  system: string,
+  user: string,
+  opts?: { maxTokens?: number },
+): Promise<GatewayResult> {
+  return gatewayChatComplete(system, user, opts);
 }

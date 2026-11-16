@@ -531,3 +531,28 @@ Verification:
 - Browser E2E (seeded "Node 71 limited" workspace, #/ask): Q1 "Where are we in this business right now?" → "You're in a stable but early stage…"; Q2 "what can we do now?" → "You can focus on creating case studies and testimonials…" — different, question-aware (exact repro now fixed).
 - Outage drill: fetch monkey-patched to reject → honest amber failure card (answer count unchanged, no canned text); fetch restored + Retry → real answer for "how do I price my services?" ("Since you have no measured data on costs… I can't provide specific numbers"), failed card gone.
 - History: shows exactly the 3 real questions; survives reload; no sample leakage. Mobile 390px layout holds. Console + dev.log clean; lint clean.
+
+---
+
+## feat/ai-gateway — multi-provider AI failover (user request: "add ai api gateway so that i can add multiple api keys such that if one fails, one takes it up")
+
+User wants to supply their own credentials for gemini, z.ai, openrouter, groq, openai with automatic failover.
+
+New architecture:
+- src/lib/ai-gateway.ts (server-only): provider chain with per-route circuit breaker. Providers: z.ai (platform SDK, always present, no key), OpenAI, Groq, OpenRouter, Google Gemini (all via their OpenAI-compatible endpoints, standard fetch + AbortController timeout).
+  - Chain order: AI_GATEWAY_ORDER env (default z.ai → openai → groq → openrouter → gemini); only configured providers included.
+  - MULTIPLE KEYS per provider: comma-separated (e.g. OPENAI_API_KEY=sk-1,sk-2) — each key becomes its own failover route.
+  - Health: consecutive-failure breaker (2 failures → 60s cooldown, probed anyway if ALL routes are down); per-route success/failure counters, last error, last latency; 30-event rolling log; lastServedBy. State is per server process.
+  - Platform route keeps token-rotation resilience (ZAI.create() re-reads config; auth-shaped errors get one 500ms retry; timeout errors do NOT retry to protect latency).
+  - Keys never logged, never sent to the client; only labels like "OpenAI key #1".
+- src/lib/ai.ts: completeText() is now a thin wrapper over gatewayChatComplete() (same signature → consultation, diagnosis, Ask, insights, briefs ALL route through the chain automatically). Added completeTextDetailed() exposing servedBy/model/attempts for observability.
+- NEW /api/ai-gateway: GET = config + health snapshot; POST = live probe ("Reply OK") returning which route served, latency, and the full per-route attempt list.
+- NEW Settings screen "AI gateway" (settings/ai, sidebar Settings section, registry #115): live test button with served-by banner + attempt list; failover chain table (order, model, key count, env var names, ok/failed counters, latency, last error); honest "Adding your own keys" card (.env.local snippet; amber note when only the platform provider is active); recent activity feed; refresh.
+- .env.local created with documented placeholders for all five providers (empty keys = provider skipped).
+
+Verification:
+- Status endpoint: correct chain snapshot (z.ai in chain; others "Not configured").
+- Live probe: served by z.ai (platform), 322-359ms, reply OK.
+- REAL FAILOVER DRILL: bogus OpenAI key installed + AI_GATEWAY_ORDER=openai,z.ai → attempt 1 OpenAI failed HTTP 403 in 37ms (real API rejection), attempt 2 z.ai served in 349ms, request completed OK in 387ms total. Exactly "if one fails, one takes it up". Drill config then removed; env reloaded clean.
+- Feature regression: /api/ask answers correctly through the gateway.
+- UI E2E: settings/ai renders all sections; "Test the chain now" shows green served-by banner + attempt rows; recent activity lists real events; env-setup card renders; nav item present; lint clean; dev.log clean.

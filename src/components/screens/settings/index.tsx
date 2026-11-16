@@ -13,12 +13,14 @@ import { Invoices } from "./invoices";
 import { ExportDelete } from "./export-delete";
 import { HelpSupport } from "./help";
 import { Feedback } from "./feedback";
+import { AiGatewaySettings } from "./ai-gateway";
 
 export const views: ViewMap = {
   "settings/business": BusinessSettings,
   "settings/profile": ProfileSettings,
   "settings/security": SecuritySettings,
   "settings/privacy": PrivacySettings,
+  "settings/ai": AiGatewaySettings,
   "settings/plan": PlanSettings,
   upgrade: Upgrade,
   "payment-method": PaymentMethod,

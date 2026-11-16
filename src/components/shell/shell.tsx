@@ -28,6 +28,7 @@ import {
   Users,
   X,
   Menu,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ const SETTINGS_NAV = [
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "account", label: "Account", icon: UserCog },
   { id: "privacy", label: "Privacy", icon: ShieldCheck },
+  { id: "ai", label: "AI gateway", icon: Zap },
 ];
 
 function Logo({ dark = false }: { dark?: boolean }) {
@@ -103,7 +105,8 @@ function SidebarContent({ route, onNavigate }: { route: string; onNavigate?: () 
     (id === "team" && (route.startsWith("team") || route === "my-actions")) ||
     (id === "billing" && ["settings/plan", "upgrade", "payment-method", "invoices"].some((r) => route.startsWith(r))) ||
     (id === "account" && (route.startsWith("settings/profile") || route.startsWith("settings/security"))) ||
-    (id === "privacy" && route.startsWith("settings/privacy"));
+    (id === "privacy" && route.startsWith("settings/privacy")) ||
+    (id === "ai" && route.startsWith("settings/ai"));
 
   return (
     <div className="flex h-full flex-col">
@@ -129,7 +132,7 @@ function SidebarContent({ route, onNavigate }: { route: string; onNavigate?: () 
           }}
           className="w-full rounded-lg px-3 py-1.5 text-left text-[11px] text-slate-400 hover:bg-slate-50 hover:text-slate-600"
         >
-          Prototype Map (114 screens)
+          Prototype Map (115 screens)
         </button>
       </div>
     </div>
@@ -146,6 +149,8 @@ function settingsRoute(id: string): string {
       return "settings/plan";
     case "account":
       return "settings/profile";
+    case "ai":
+      return "settings/ai";
     default:
       return "settings/privacy";
   }
