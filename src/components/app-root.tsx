@@ -19,6 +19,7 @@ import { views as goalViews } from "./screens/goals";
 import { views as reportViews } from "./screens/reports";
 import { views as brainViews } from "./screens/brain";
 import { views as teamViews } from "./screens/team";
+import { views as marketViews } from "./screens/market";
 import { views as settingsViews } from "./screens/settings";
 import { views as adminViews } from "./screens/admin";
 import { views as prototypeViews } from "./screens/prototype";
@@ -37,6 +38,7 @@ const EXACT: ViewMap = {
   ...reportViews,
   ...brainViews,
   ...teamViews,
+  ...marketViews,
   ...settingsViews,
   ...stateViews,
   ...adminViews,
@@ -51,6 +53,7 @@ const PATTERNS: [string, ScreenComponent][] = [
   ...Object.entries(dataViews).filter(([k]) => k.includes(":")).map(([k, v]) => [k, v] as [string, ScreenComponent]),
   ...Object.entries(goalViews).filter(([k]) => k.includes(":")).map(([k, v]) => [k, v] as [string, ScreenComponent]),
   ...Object.entries(teamViews).filter(([k]) => k.includes(":")).map(([k, v]) => [k, v] as [string, ScreenComponent]),
+  ...Object.entries(marketViews).filter(([k]) => k.includes(":")).map(([k, v]) => [k, v] as [string, ScreenComponent]),
   ...Object.entries(adminViews).filter(([k]) => k.includes(":")).map(([k, v]) => [k, v] as [string, ScreenComponent]),
 ];
 

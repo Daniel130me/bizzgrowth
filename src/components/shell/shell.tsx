@@ -13,6 +13,7 @@ import {
   CreditCard,
   Database,
   FileText,
+  Handshake,
   Home,
   LayoutDashboard,
   LifeBuoy,
@@ -50,6 +51,7 @@ const APP_NAV = [
   { id: "performance", label: "Performance", icon: BarChart3 },
   { id: "insights", label: "Insights", icon: Sparkles },
   { id: "actions", label: "Actions", icon: ListChecks },
+  { id: "market", label: "Specialists", icon: Handshake },
   { id: "ask", label: "Ask", icon: MessageSquareText },
   { id: "data", label: "Data", icon: Database },
   { id: "goals", label: "Goals", icon: Target },
@@ -132,7 +134,7 @@ function SidebarContent({ route, onNavigate }: { route: string; onNavigate?: () 
           }}
           className="w-full rounded-lg px-3 py-1.5 text-left text-[11px] text-slate-400 hover:bg-slate-50 hover:text-slate-600"
         >
-          Prototype Map (115 screens)
+          Prototype Map (119 screens)
         </button>
       </div>
     </div>

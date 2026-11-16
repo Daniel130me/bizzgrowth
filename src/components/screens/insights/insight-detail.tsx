@@ -4,7 +4,7 @@
 // detail: reasoning chain, evidence with provenance links, what we know / think /
 // do not know, confidence explanation and the recommended next action.
 
-import { ArrowRight, Lightbulb, Sparkles } from "lucide-react";
+import { ArrowRight, Lightbulb, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { insightById, recommendationById } from "@/lib/data/intelligence";
 import { fmtDate } from "@/lib/format";
 import { useBizz } from "@/lib/store";
 import type { ScreenProps } from "../view-types";
+import { guessCategory } from "../market/parts";
 import { BackLink, IMPORTANCE_LABEL, INSIGHT_TYPE_META, evidenceWithFacts, metricSlugFor } from "./parts";
 
 export function InsightDetail({ params }: ScreenProps) {
@@ -24,6 +25,7 @@ export function InsightDetail({ params }: ScreenProps) {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const aiInsights = useBizz((s) => s.aiInsights);
+  const setTaskPrefill = useBizz((s) => s.setTaskPrefill);
 
   // AI-generated insights live in the store; curated ones in the dataset.
   const insight = aiInsights.find((i) => i.id === params.id) ?? insightById(params.id);
@@ -57,6 +59,21 @@ export function InsightDetail({ params }: ScreenProps) {
         description: "Metric pages are available for revenue, customers, enquiries, CAC and conversion.",
       });
     }
+  };
+
+  const findSpecialist = () => {
+    // Hand this insight's recommended action to the marketplace as a brief:
+    // the intelligence found the opportunity, a specialist executes it.
+    setTaskPrefill({
+      title: insight.title.length >= 8 ? insight.title : `Handle: ${insight.title}`,
+      description: `${insight.summary}\n\nWhat we recommend: ${insight.recommendedAction}`,
+      category: guessCategory(`${insight.title} ${insight.summary} ${insight.recommendedAction}`),
+      skills: [],
+      source: "recommendation",
+      sourceRef: insight.id,
+      sourceTitle: insight.title,
+    });
+    navigate("market/post");
   };
 
   return (
@@ -213,6 +230,10 @@ export function InsightDetail({ params }: ScreenProps) {
                 Create action
               </Button>
             )}
+            <Button size="sm" variant="outline" onClick={findSpecialist} title="Post this to the Specialists marketplace and get bids">
+              <Users className="mr-1.5 size-4" aria-hidden />
+              Find a specialist
+            </Button>
           </div>
         </SectionCard>
 

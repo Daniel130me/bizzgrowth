@@ -1,4 +1,4 @@
-// Prototype Map registry — all 115 screens/views/states.
+// Prototype Map registry — all 119 screens/views/states.
 // Group = which screen-group directory owns the implementation.
 
 export type ScreenGroup =
@@ -17,6 +17,7 @@ export type ScreenGroup =
   | "settings"
   | "states"
   | "admin"
+  | "market"
   | "prototype";
 
 export interface ScreenMeta {
@@ -138,6 +139,11 @@ export const SCREENS: ScreenMeta[] = [
   { num: 93, id: "help", route: "help", name: "Help & Support", category: "Support", group: "settings" },
   { num: 94, id: "feedback", route: "feedback", name: "Send Feedback / Report Problem", category: "Support", group: "settings" },
   { num: 115, id: "settings/ai", route: "settings/ai", name: "AI Gateway / Providers", category: "Settings", group: "settings" },
+  // Q. Specialists marketplace
+  { num: 116, id: "market", route: "market", name: "Specialists Marketplace", category: "Specialists", group: "market" },
+  { num: 117, id: "market/specialist", route: "market/specialist/:id", name: "Specialist Profile / Showcase", category: "Specialists", group: "market" },
+  { num: 118, id: "market/post", route: "market/post", name: "Post a Task / Brief", category: "Specialists", group: "market" },
+  { num: 119, id: "market/task", route: "market/task/:id", name: "Task Detail & Bids", category: "Specialists", group: "market" },
   // O. Critical system states
   { num: 95, id: "state/no-data", route: "state/no-data", name: "New Workspace / No Data Yet", category: "System state", group: "states" },
   { num: 96, id: "state/insufficient", route: "state/insufficient", name: "Insufficient Data for Diagnosis", category: "System state", group: "states" },

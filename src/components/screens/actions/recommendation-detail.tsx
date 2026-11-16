@@ -1,7 +1,7 @@
 "use client";
 // Screen 39 — Recommendation Detail: the signature intelligence structure.
 
-import { CircleDashed } from "lucide-react";
+import { CircleDashed, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs, IntelligenceDetail, KeyValue, SectionCard } from "@/components/shared/layout";
@@ -18,12 +18,14 @@ import { ErrorState } from "@/components/shared/states";
 import { recommendationById } from "@/lib/data/intelligence";
 import { useBizz } from "@/lib/store";
 import type { ScreenProps } from "../view-types";
+import { guessCategory } from "../market/parts";
 import { askTipFor } from "./helpers";
 
 export function RecommendationDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const recommendationState = useBizz((s) => s.recommendationState);
   const setRecommendationState = useBizz((s) => s.setRecommendationState);
+  const setTaskPrefill = useBizz((s) => s.setTaskPrefill);
 
   const rec = recommendationById(params.id);
 
@@ -43,6 +45,21 @@ export function RecommendationDetail({ params }: ScreenProps) {
   const askAbout = () => {
     navigate("ask");
     toast(askTipFor(rec.businessId));
+  };
+
+  const findSpecialist = () => {
+    // Hand this recommendation to the marketplace as a ready-to-bid brief:
+    // the intelligence says WHAT to do, a vetted human does the doing.
+    setTaskPrefill({
+      title: rec.title,
+      description: `${rec.problem}\n\nWhat to do: ${rec.recommendation}${rec.expectedImpact ? `\n\nExpected impact (an estimate, not a promise): ${rec.expectedImpact}` : ""}`,
+      category: guessCategory(`${rec.title} ${rec.recommendation} ${rec.problem}`),
+      skills: [],
+      source: "recommendation",
+      sourceRef: rec.id,
+      sourceTitle: rec.title,
+    });
+    navigate("market/post");
   };
 
   return (
@@ -66,6 +83,10 @@ export function RecommendationDetail({ params }: ScreenProps) {
         actions={
           <>
             <Button onClick={() => navigate(`action-start/${rec.id}`)}>Start action</Button>
+            <Button variant={rec.executionType === "human" ? "secondary" : "outline"} onClick={findSpecialist}>
+              <Users className="mr-1.5 size-4" aria-hidden />
+              Find a specialist
+            </Button>
             <Button variant="outline" onClick={askAbout}>
               Ask about this
             </Button>

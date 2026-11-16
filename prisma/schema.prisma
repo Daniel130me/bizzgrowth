@@ -30,3 +30,68 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------- Specialists marketplace ----------
+// Supply side: vetted human specialists who showcase their proficiency
+// (Fiverr-style) and bid on tasks posted by business owners.
+
+model Specialist {
+  id            String       @id @default(cuid())
+  name          String
+  headline      String // one-line proficiency statement, e.g. "Meta ads for Lagos retailers"
+  category      String // marketing | sales | content | design | web | ops | finance | data | people | legal
+  skills        String // JSON string[]
+  hourlyRate    Int // NGN per hour (indicative — final price comes from their bid)
+  rating        Float
+  reviews       Int
+  completedJobs Int
+  responseTime  String // e.g. "Within 2 hours"
+  location      String
+  languages     String // JSON string[]
+  bio           String
+  portfolio     String // JSON { title: string; blurb: string }[]
+  badges        String // JSON string[] e.g. ["Top rated"]
+  available     String // e.g. "Available now" / "From Monday 14 Oct"
+  verified      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  bids          MarketBid[]
+}
+
+// Demand side: a piece of work posted by an owner — usually from an AI
+// recommendation the owner cannot execute in-house.
+
+model MarketTask {
+  id           String      @id @default(cuid())
+  workspaceId  String
+  businessName String
+  title        String
+  description  String
+  category     String
+  skills       String      @default("[]") // JSON string[]
+  budgetMin    Int?
+  budgetMax    Int?
+  urgency      String      @default("this-week") // asap | this-week | flexible
+  source       String      @default("manual") // recommendation | manual
+  sourceRef    String? // recommendation id when AI-sourced
+  sourceTitle  String? // recommendation title for context
+  status       String      @default("open") // open | awarded | closed
+  awardedBidId String?
+  matchNote    String? // AI matchmaker summary persisted for the record
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  bids         MarketBid[]
+}
+
+model MarketBid {
+  id           String     @id @default(cuid())
+  taskId       String
+  task         MarketTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  specialistId String
+  specialist   Specialist @relation(fields: [specialistId], references: [id])
+  amount       Int // NGN total for the task
+  days         Int // promised delivery in days
+  coverNote    String
+  inviteSource String     @default("ai-match") // ai-match | manual
+  status       String     @default("pending") // pending | accepted | declined
+  createdAt    DateTime   @default(now())
+}

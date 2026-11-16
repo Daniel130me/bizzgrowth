@@ -45,6 +45,18 @@ export interface AskLogEntry {
   at: string;
 }
 
+/** Prefill for the marketplace "Post a task" form — set when the intelligence
+ *  recommends work the owner may not execute themselves. */
+export interface TaskPrefill {
+  title: string;
+  description: string;
+  category?: string;
+  skills?: string[];
+  source: "recommendation" | "manual";
+  sourceRef?: string;
+  sourceTitle?: string;
+}
+
 interface BizzSettings {
   businessName: string;
   currency: string;
@@ -80,6 +92,8 @@ interface BizzState {
   aiBrief: Brief | null;
   /** Real Ask conversations (per workspace), persisted. Never seeded. */
   askLog: AskLogEntry[];
+  /** Marketplace task prefill carried from a recommendation into the post-task form. */
+  taskPrefill: TaskPrefill | null;
 
   navigate: (path: string) => void;
   setBusiness: (id: WorkspaceId) => void;
@@ -114,6 +128,7 @@ interface BizzState {
   setAiBrief: (brief: Brief) => void;
   recordAsk: (entry: Omit<AskLogEntry, "id" | "at">) => void;
   clearAskLog: (workspaceId: string) => void;
+  setTaskPrefill: (prefill: TaskPrefill | null) => void;
   updateSettings: (patch: Partial<BizzSettings>) => void;
   updateProfile: (patch: Partial<BizzUser>) => void;
   sendInvite: (email: string, role: string) => void;
@@ -173,6 +188,7 @@ export const useBizz = create<BizzState>((set, get) => ({
   aiInsights: [],
   aiBrief: null,
   askLog: [],
+  taskPrefill: null,
   settings: {
     businessName: "SwiftHaul Logistics",
     currency: "₦ (Nigerian Naira)",
@@ -379,6 +395,7 @@ export const useBizz = create<BizzState>((set, get) => ({
     set({ askLog });
     persistAskLog(askLog);
   },
+  setTaskPrefill: (prefill) => set({ taskPrefill: prefill }),
   updateSettings: (patch) => {
     set((s) => ({ settings: { ...s.settings, ...patch } }));
     try {
