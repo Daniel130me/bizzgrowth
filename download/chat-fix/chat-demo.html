@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node 71 — fixed chat intake &amp; ask page (reference demo)</title>
+<style>
+  :root {
+    --blue-600:#2563eb; --blue-700:#1d4ed8; --blue-900:#1e3a8a; --blue-50:#eff6ff;
+    --blue-200:#bfdbfe; --slate-50:#f8fafc; --slate-200:#e2e8f0; --slate-400:#94a3b8;
+    --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155;
+    --amber-50:#fffbeb; --amber-200:#fde68a; --amber-300:#fcd34d; --amber-800:#92400e; --amber-900:#78350f;
+    --orange-600:#ea580c; --orange-700:#c2410c; --green-700:#15803d;
+    --red-50:#fef2f2; --red-200:#fecaca; --red-800:#991b1b;
+    --border:#e2e8f0; --radius:10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; padding: clamp(12px, 3vw, 32px);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background:#f1f5f9; color: var(--slate-700); font-size: clamp(14px, 1.6vw, 15px);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: clamp(1.15rem, 4.5vw, 1.5rem); margin: 0 0 4px; color:#0f172a; }
+  .sub { color: var(--slate-500); font-size: clamp(12.5px, 1.5vw, 14px); margin: 0 0 14px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .tab {
+    border:1px solid var(--border); background:#fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight:600; color: var(--slate-600); cursor:pointer;
+  }
+  .tab.active { background: var(--blue-600); border-color: var(--blue-600); color:#fff; }
+  .panel { background:#fff; border:1px solid var(--border); border-radius:14px; padding: clamp(12px, 2.5vw, 20px); }
+  .hidden { display:none !important; }
+
+  /* chat */
+  .log { max-height: 320px; overflow-y:auto; border:1px solid var(--border); background:rgba(248,250,252,.6);
+         border-radius: var(--radius); padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:85%; padding:8px 12px; border-radius: var(--radius); font-size: clamp(13px, 1.5vw, 14px);
+         line-height:1.45; white-space:pre-line; border:1px solid var(--border); background:#fff; }
+  .msg.user { margin-left:auto; background: var(--blue-600); color:#fff; border-color: var(--blue-600); }
+  .thinking { font-size:12px; color: var(--slate-500); display:flex; align-items:center; gap:6px; }
+  .spin { width:12px; height:12px; border:2px solid var(--slate-200); border-top-color: var(--blue-600);
+          border-radius:50%; animation: r 0.8s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+
+  .progress-row { display:flex; align-items:center; gap:10px; font-size:12px; color: var(--slate-500); }
+  .bar { flex:1; height:6px; background: var(--slate-200); border-radius:99px; overflow:hidden; }
+  .bar > div { height:100%; background: var(--blue-600); border-radius:99px; transition: width .3s; }
+
+  .heard { border:1px solid var(--blue-200); background:rgba(239,246,255,.6); border-radius: var(--radius); padding:12px; }
+  .heard .cap { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color: var(--blue-700); margin:0 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:#fff; border-radius:99px; padding:4px 10px; font-size:12px; font-weight:500; color: var(--blue-900);
+          font-variant-numeric: tabular-nums; }
+  .chip.muted { color: var(--slate-500); font-style: italic; }
+
+  .quick { display:flex; flex-wrap:wrap; gap:6px; }
+  .btn { display:inline-flex; align-items:center; gap:6px; justify-content:center; white-space:nowrap;
+         border-radius:8px; padding:8px 14px; font-size:13px; font-weight:500; cursor:pointer;
+         border:1px solid var(--border); background:#fff; color: var(--slate-700); transition: background .15s; }
+  .btn:hover { background: var(--slate-50); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn.primary { background: var(--blue-600); border-color: var(--blue-600); color:#fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--blue-700); }
+  .btn.go { background: var(--orange-600); border-color: var(--orange-600); color:#fff; font-weight:600; }
+  .btn.go:hover:not(:disabled) { background: var(--orange-700); }
+  .btn .ico { font-size:14px; line-height:1; }
+
+  .inputrow { display:flex; gap:8px; }
+  .inputrow input { flex:1; min-width:0; height:38px; border:1px solid var(--border); border-radius:8px;
+                    padding:0 12px; font-size:14px; color: var(--slate-700); background:#fff; }
+  .inputrow input:focus { outline:none; border-color: var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .saved { color: var(--green-700); font-size:14px; display:flex; align-items:center; gap:6px; }
+  .demo-note { background:rgba(239,246,255,.6); border:1px solid var(--blue-200); border-radius: var(--radius);
+               padding:10px 12px; font-size:12.5px; color: var(--blue-900); margin-bottom:12px; line-height:1.5; }
+
+  /* ask page */
+  .ask-banner { border:1px solid var(--amber-300); background: var(--amber-50); border-radius: var(--radius);
+                padding:14px 16px; color: var(--amber-900); margin-bottom:14px; font-size:13.5px; line-height:1.5; }
+  .ask-banner b { font-size:13.5px; }
+  .cta-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .resp { margin-top:12px; }
+  .card { border-radius: var(--radius); padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .card.nodata { border:1px solid var(--amber-300); background: var(--amber-50); color: var(--amber-900); }
+  .card.answer { border:1px solid var(--border); background:#fff; color: var(--slate-700); }
+  .card.nomatch { border:1px solid var(--border); background:#fff; color: var(--slate-700); }
+  .card.error { border:1px solid var(--red-200); background: var(--red-50); color: var(--red-800); }
+  .card .headline { font-weight:700; font-size:14px; }
+  .card .src { margin-top:10px; font-size:11.5px; color: var(--slate-400); }
+  .pill { background: var(--slate-50); border:1px solid var(--border); border-radius:99px; padding:4px 10px;
+          font-size:12px; color: var(--slate-600); }
+  .toggle { display:flex; align-items:center; gap:8px; font-size:12.5px; color: var(--slate-500); margin-bottom:10px; flex-wrap:wrap; }
+  .toggle .btn.on { border-color: var(--blue-600); color: var(--blue-700); font-weight:600; }
+  code { background: var(--slate-50); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-size:12px; }
+  @media (max-width: 640px) {
+    .msg { max-width: 92%; }
+    .btn { padding: 8px 12px; }
+    .inputrow { flex-wrap: wrap; }
+    .inputrow .btn { flex:1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Fixed chat intake &amp; ask page</h1>
+  <p class="sub">Reference demo — the exact engine from <code>chat-engine.ts</code> and <code>ask-answer.ts</code>, transpiled into this page. Node 71 limited.</p>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-chat" data-testid="tab-chat">Chat with the intelligence</button>
+    <button class="tab" id="tab-ask" data-testid="tab-ask">Ask page</button>
+  </div>
+
+  <!-- ================= CHAT TAB ================= -->
+  <div class="panel" id="panel-chat">
+    <div class="demo-note">
+      Try the exact sequence that broke before: tap <b>Last month</b>, then send <b>“Last month”</b> again
+      (stale tap), then <b>“200,000 naira”</b>, then <b>“we didnt do any marketing”</b> —
+      or press <b>Replay the broken scenario</b> and watch it handled.
+    </div>
+    <div style="margin-bottom:12px"><button class="btn" id="replay" data-testid="replay">▶ Replay the broken scenario</button>
+    <button class="btn" id="reset" data-testid="reset">↺ Reset</button></div>
+
+    <div class="log" id="log" data-testid="log" aria-live="polite"></div>
+
+    <div class="progress-row" id="progress-row" style="margin-top:10px">
+      <div class="bar"><div id="bar-fill" style="width:0%"></div></div>
+      <span id="progress-label" data-testid="progress-label"></span>
+    </div>
+
+    <div class="heard" id="heard" style="margin-top:10px; display:none">
+      <p class="cap">What I&apos;ve heard so far</p>
+      <div class="chips" id="chips" data-testid="chips"></div>
+    </div>
+
+    <div class="quick" id="quick" style="margin-top:10px" data-testid="quick"></div>
+
+    <div class="inputrow" id="inputrow" style="margin-top:10px">
+      <input id="chat-input" data-testid="chat-input" aria-label="Chat answer"
+             placeholder="Type your answer — e.g. “we made about 700k, spent 200k on ads”">
+      <button class="btn primary" id="chat-send" data-testid="chat-send"><span class="ico">➤</span> Send</button>
+      <button class="btn" id="save-btn" data-testid="save-btn"><span class="ico">✓</span> Save what we have</button>
+    </div>
+    <div class="saved hidden" id="saved-note" style="margin-top:10px">✓ Saved — this month is in the Data Centre. (Demo: nothing was actually posted.)</div>
+  </div>
+
+  <!-- ================= ASK TAB ================= -->
+  <div class="panel hidden" id="panel-ask">
+    <div class="ask-banner">
+      <b>Ask answers from your recorded numbers — <span id="ask-state-label">none recorded yet</span></b><br>
+      Every answer comes from the monthly totals recorded for this workspace.
+    </div>
+    <div class="toggle">
+      Simulate workspace data:
+      <button class="btn on" id="data-none">No data recorded</button>
+      <button class="btn" id="data-has">October 2026 recorded</button>
+    </div>
+    <div class="inputrow">
+      <input id="ask-input" data-testid="ask-input" aria-label="Question"
+             placeholder="e.g. where are we in the business right now?">
+      <button class="btn primary" id="ask-btn" data-testid="ask-btn">➤ Ask</button>
+    </div>
+    <div class="resp" id="ask-resp" data-testid="ask-resp">
+      <div class="card answer" style="color:var(--slate-500)">
+        Ask a question and press <b>Ask</b> — the fixed page always answers. Before the fix, this exact page
+        returned <i>nothing at all</i> when no numbers were recorded.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatMoney(amount, currency = "₦") {
+  const rounded = Math.round(amount);
+  return `${currency}${rounded.toLocaleString("en-US")}`;
+}
+const MONTH_NAMES = [
+  ["january", 1],
+  ["february", 2],
+  ["march", 3],
+  ["april", 4],
+  ["may", 5],
+  ["june", 6],
+  ["july", 7],
+  ["august", 8],
+  ["september", 9],
+  ["october", 10],
+  ["november", 11],
+  ["december", 12]
+];
+const REVENUE_KEYWORDS = /\b(made|revenue|sales|sold|earn|earned|income|turnover|gross|takings|came in|make)\b/i;
+const MARKETING_KEYWORDS = /\b(marketing|ads?|adverts?|advertising|promo(?:tion)?s?|influencers?|sponsored|boost(?:ed|s)?|jingles?|billboards?|flyers?|spend|spent|spending|expenses?)\b/i;
+const NEGATION = /\b(didn'?t|did not|dont'?|do not|never|no|none|nothing|zero|nil|without|not\s+(?:do|spend|use))\b/i;
+const MONEY_RE = /(?:₦|ngn|naira)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b|k\b|m\b|mm\b|million|thousand)?/i;
+const ANY_NUMBER_RE = /\d/;
+function parseNumber(raw, unit) {
+  let n = Number(raw.replace(/,/g, "").trim());
+  if (!isFinite(n))
+    return NaN;
+  const u = (unit || "").toLowerCase();
+  if (u === "k" || u === "thousand")
+    n *= 1000;
+  if (u === "m" || u === "mm" || u === "million")
+    n *= 1e6;
+  return n;
+}
+function resolveMonth(year, month, today) {
+  let y = year;
+  if (new Date(y, month - 1, 1) > new Date(today.getFullYear(), today.getMonth(), 1)) {
+    y -= 1;
+  }
+  if (y < 1970 || y > today.getFullYear() + 1 || month < 1 || month > 12)
+    return;
+  const label = `${MONTH_NAMES[month - 1][0][0].toUpperCase()}${MONTH_NAMES[month - 1][0].slice(1)} ${y}`;
+  return { year: y, month, label };
+}
+function parseMonth(text, today) {
+  const t = text.toLowerCase();
+  if (/\blast\s+month\b/.test(t)) {
+    const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    return resolveMonth(d.getFullYear(), d.getMonth() + 1, today);
+  }
+  if (/\b(this|current)\s+month\b/.test(t)) {
+    return resolveMonth(today.getFullYear(), today.getMonth() + 1, today);
+  }
+  const my = t.match(/\b(19\d{2}|20\d{2}|\d{1,2})[\/\-](19\d{2}|20\d{2}|\d{1,2})\b/);
+  if (my) {
+    const a = parseInt(my[1], 10);
+    const b = parseInt(my[2], 10);
+    if (a >= 1970) {
+      if (b >= 1 && b <= 12)
+        return resolveMonth(a, b, today);
+      return;
+    }
+    if (b >= 1970) {
+      if (a >= 1 && a <= 12)
+        return resolveMonth(b, a, today);
+      return;
+    }
+    if (a >= 1 && a <= 12 && b <= 99)
+      return resolveMonth(2000 + b, a, today);
+    return;
+  }
+  const MONTH_TOKEN_RE = /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\b(?:\s*,?\s*(\d{4})\b|\s*'(\d{2})\b)?/i;
+  const m = t.match(MONTH_TOKEN_RE);
+  if (!m)
+    return;
+  const token = m[1].toLowerCase();
+  if (!m[2] && !m[3] && /^(may|march)$/.test(token) && text.trim().split(/\s+/).length > 3) {
+    return;
+  }
+  const idx = MONTH_NAMES.findIndex(([n]) => n.startsWith(token.slice(0, 3)));
+  if (idx < 0)
+    return;
+  let y = today.getFullYear();
+  if (m[2])
+    y = parseInt(m[2], 10);
+  else if (m[3])
+    y = 2000 + parseInt(m[3], 10);
+  return resolveMonth(y, MONTH_NAMES[idx][1], today);
+}
+function splitClauses(text) {
+  return text.split(/[.!?;\n]+|,\s+/).map((s) => s.trim()).filter((s) => s.length > 0).map((text) => ({
+    text,
+    slotHint: MARKETING_KEYWORDS.test(text) ? "marketing" : REVENUE_KEYWORDS.test(text) ? "revenue" : undefined
+  }));
+}
+function extractFromText(userText, currentSlot, today) {
+  const out = {};
+  const t = userText.toLowerCase();
+  if (currentSlot === "month" || /\b(?:19|20)\d{2}\b/.test(t) || /\b(last|this|current)\s+month\b/.test(t)) {
+    const month = parseMonth(userText, today);
+    if (month)
+      out.month = month;
+  }
+  if (currentSlot === "marketing" && !ANY_NUMBER_RE.test(t) && /\b(none|no|nothing|zero|nil|didn'?t|did not|not at all)\b/.test(t)) {
+    out.marketing = { amount: 0, isZero: true };
+  }
+  for (const clause of splitClauses(userText)) {
+    const c = clause.text.toLowerCase();
+    const numMatch = c.match(MONEY_RE);
+    const hasNegation = NEGATION.test(c);
+    const isMarketingClause = clause.slotHint === "marketing" || clause.slotHint === undefined && currentSlot === "marketing" && !REVENUE_KEYWORDS.test(c);
+    if (numMatch) {
+      const amount = parseNumber(numMatch[1], numMatch[2]);
+      if (!isFinite(amount) || amount < 0)
+        continue;
+      const value = { amount, isZero: amount === 0 };
+      if (isMarketingClause) {
+        if (out.marketing === undefined)
+          out.marketing = value;
+      } else if (clause.slotHint === "revenue") {
+        if (out.revenue === undefined)
+          out.revenue = value;
+      } else if (currentSlot === "revenue" && out.revenue === undefined) {
+        out.revenue = value;
+      } else if (currentSlot === "marketing" && out.marketing === undefined) {
+        out.marketing = value;
+      }
+    } else if (hasNegation && clause.slotHint === "marketing" && out.marketing === undefined) {
+      out.marketing = { amount: 0, isZero: true };
+    }
+  }
+  if (currentSlot === "marketing" && out.marketing === undefined && hasAnyMoney(out) === false && !ANY_NUMBER_RE.test(t) && NEGATION.test(t)) {
+    out.marketing = { amount: 0, isZero: true };
+  }
+  return out;
+}
+function hasAnyMoney(e) {
+  return e.revenue !== undefined || e.marketing !== undefined;
+}
+const SLOT_SPECS = {
+  month: {
+    label: "month",
+    questions: [
+      "Which month should we look at{for}? If it's easier, just say “last month”.",
+      "Which month are we recording — e.g. “October 2026” or “last month”?"
+    ],
+    quickReplies: ["Last month", "This month"],
+    skipAllowed: false
+  },
+  revenue: {
+    label: "revenue",
+    questions: [
+      "Roughly how much did the business make that month (in naira)? A ballpark is fine — precision can come later.",
+      "And the money that came IN that month — about how much, in naira?"
+    ],
+    quickReplies: ["I'm not sure"],
+    skipAllowed: true
+  },
+  marketing: {
+    label: "marketing",
+    questions: [
+      "How much went into marketing that month — ads, promos, influencers, anything you paid to get customers? (₦0 is a valid answer.)",
+      "Did you spend anything on getting customers that month? If you did none, just say “none”."
+    ],
+    quickReplies: ["₦0 — we did none", "I'm not sure"],
+    skipAllowed: true
+  }
+};
+const ACK_MONTH = ["Got it — {v}.", "{v} it is."];
+const ACK_MONEY = ["Noted — {k} {v}.", "{k} {v}, got it."];
+const ACK_ZERO = ["Got it — no marketing spend.", "Noted — {k} {v}."];
+const DUP_NUDGES = [
+  "Already noted — {v}. ",
+  "I have that — {v}. "
+];
+function pick(arr, seed) {
+  return arr[seed % arr.length];
+}
+
+class IntakeEngine {
+  slots = new Map;
+  attempts = new Map;
+  askedVariant = new Map;
+  turnCount = 0;
+  today;
+  businessName;
+  currency;
+  llmExtract;
+  constructor(opts = {}) {
+    this.today = opts.today ?? new Date;
+    this.businessName = opts.businessName ? ` for ${opts.businessName}` : "";
+    this.currency = opts.currency ?? "₦";
+    this.llmExtract = opts.llmExtract;
+  }
+  currentSlot() {
+    for (const key of ["month", "revenue", "marketing"]) {
+      if (!this.slots.has(key))
+        return key;
+    }
+    return null;
+  }
+  questionFor(key, variantIndex) {
+    const spec = SLOT_SPECS[key];
+    const idx = variantIndex % spec.questions.length;
+    return spec.questions[idx].replace("{for}", key === "month" ? this.businessName : "");
+  }
+  nextVariant(key) {
+    const prev = this.askedVariant.get(key) ?? -1;
+    const next = prev + 1;
+    this.askedVariant.set(key, next);
+    return next;
+  }
+  chips() {
+    const chips = [];
+    const month = this.slots.get("month");
+    if (month?.status === "answered") {
+      chips.push({ label: month.value.label });
+    }
+    for (const key of ["revenue", "marketing"]) {
+      const rec = this.slots.get(key);
+      if (!rec)
+        continue;
+      if (rec.status === "unknown") {
+        chips.push({ label: `${cap(key)}: not sure`, muted: true });
+      } else {
+        const v = rec.value;
+        chips.push({ label: `${cap(key)}: ${formatMoney(v.amount, this.currency)}` });
+      }
+    }
+    return chips;
+  }
+  moneyOf(key) {
+    const rec = this.slots.get(key);
+    return rec?.status === "answered" ? rec.value : null;
+  }
+  result() {
+    const monthRec = this.slots.get("month");
+    const unknown = [];
+    const rev = this.moneyOf("revenue");
+    const mkt = this.moneyOf("marketing");
+    if (!monthRec || monthRec.status === "unknown")
+      unknown.push("month");
+    if (!rev)
+      unknown.push("revenue");
+    if (!mkt)
+      unknown.push("marketing");
+    return {
+      month: monthRec?.status === "answered" ? monthRec.value : null,
+      revenue: rev ? rev.amount : null,
+      marketing: mkt ? mkt.amount : null,
+      unknownSlots: unknown
+    };
+  }
+  buildTurn(assistantText, opts = {}) {
+    const cur = this.currentSlot();
+    const answered = ["month", "revenue", "marketing"].filter((k) => this.slots.has(k)).length;
+    const done = cur === null;
+    let quickReplies = [];
+    if (!done) {
+      const spec = SLOT_SPECS[cur];
+      quickReplies = [...spec.quickReplies];
+      if (this.turnCount >= 1 && answered >= 1)
+        quickReplies.push("That's everything I have");
+    } else {
+      quickReplies = ["Save it", "Edit revenue", "Edit marketing", "Edit month"];
+    }
+    return {
+      assistantText,
+      chips: this.chips(),
+      progress: {
+        answered,
+        total: 3,
+        currentLabel: done ? null : SLOT_SPECS[cur].label
+      },
+      quickReplies,
+      done,
+      saveRequested: opts.saveRequested ?? false,
+      result: done ? this.result() : undefined
+    };
+  }
+  open() {
+    this.turnCount++;
+    const cur = this.currentSlot();
+    if (cur === null)
+      return this.buildTurn("All set — here's your snapshot.");
+    const v = this.nextVariant(cur);
+    return this.buildTurn(this.questionFor(cur, v));
+  }
+  finishText() {
+    const r = this.result();
+    const parts = [];
+    parts.push(r.month ? `Here's your ${r.month.label} snapshot:` : "Here's your snapshot:");
+    parts.push(`• Revenue: ${r.revenue === null ? "not sure" : formatMoney(r.revenue, this.currency)}`);
+    if (r.marketing === 0) {
+      parts.push("• Marketing: ₦0 — no marketing spend recorded (ROAS n/a)");
+    } else {
+      parts.push(`• Marketing: ${r.marketing === null ? "not sure" : formatMoney(r.marketing, this.currency)}`);
+    }
+    if (r.unknownSlots.length > 0) {
+      parts.push(`Left blank for now: ${r.unknownSlots.map(cap).join(", ")} — you can update it in the Data Centre.`);
+    }
+    parts.push("Press “Save & finish” to record it.");
+    return parts.join(`
+`);
+  }
+  markUnknown(key) {
+    this.slots.set(key, { key, status: "unknown" });
+  }
+  async handleUserMessage(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed)
+      return this.buildTurn("Say something — even a ballpark helps.");
+    this.turnCount++;
+    const editMatch = trimmed.match(/^edit\s+(month|revenue|marketing)\b/i);
+    if (editMatch) {
+      const key = editMatch[1].toLowerCase();
+      this.slots.delete(key);
+      this.attempts.set(key, 0);
+      const v = this.nextVariant(key);
+      return this.buildTurn(`Sure — ${SLOT_SPECS[key].label} again. ` + this.questionFor(key, v));
+    }
+    if (/^(save( it)?|save & finish|done|that'?s everything( i have)?)\.?$/i.test(trimmed)) {
+      const haveCore = this.slots.has("month") && this.slots.has("revenue");
+      if (haveCore) {
+        for (const k of ["month", "revenue", "marketing"]) {
+          if (!this.slots.has(k))
+            this.markUnknown(k);
+        }
+        return this.buildTurn(this.finishText(), { saveRequested: true });
+      }
+      const missing = this.slots.has("month") ? "revenue" : "month";
+      const cur = this.currentSlot();
+      return this.buildTurn(`Before I save, I still need the ${missing}. ` + (cur ? this.questionFor(cur, this.nextVariant(cur)) : ""));
+    }
+    if (/^skip( (this|it))?\.?$/i.test(trimmed)) {
+      const cur = this.currentSlot();
+      if (cur) {
+        if (SLOT_SPECS[cur].skipAllowed) {
+          this.markUnknown(cur);
+          return this.afterCapture([], `OK — ${SLOT_SPECS[cur].label} left blank for now.`);
+        }
+        return this.buildTurn("The month is the one thing I can't skip — everything hangs on it. " + this.questionFor(cur, this.nextVariant(cur)));
+      }
+    }
+    if (/^(i'?m not sure|not sure|idk|i don'?t know)\.?$/i.test(trimmed)) {
+      const cur = this.currentSlot();
+      if (cur && SLOT_SPECS[cur].skipAllowed) {
+        this.markUnknown(cur);
+        return this.afterCapture([], `OK — ${SLOT_SPECS[cur].label} marked “not sure”.`);
+      }
+    }
+    if (this.currentSlot() === null) {
+      return this.buildTurn("All captured ✓ — press “Save & finish”, or type “edit revenue” to change a number.");
+    }
+    const cur = this.currentSlot();
+    let extraction = extractFromText(trimmed, cur, this.today);
+    if (this.llmExtract) {
+      try {
+        const llm = await this.llmExtract(trimmed, cur);
+        if (llm) {
+          extraction = {
+            month: extraction.month ?? llm.month,
+            revenue: extraction.revenue ?? llm.revenue,
+            marketing: extraction.marketing ?? llm.marketing
+          };
+        }
+      } catch {}
+    }
+    const newly = [];
+    let dupNudge = null;
+    if (extraction.month) {
+      const rec = this.slots.get("month");
+      if (!rec) {
+        this.slots.set("month", { key: "month", status: "answered", value: extraction.month, fromText: trimmed });
+        newly.push(`month:${extraction.month.label}`);
+      } else if (rec.status === "answered") {
+        dupNudge = dupNudge ?? pick(DUP_NUDGES, this.turnCount).replace("{v}", rec.value.label);
+      }
+    }
+    for (const key of ["revenue", "marketing"]) {
+      const val = key === "revenue" ? extraction.revenue : extraction.marketing;
+      if (!val)
+        continue;
+      const rec = this.slots.get(key);
+      if (!rec) {
+        this.slots.set(key, { key, status: "answered", value: val, fromText: trimmed });
+        newly.push(key);
+      } else if (rec.status === "answered") {
+        dupNudge = dupNudge ?? pick(DUP_NUDGES, this.turnCount).replace("{v}", formatMoney(rec.value.amount, this.currency));
+      }
+    }
+    return this.afterCapture(newly, null, dupNudge);
+  }
+  afterCapture(newly, overrideText, dupNudge = null) {
+    const cur = this.currentSlot();
+    if (cur === null) {
+      return this.buildTurn(overrideText ? overrideText + `
+` + this.finishText() : this.finishText());
+    }
+    if (newly.length === 0 && !overrideText) {
+      const n = (this.attempts.get(cur) ?? 0) + 1;
+      this.attempts.set(cur, n);
+      const spec = SLOT_SPECS[cur];
+      if (n === 1) {
+        const v = this.nextVariant(cur);
+        const lead = dupNudge ? dupNudge : "Hmm, I didn't catch that. ";
+        return this.buildTurn(lead + this.questionFor(cur, v));
+      }
+      if (n === 2) {
+        const v = this.nextVariant(cur);
+        return this.buildTurn((dupNudge ?? "") + `No worries — let's try it another way. ${this.questionFor(cur, v)} You can also skip.`);
+      }
+      if (cur === "month") {
+        const d = new Date(this.today.getFullYear(), this.today.getMonth() - 1, 1);
+        const fallback = resolveMonth(d.getFullYear(), d.getMonth() + 1, this.today);
+        this.slots.set("month", {
+          key: "month",
+          status: "answered",
+          value: fallback,
+          fromText: "default: last month"
+        });
+        const nxt = this.currentSlot();
+        const note = `OK — I'll use ${fallback.label} for now; type “edit month” to change it.`;
+        if (nxt === null)
+          return this.buildTurn(`${note}
+${this.finishText()}`);
+        return this.buildTurn(`${note} ${this.questionFor(nxt, this.nextVariant(nxt))}`);
+      }
+      this.markUnknown(cur);
+      const nxt = this.currentSlot();
+      if (nxt === null)
+        return this.buildTurn(this.finishText());
+      const v = this.nextVariant(nxt);
+      return this.buildTurn(`OK — leaving ${spec.label} blank for now; you can update it later. ` + this.questionFor(nxt, v));
+    }
+    const acks = [];
+    let seed = this.turnCount;
+    for (const item of newly) {
+      if (item.startsWith("month:")) {
+        acks.push(pick(ACK_MONTH, seed++).replace("{v}", item.slice(6)));
+      } else {
+        const rec = this.slots.get(item);
+        const v = rec.value;
+        const template = v.isZero && item === "marketing" ? pick(ACK_ZERO, seed++) : pick(ACK_MONEY, seed++);
+        acks.push(template.replace("{k}", cap(item)).replace("{v}", formatMoney(v.amount, this.currency)));
+      }
+    }
+    const v = this.nextVariant(cur);
+    if (overrideText) {
+      return this.buildTurn(overrideText + " " + this.questionFor(cur, v));
+    }
+    const lead = [dupNudge, acks.join(" ")].filter(Boolean).join(" ");
+    return this.buildTurn(lead ? lead + " " + this.questionFor(cur, v) : this.questionFor(cur, v));
+  }
+}
+function cap(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const ASK_LOADING_TEXT = "Working through your numbers…";
+function buildAskResponse(query, data, compute) {
+  const q = (query || "").trim();
+  if (!q) {
+    return {
+      kind: "error",
+      headline: "Type a question first",
+      body: ["Ask something like “how did October go?” or “what's my marketing share?”."]
+    };
+  }
+  if (!data.hasAnyRecords) {
+    return {
+      kind: "no_data",
+      headline: `I can't answer that yet — no numbers are recorded for ${data.workspaceName}.`,
+      body: [
+        `You asked: “${q}”. To answer questions like this I need at least one month of numbers: which month, roughly what came in (revenue), and roughly what you spent on getting customers (marketing).`,
+        "Two quick ways to fix that — pick whichever feels easier:"
+      ],
+      ctas: [
+        { label: "Enter your first month in the Data Centre", href: "/data-centre", primary: true },
+        { label: "Chat with the intelligence — it asks, you answer", href: "/chat" }
+      ]
+    };
+  }
+  try {
+    const computed = compute?.(q, data);
+    if (computed) {
+      return { kind: "answer", ...computed };
+    }
+  } catch {
+    return {
+      kind: "error",
+      headline: "Something went wrong working out that answer",
+      body: ["Your numbers are safe — please try again."]
+    };
+  }
+  const months = (data.records ?? []).map((r) => `• ${r.label}: revenue ${r.revenue === null ? "—" : "₦" + r.revenue.toLocaleString("en-US")}, marketing ${r.marketing === null ? "—" : "₦" + r.marketing.toLocaleString("en-US")}`).join(`
+`);
+  return {
+    kind: "no_match",
+    headline: "I don't have a number that answers that directly.",
+    body: [
+      `Here is everything recorded for ${data.workspaceName} so far:`,
+      months || "(no month details stored)",
+      "Try asking about a recorded month — or record another month to widen what I can answer."
+    ],
+    suggestions: (data.records ?? []).slice(0, 3).map((r) => `How did ${r.label} go?`)
+  };
+}
+
+
+// ---------------------------------------------------------------------------
+// Demo wiring (vanilla JS)
+// ---------------------------------------------------------------------------
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- tabs ----
+  $("tab-chat").addEventListener("click", function () { switchTab(true); });
+  $("tab-ask").addEventListener("click", function () { switchTab(false); });
+  function switchTab(chat) {
+    $("panel-chat").classList.toggle("hidden", !chat);
+    $("panel-ask").classList.toggle("hidden", chat);
+    $("tab-chat").classList.toggle("active", chat);
+    $("tab-ask").classList.toggle("active", !chat);
+  }
+
+  // ---- chat panel ----
+  var engine, turn, busy = false, saved = false, msgCount = 0;
+
+  function newEngine() {
+    engine = new IntakeEngine({ businessName: "Node 71 limited" });
+    turn = engine.open();
+    busy = false; saved = false;
+    $("log").innerHTML = "";
+    $("saved-note").classList.add("hidden");
+    $("inputrow").classList.remove("hidden");
+    msgCount = 0;
+    pushMsg("bot", turn.assistantText);
+    renderTurn();
+  }
+
+  function pushMsg(role, text) {
+    var div = document.createElement("div");
+    div.className = "msg " + role;
+    div.setAttribute("data-testid", "msg-" + role);
+    div.textContent = text;
+    $("log").appendChild(div);
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+
+  function renderTurn() {
+    // progress
+    var p = turn.progress;
+    $("bar-fill").style.width = (p.answered / p.total * 100) + "%";
+    $("progress-label").textContent = turn.done
+      ? "Complete"
+      : "Step " + (p.answered + 1) + " of " + p.total + " · " + p.currentLabel;
+
+    // chips
+    var heard = $("heard"), chips = $("chips");
+    chips.innerHTML = "";
+    if (turn.chips.length === 0) { heard.style.display = "none"; }
+    else {
+      heard.style.display = "block";
+      turn.chips.forEach(function (c) {
+        var s = document.createElement("span");
+        s.className = "chip" + (c.muted ? " muted" : "");
+        s.setAttribute("data-testid", "chip");
+        s.textContent = c.label;
+        chips.appendChild(s);
+      });
+    }
+
+    // quick replies — regenerated EVERY turn (never stale)
+    var quick = $("quick");
+    quick.innerHTML = "";
+    turn.quickReplies.forEach(function (q) {
+      var b = document.createElement("button");
+      b.className = "btn";
+      b.setAttribute("data-testid", "quick-reply");
+      b.textContent = q;
+      b.disabled = busy || saved;
+      b.addEventListener("click", function () {
+        if (/^save it$/i.test(q)) doSave();
+        else send(q);
+      });
+      quick.appendChild(b);
+    });
+
+    // save button
+    $("save-btn").innerHTML = '<span class="ico">✓</span> ' + (turn.done ? "Save & finish" : "Save what we have");
+  }
+
+  function send(text) {
+    var t = (text || "").trim();
+    if (!t || busy || saved) return;
+    busy = true;
+    pushMsg("user", t);
+    $("chat-input").value = "";
+    renderTurn();
+    Promise.resolve(engine.handleUserMessage(t)).then(function (next) {
+      turn = next;
+      busy = false;
+      pushMsg("bot", turn.assistantText);
+      if (turn.saveRequested && turn.result) markSaved();
+      renderTurn();
+    });
+  }
+
+  function doSave() {
+    if (!turn || !turn.result) return;
+    markSaved();
+  }
+  function markSaved() {
+    saved = true;
+    $("saved-note").classList.remove("hidden");
+    $("inputrow").classList.add("hidden");
+    $("quick").innerHTML = "";
+  }
+
+  $("chat-send").addEventListener("click", function () { send($("chat-input").value); });
+  $("chat-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); send($("chat-input").value); }
+  });
+  $("save-btn").addEventListener("click", function () {
+    if (saved || busy) return;
+    if (turn.done) doSave();
+    else send("that's everything");
+  });
+  $("reset").addEventListener("click", newEngine);
+
+  // replay: the exact broken sequence
+  var replaying = false;
+  $("replay").addEventListener("click", function () {
+    if (replaying || busy || saved) return;
+    replaying = true;
+    newEngine();
+    var script = ["Last month", "Last month", "200,000 naira", "we didnt do any marketing"];
+    var i = 0;
+    (function step() {
+      if (i >= script.length) { replaying = false; return; }
+      send(script[i++]);
+      setTimeout(step, 700);
+    })();
+  });
+
+  // ---- ask page ----
+  var hasData = false;
+  function demoCompute(q, data) {
+    var t = q.toLowerCase();
+    var r = data.records[0];
+    if (/revenue|made|sales|money|business|right now|how.*(going|doing)|position|standing/.test(t)) {
+      var share = (r.marketing !== null && r.revenue > 0)
+        ? Math.round(r.marketing / r.revenue * 100) + "% of revenue"
+        : "n/a — no marketing spend recorded";
+      return {
+        headline: "October 2026 — the month on record",
+        body: [
+          "• Revenue: ₦" + r.revenue.toLocaleString("en-US"),
+          "• Marketing: ₦" + (r.marketing === null ? "—" : r.marketing.toLocaleString("en-US")) + " (" + share + ")",
+          "With one month recorded, trends can't be computed yet — record a second month to unlock comparisons.",
+        ],
+        sources: ["Data Centre · October 2026"],
+        caveats: ["Figures are user-reported monthly totals; a ballpark is expected at this stage."],
+      };
+    }
+    return null;
+  }
+  function askData() {
+    return hasData
+      ? { workspaceName: "Node 71 limited", hasAnyRecords: true,
+          records: [{ label: "October 2026", revenue: 200000, marketing: 0 }] }
+      : { workspaceName: "Node 71 limited", hasAnyRecords: false };
+  }
+
+  function doAsk() {
+    var q = $("ask-input").value.trim();
+    var box = $("ask-resp");
+    box.innerHTML = '<div class="card answer" style="color:var(--slate-500)">Working through your numbers…</div>';
+    var resp = buildAskResponse(q, askData(), hasData ? demoCompute : undefined);
+    setTimeout(function () { box.innerHTML = renderAsk(resp); }, 350);
+  }
+
+  function renderAsk(resp) {
+    if (resp.kind === "no_data") {
+      var ctas = resp.ctas.map(function (c) {
+        return '<a href="#" onclick="return false" class="btn ' + (c.primary ? "go" : "") + '" style="text-decoration:none">' + c.label + "</a>";
+      }).join("");
+      return '<div class="card nodata" data-testid="ask-card" data-kind="no_data"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        '</div><div class="cta-row">' + ctas + "</div></div>";
+    }
+    if (resp.kind === "answer") {
+      return '<div class="card answer" data-testid="ask-card" data-kind="answer"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        (resp.caveats || []).map(function (c) { return "<p style='margin:6px 0 0;font-size:12px;color:var(--slate-500)'>" + c + "</p>"; }).join("") +
+        '</div><div class="src">Source: ' + resp.sources.join(" · ") + "</div></div>";
+    }
+    if (resp.kind === "no_match") {
+      return '<div class="card nomatch" data-testid="ask-card" data-kind="no_match"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px;white-space:pre-line">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        '</div><div class="cta-row" style="margin-top:8px">' + resp.suggestions.map(function (s) { return '<span class="pill">' + s + "</span>"; }).join("") + "</div></div>";
+    }
+    return '<div class="card error" data-testid="ask-card" data-kind="error" role="alert"><div class="headline">' + resp.headline +
+      '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") + "</div></div>";
+  }
+
+  $("ask-btn").addEventListener("click", doAsk);
+  $("ask-input").addEventListener("keydown", function (e) { if (e.key === "Enter") doAsk(); });
+  $("data-none").addEventListener("click", function () {
+    hasData = false; syncToggle();
+    $("ask-state-label").textContent = "none recorded yet";
+  });
+  $("data-has").addEventListener("click", function () {
+    hasData = true; syncToggle();
+    $("ask-state-label").textContent = "October 2026 recorded";
+  });
+  function syncToggle() {
+    $("data-none").classList.toggle("on", !hasData);
+    $("data-has").classList.toggle("on", hasData);
+  }
+
+  newEngine();
+})();
+</script>
+</body>
+</html>

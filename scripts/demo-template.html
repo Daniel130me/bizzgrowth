@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node 71 — fixed chat intake &amp; ask page (reference demo)</title>
+<style>
+  :root {
+    --blue-600:#2563eb; --blue-700:#1d4ed8; --blue-900:#1e3a8a; --blue-50:#eff6ff;
+    --blue-200:#bfdbfe; --slate-50:#f8fafc; --slate-200:#e2e8f0; --slate-400:#94a3b8;
+    --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155;
+    --amber-50:#fffbeb; --amber-200:#fde68a; --amber-300:#fcd34d; --amber-800:#92400e; --amber-900:#78350f;
+    --orange-600:#ea580c; --orange-700:#c2410c; --green-700:#15803d;
+    --red-50:#fef2f2; --red-200:#fecaca; --red-800:#991b1b;
+    --border:#e2e8f0; --radius:10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; padding: clamp(12px, 3vw, 32px);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background:#f1f5f9; color: var(--slate-700); font-size: clamp(14px, 1.6vw, 15px);
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: clamp(1.15rem, 4.5vw, 1.5rem); margin: 0 0 4px; color:#0f172a; }
+  .sub { color: var(--slate-500); font-size: clamp(12.5px, 1.5vw, 14px); margin: 0 0 14px; }
+  .tabs { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .tab {
+    border:1px solid var(--border); background:#fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; font-weight:600; color: var(--slate-600); cursor:pointer;
+  }
+  .tab.active { background: var(--blue-600); border-color: var(--blue-600); color:#fff; }
+  .panel { background:#fff; border:1px solid var(--border); border-radius:14px; padding: clamp(12px, 2.5vw, 20px); }
+  .hidden { display:none !important; }
+
+  /* chat */
+  .log { max-height: 320px; overflow-y:auto; border:1px solid var(--border); background:rgba(248,250,252,.6);
+         border-radius: var(--radius); padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:85%; padding:8px 12px; border-radius: var(--radius); font-size: clamp(13px, 1.5vw, 14px);
+         line-height:1.45; white-space:pre-line; border:1px solid var(--border); background:#fff; }
+  .msg.user { margin-left:auto; background: var(--blue-600); color:#fff; border-color: var(--blue-600); }
+  .thinking { font-size:12px; color: var(--slate-500); display:flex; align-items:center; gap:6px; }
+  .spin { width:12px; height:12px; border:2px solid var(--slate-200); border-top-color: var(--blue-600);
+          border-radius:50%; animation: r 0.8s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+
+  .progress-row { display:flex; align-items:center; gap:10px; font-size:12px; color: var(--slate-500); }
+  .bar { flex:1; height:6px; background: var(--slate-200); border-radius:99px; overflow:hidden; }
+  .bar > div { height:100%; background: var(--blue-600); border-radius:99px; transition: width .3s; }
+
+  .heard { border:1px solid var(--blue-200); background:rgba(239,246,255,.6); border-radius: var(--radius); padding:12px; }
+  .heard .cap { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color: var(--blue-700); margin:0 0 6px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { background:#fff; border-radius:99px; padding:4px 10px; font-size:12px; font-weight:500; color: var(--blue-900);
+          font-variant-numeric: tabular-nums; }
+  .chip.muted { color: var(--slate-500); font-style: italic; }
+
+  .quick { display:flex; flex-wrap:wrap; gap:6px; }
+  .btn { display:inline-flex; align-items:center; gap:6px; justify-content:center; white-space:nowrap;
+         border-radius:8px; padding:8px 14px; font-size:13px; font-weight:500; cursor:pointer;
+         border:1px solid var(--border); background:#fff; color: var(--slate-700); transition: background .15s; }
+  .btn:hover { background: var(--slate-50); }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .btn.primary { background: var(--blue-600); border-color: var(--blue-600); color:#fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--blue-700); }
+  .btn.go { background: var(--orange-600); border-color: var(--orange-600); color:#fff; font-weight:600; }
+  .btn.go:hover:not(:disabled) { background: var(--orange-700); }
+  .btn .ico { font-size:14px; line-height:1; }
+
+  .inputrow { display:flex; gap:8px; }
+  .inputrow input { flex:1; min-width:0; height:38px; border:1px solid var(--border); border-radius:8px;
+                    padding:0 12px; font-size:14px; color: var(--slate-700); background:#fff; }
+  .inputrow input:focus { outline:none; border-color: var(--blue-600); box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .saved { color: var(--green-700); font-size:14px; display:flex; align-items:center; gap:6px; }
+  .demo-note { background:rgba(239,246,255,.6); border:1px solid var(--blue-200); border-radius: var(--radius);
+               padding:10px 12px; font-size:12.5px; color: var(--blue-900); margin-bottom:12px; line-height:1.5; }
+
+  /* ask page */
+  .ask-banner { border:1px solid var(--amber-300); background: var(--amber-50); border-radius: var(--radius);
+                padding:14px 16px; color: var(--amber-900); margin-bottom:14px; font-size:13.5px; line-height:1.5; }
+  .ask-banner b { font-size:13.5px; }
+  .cta-row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .resp { margin-top:12px; }
+  .card { border-radius: var(--radius); padding:14px 16px; font-size:13.5px; line-height:1.55; }
+  .card.nodata { border:1px solid var(--amber-300); background: var(--amber-50); color: var(--amber-900); }
+  .card.answer { border:1px solid var(--border); background:#fff; color: var(--slate-700); }
+  .card.nomatch { border:1px solid var(--border); background:#fff; color: var(--slate-700); }
+  .card.error { border:1px solid var(--red-200); background: var(--red-50); color: var(--red-800); }
+  .card .headline { font-weight:700; font-size:14px; }
+  .card .src { margin-top:10px; font-size:11.5px; color: var(--slate-400); }
+  .pill { background: var(--slate-50); border:1px solid var(--border); border-radius:99px; padding:4px 10px;
+          font-size:12px; color: var(--slate-600); }
+  .toggle { display:flex; align-items:center; gap:8px; font-size:12.5px; color: var(--slate-500); margin-bottom:10px; flex-wrap:wrap; }
+  .toggle .btn.on { border-color: var(--blue-600); color: var(--blue-700); font-weight:600; }
+  code { background: var(--slate-50); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-size:12px; }
+  @media (max-width: 640px) {
+    .msg { max-width: 92%; }
+    .btn { padding: 8px 12px; }
+    .inputrow { flex-wrap: wrap; }
+    .inputrow .btn { flex:1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Fixed chat intake &amp; ask page</h1>
+  <p class="sub">Reference demo — the exact engine from <code>chat-engine.ts</code> and <code>ask-answer.ts</code>, transpiled into this page. Node 71 limited.</p>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-chat" data-testid="tab-chat">Chat with the intelligence</button>
+    <button class="tab" id="tab-ask" data-testid="tab-ask">Ask page</button>
+  </div>
+
+  <!-- ================= CHAT TAB ================= -->
+  <div class="panel" id="panel-chat">
+    <div class="demo-note">
+      Try the exact sequence that broke before: tap <b>Last month</b>, then send <b>“Last month”</b> again
+      (stale tap), then <b>“200,000 naira”</b>, then <b>“we didnt do any marketing”</b> —
+      or press <b>Replay the broken scenario</b> and watch it handled.
+    </div>
+    <div style="margin-bottom:12px"><button class="btn" id="replay" data-testid="replay">▶ Replay the broken scenario</button>
+    <button class="btn" id="reset" data-testid="reset">↺ Reset</button></div>
+
+    <div class="log" id="log" data-testid="log" aria-live="polite"></div>
+
+    <div class="progress-row" id="progress-row" style="margin-top:10px">
+      <div class="bar"><div id="bar-fill" style="width:0%"></div></div>
+      <span id="progress-label" data-testid="progress-label"></span>
+    </div>
+
+    <div class="heard" id="heard" style="margin-top:10px; display:none">
+      <p class="cap">What I&apos;ve heard so far</p>
+      <div class="chips" id="chips" data-testid="chips"></div>
+    </div>
+
+    <div class="quick" id="quick" style="margin-top:10px" data-testid="quick"></div>
+
+    <div class="inputrow" id="inputrow" style="margin-top:10px">
+      <input id="chat-input" data-testid="chat-input" aria-label="Chat answer"
+             placeholder="Type your answer — e.g. “we made about 700k, spent 200k on ads”">
+      <button class="btn primary" id="chat-send" data-testid="chat-send"><span class="ico">➤</span> Send</button>
+      <button class="btn" id="save-btn" data-testid="save-btn"><span class="ico">✓</span> Save what we have</button>
+    </div>
+    <div class="saved hidden" id="saved-note" style="margin-top:10px">✓ Saved — this month is in the Data Centre. (Demo: nothing was actually posted.)</div>
+  </div>
+
+  <!-- ================= ASK TAB ================= -->
+  <div class="panel hidden" id="panel-ask">
+    <div class="ask-banner">
+      <b>Ask answers from your recorded numbers — <span id="ask-state-label">none recorded yet</span></b><br>
+      Every answer comes from the monthly totals recorded for this workspace.
+    </div>
+    <div class="toggle">
+      Simulate workspace data:
+      <button class="btn on" id="data-none">No data recorded</button>
+      <button class="btn" id="data-has">October 2026 recorded</button>
+    </div>
+    <div class="inputrow">
+      <input id="ask-input" data-testid="ask-input" aria-label="Question"
+             placeholder="e.g. where are we in the business right now?">
+      <button class="btn primary" id="ask-btn" data-testid="ask-btn">➤ Ask</button>
+    </div>
+    <div class="resp" id="ask-resp" data-testid="ask-resp">
+      <div class="card answer" style="color:var(--slate-500)">
+        Ask a question and press <b>Ask</b> — the fixed page always answers. Before the fix, this exact page
+        returned <i>nothing at all</i> when no numbers were recorded.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*__ENGINE_JS__*/
+/*__ASK_JS__*/
+
+// ---------------------------------------------------------------------------
+// Demo wiring (vanilla JS)
+// ---------------------------------------------------------------------------
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- tabs ----
+  $("tab-chat").addEventListener("click", function () { switchTab(true); });
+  $("tab-ask").addEventListener("click", function () { switchTab(false); });
+  function switchTab(chat) {
+    $("panel-chat").classList.toggle("hidden", !chat);
+    $("panel-ask").classList.toggle("hidden", chat);
+    $("tab-chat").classList.toggle("active", chat);
+    $("tab-ask").classList.toggle("active", !chat);
+  }
+
+  // ---- chat panel ----
+  var engine, turn, busy = false, saved = false, msgCount = 0;
+
+  function newEngine() {
+    engine = new IntakeEngine({ businessName: "Node 71 limited" });
+    turn = engine.open();
+    busy = false; saved = false;
+    $("log").innerHTML = "";
+    $("saved-note").classList.add("hidden");
+    $("inputrow").classList.remove("hidden");
+    msgCount = 0;
+    pushMsg("bot", turn.assistantText);
+    renderTurn();
+  }
+
+  function pushMsg(role, text) {
+    var div = document.createElement("div");
+    div.className = "msg " + role;
+    div.setAttribute("data-testid", "msg-" + role);
+    div.textContent = text;
+    $("log").appendChild(div);
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+
+  function renderTurn() {
+    // progress
+    var p = turn.progress;
+    $("bar-fill").style.width = (p.answered / p.total * 100) + "%";
+    $("progress-label").textContent = turn.done
+      ? "Complete"
+      : "Step " + (p.answered + 1) + " of " + p.total + " · " + p.currentLabel;
+
+    // chips
+    var heard = $("heard"), chips = $("chips");
+    chips.innerHTML = "";
+    if (turn.chips.length === 0) { heard.style.display = "none"; }
+    else {
+      heard.style.display = "block";
+      turn.chips.forEach(function (c) {
+        var s = document.createElement("span");
+        s.className = "chip" + (c.muted ? " muted" : "");
+        s.setAttribute("data-testid", "chip");
+        s.textContent = c.label;
+        chips.appendChild(s);
+      });
+    }
+
+    // quick replies — regenerated EVERY turn (never stale)
+    var quick = $("quick");
+    quick.innerHTML = "";
+    turn.quickReplies.forEach(function (q) {
+      var b = document.createElement("button");
+      b.className = "btn";
+      b.setAttribute("data-testid", "quick-reply");
+      b.textContent = q;
+      b.disabled = busy || saved;
+      b.addEventListener("click", function () {
+        if (/^save it$/i.test(q)) doSave();
+        else send(q);
+      });
+      quick.appendChild(b);
+    });
+
+    // save button
+    $("save-btn").innerHTML = '<span class="ico">✓</span> ' + (turn.done ? "Save & finish" : "Save what we have");
+  }
+
+  function send(text) {
+    var t = (text || "").trim();
+    if (!t || busy || saved) return;
+    busy = true;
+    pushMsg("user", t);
+    $("chat-input").value = "";
+    renderTurn();
+    Promise.resolve(engine.handleUserMessage(t)).then(function (next) {
+      turn = next;
+      busy = false;
+      pushMsg("bot", turn.assistantText);
+      if (turn.saveRequested && turn.result) markSaved();
+      renderTurn();
+    });
+  }
+
+  function doSave() {
+    if (!turn || !turn.result) return;
+    markSaved();
+  }
+  function markSaved() {
+    saved = true;
+    $("saved-note").classList.remove("hidden");
+    $("inputrow").classList.add("hidden");
+    $("quick").innerHTML = "";
+  }
+
+  $("chat-send").addEventListener("click", function () { send($("chat-input").value); });
+  $("chat-input").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); send($("chat-input").value); }
+  });
+  $("save-btn").addEventListener("click", function () {
+    if (saved || busy) return;
+    if (turn.done) doSave();
+    else send("that's everything");
+  });
+  $("reset").addEventListener("click", newEngine);
+
+  // replay: the exact broken sequence
+  var replaying = false;
+  $("replay").addEventListener("click", function () {
+    if (replaying || busy || saved) return;
+    replaying = true;
+    newEngine();
+    var script = ["Last month", "Last month", "200,000 naira", "we didnt do any marketing"];
+    var i = 0;
+    (function step() {
+      if (i >= script.length) { replaying = false; return; }
+      send(script[i++]);
+      setTimeout(step, 700);
+    })();
+  });
+
+  // ---- ask page ----
+  var hasData = false;
+  function demoCompute(q, data) {
+    var t = q.toLowerCase();
+    var r = data.records[0];
+    if (/revenue|made|sales|money|business|right now|how.*(going|doing)|position|standing/.test(t)) {
+      var share = (r.marketing !== null && r.revenue > 0)
+        ? Math.round(r.marketing / r.revenue * 100) + "% of revenue"
+        : "n/a — no marketing spend recorded";
+      return {
+        headline: "October 2026 — the month on record",
+        body: [
+          "• Revenue: ₦" + r.revenue.toLocaleString("en-US"),
+          "• Marketing: ₦" + (r.marketing === null ? "—" : r.marketing.toLocaleString("en-US")) + " (" + share + ")",
+          "With one month recorded, trends can't be computed yet — record a second month to unlock comparisons.",
+        ],
+        sources: ["Data Centre · October 2026"],
+        caveats: ["Figures are user-reported monthly totals; a ballpark is expected at this stage."],
+      };
+    }
+    return null;
+  }
+  function askData() {
+    return hasData
+      ? { workspaceName: "Node 71 limited", hasAnyRecords: true,
+          records: [{ label: "October 2026", revenue: 200000, marketing: 0 }] }
+      : { workspaceName: "Node 71 limited", hasAnyRecords: false };
+  }
+
+  function doAsk() {
+    var q = $("ask-input").value.trim();
+    var box = $("ask-resp");
+    box.innerHTML = '<div class="card answer" style="color:var(--slate-500)">Working through your numbers…</div>';
+    var resp = buildAskResponse(q, askData(), hasData ? demoCompute : undefined);
+    setTimeout(function () { box.innerHTML = renderAsk(resp); }, 350);
+  }
+
+  function renderAsk(resp) {
+    if (resp.kind === "no_data") {
+      var ctas = resp.ctas.map(function (c) {
+        return '<a href="#" onclick="return false" class="btn ' + (c.primary ? "go" : "") + '" style="text-decoration:none">' + c.label + "</a>";
+      }).join("");
+      return '<div class="card nodata" data-testid="ask-card" data-kind="no_data"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        '</div><div class="cta-row">' + ctas + "</div></div>";
+    }
+    if (resp.kind === "answer") {
+      return '<div class="card answer" data-testid="ask-card" data-kind="answer"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        (resp.caveats || []).map(function (c) { return "<p style='margin:6px 0 0;font-size:12px;color:var(--slate-500)'>" + c + "</p>"; }).join("") +
+        '</div><div class="src">Source: ' + resp.sources.join(" · ") + "</div></div>";
+    }
+    if (resp.kind === "no_match") {
+      return '<div class="card nomatch" data-testid="ask-card" data-kind="no_match"><div class="headline">' + resp.headline +
+        '</div><div style="margin-top:8px;white-space:pre-line">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") +
+        '</div><div class="cta-row" style="margin-top:8px">' + resp.suggestions.map(function (s) { return '<span class="pill">' + s + "</span>"; }).join("") + "</div></div>";
+    }
+    return '<div class="card error" data-testid="ask-card" data-kind="error" role="alert"><div class="headline">' + resp.headline +
+      '</div><div style="margin-top:8px">' + resp.body.map(function (b) { return "<p style='margin:4px 0'>" + b + "</p>"; }).join("") + "</div></div>";
+  }
+
+  $("ask-btn").addEventListener("click", doAsk);
+  $("ask-input").addEventListener("keydown", function (e) { if (e.key === "Enter") doAsk(); });
+  $("data-none").addEventListener("click", function () {
+    hasData = false; syncToggle();
+    $("ask-state-label").textContent = "none recorded yet";
+  });
+  $("data-has").addEventListener("click", function () {
+    hasData = true; syncToggle();
+    $("ask-state-label").textContent = "October 2026 recorded";
+  });
+  function syncToggle() {
+    $("data-none").classList.toggle("on", !hasData);
+    $("data-has").classList.toggle("on", hasData);
+  }
+
+  newEngine();
+})();
+</script>
+</body>
+</html>
