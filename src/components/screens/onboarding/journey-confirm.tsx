@@ -168,25 +168,29 @@ export default function JourneyConfirm(_props: ScreenProps) {
           </p>
         ) : null}
 
-        <ol className="mt-4 space-y-0">
-          {steps.map((s, i) => (
-            <li key={s.id}>
-              <div
+        <ol className="mt-2" aria-label="Customer journey timeline">
+          {steps.map((s, i) => {
+            const last = i === steps.length - 1;
+            return (
+            <li key={s.id} className="relative flex gap-4 pb-6 last:pb-0">
+              {/* Rail: line runs from this marker down to the next one */}
+              {!last ? (
+                <span className="absolute left-[13px] top-8 bottom-0 w-0.5 bg-gradient-to-b from-violet-300 to-violet-200" aria-hidden />
+              ) : null}
+              <span
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border p-3.5",
-                  i === steps.length - 1 ? "border-violet-200 bg-violet-50/60" : "bg-white",
+                  "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tnum ring-4 ring-white",
+                  last ? "bg-violet-600 text-white" : "border-2 border-violet-300 bg-white text-violet-700",
                 )}
               >
-                <span
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tnum",
-                    i === steps.length - 1 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600",
-                  )}
-                >
-                  {i + 1}
-                </span>
+                {last ? <Check className="size-3.5" aria-hidden /> : i + 1}
+              </span>
+              <div className="flex min-w-0 flex-1 items-start gap-3 pt-0.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug">{s.label}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-500">
+                    {i === 0 ? "Start" : last ? "Goal" : `Step ${i + 1}`}
+                  </p>
+                  <p className={cn("text-sm leading-snug", last ? "font-semibold text-violet-800" : "font-medium")}>{s.label}</p>
                   {s.note ? <p className="mt-0.5 text-xs text-muted-foreground">{s.note}</p> : null}
                 </div>
                 {editing ? (
@@ -203,13 +207,9 @@ export default function JourneyConfirm(_props: ScreenProps) {
                   </div>
                 ) : null}
               </div>
-              {i < steps.length - 1 ? (
-                <div className="flex justify-center py-1" aria-hidden>
-                  <span className="h-4 w-px bg-slate-300" />
-                </div>
-              ) : null}
             </li>
-          ))}
+            );
+          })}
         </ol>
 
         {editing ? (

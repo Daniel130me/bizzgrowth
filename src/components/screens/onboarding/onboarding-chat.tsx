@@ -284,7 +284,7 @@ export default function OnboardingChat(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+      <div className="overflow-clip rounded-2xl border border-violet-200 bg-white shadow-sm">
         {/* Product context header — this is a product surface, not a chat clone */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 bg-violet-50/70 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
@@ -302,10 +302,28 @@ export default function OnboardingChat(_props: ScreenProps) {
           </p>
         </div>
 
-        <div className="grid gap-0 lg:grid-cols-[1fr_17rem]">
+        {/* Compact progress strip — small screens only, where the side panel is hidden */}
+        <div className="flex items-center gap-3 border-b border-violet-100 px-4 py-2 md:hidden">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-violet-100">
+            <div
+              className="h-full rounded-full bg-violet-600 transition-all"
+              style={{ width: `${Math.round((LEARN.filter((l) => l.status === "done").length / LEARN.length) * 100)}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-medium text-violet-700">
+            {LEARN.filter((l) => l.status === "done").length}/{LEARN.length} understood
+          </span>
+        </div>
+
+        <div className="grid gap-0 md:grid-cols-[1fr_15rem] lg:grid-cols-[1fr_17rem]">
           {/* Chat thread */}
-          <div className="flex flex-col">
-            <div ref={scrollRef} className="h-[400px] space-y-4 overflow-y-auto p-4 sm:p-5 lg:h-[460px]" aria-live="polite" aria-label="Checkup conversation">
+          <div className="flex min-w-0 flex-col">
+            <div
+              ref={scrollRef}
+              className="h-[clamp(220px,calc(100dvh_-_24rem),460px)] space-y-4 overflow-y-auto p-4 sm:p-5"
+              aria-live="polite"
+              aria-label="Checkup conversation"
+            >
               {messages.map((m) =>
                 m.role === "ai" ? (
                   <div key={m.id} className="flex items-start gap-2.5">
@@ -361,20 +379,23 @@ export default function OnboardingChat(_props: ScreenProps) {
               ) : null}
             </div>
 
-            {/* Quick chips + composer */}
-            <div className="border-t bg-slate-50/70 p-3 sm:p-4">
+            {/* Quick answers + composer — sticky so it is always in view */}
+            <div className="sticky bottom-0 z-10 border-t border-violet-100 bg-white/95 p-3 shadow-[0_-6px_16px_-10px_rgba(76,29,149,0.25)] backdrop-blur sm:p-4">
               {chips.length > 0 && !typing && phase !== "done" ? (
-                <div className="mb-2.5 flex flex-wrap gap-1.5" aria-label="Suggested answers">
-                  {chips.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => send(c)}
-                      className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
-                    >
-                      {c.length > 46 ? c.slice(0, 46) + "…" : c}
-                    </button>
-                  ))}
+                <div className="mb-3">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-violet-600">Tap an answer — or type your own</p>
+                  <div className="flex flex-wrap gap-2" aria-label="Suggested answers">
+                    {chips.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => send(c)}
+                        className="rounded-full border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm font-medium text-violet-800 transition-colors hover:border-violet-400 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                      >
+                        {c.length > 46 ? c.slice(0, 46) + "…" : c}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : null}
               <form
@@ -391,9 +412,9 @@ export default function OnboardingChat(_props: ScreenProps) {
                   placeholder={phase === "done" ? "Conversation complete — continue below" : "Type your answer in plain language…"}
                   disabled={typing || phase === "done"}
                   aria-label="Your answer"
-                  className="bg-white"
+                  className="h-11 border-violet-200 bg-white text-base focus-visible:ring-violet-400"
                 />
-                <Button type="submit" size="icon" disabled={typing || phase === "done" || !input.trim()} aria-label="Send answer">
+                <Button type="submit" size="icon" className="size-11 shrink-0 bg-violet-600 hover:bg-violet-700" disabled={typing || phase === "done" || !input.trim()} aria-label="Send answer">
                   <SendHorizontal className="size-4" aria-hidden />
                 </Button>
               </form>
@@ -404,7 +425,7 @@ export default function OnboardingChat(_props: ScreenProps) {
           </div>
 
           {/* Side panel — what the engine is learning */}
-          <aside className="border-t border-violet-100 bg-violet-50/40 p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="What I'm learning">
+          <aside className="hidden border-l border-violet-100 bg-violet-50/40 p-4 sm:p-5 md:block" aria-label="What I'm learning">
             <h2 className="text-sm font-semibold">What I&apos;m learning</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Built from this conversation. Nothing is shared.</p>
             <ul className="mt-4 max-h-64 space-y-3 overflow-y-auto pr-1">

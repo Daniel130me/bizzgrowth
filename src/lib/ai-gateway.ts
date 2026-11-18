@@ -29,10 +29,12 @@ interface ProviderDef {
 const PROVIDER_DEFS: ProviderDef[] = [
   {
     id: "z.ai",
-    label: "z.ai (platform)",
-    kind: "platform",
-    defaultModel: "GLM (platform default)",
-    defaultKeysNote: "Uses the platform's own credentials — no key required.",
+    label: "z.ai",
+    kind: "openai-compatible",
+    baseUrl: "https://api.z.ai/api/paas/v4/chat/completions",
+    envKeys: "ZAI_API_KEY",
+    envModel: "ZAI_MODEL",
+    defaultModel: "glm-4.7-flash",
   },
   {
     id: "openai",
@@ -222,6 +224,11 @@ async function callOpenAiCompatible(
         model: route.model,
         stream: false,
         max_tokens: maxTokens,
+        // Reasoning models (gpt-oss) spend max_tokens on hidden reasoning and
+        // return empty content on short budgets — keep reasoning minimal.
+        ...(/gpt-oss/i.test(route.model) ? { reasoning_effort: "low" } : {}),
+        // GLM models think by default; disable it for fast, non-empty replies.
+        ...(route.provider.id === "z.ai" ? { thinking: { type: "disabled" } } : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
@@ -262,6 +269,19 @@ async function callZai(system: string, user: string, timeoutMs: number): Promise
     setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs),
   );
   return Promise.race([attempt(), timeout]);
+}
+
+/** Connection-level blips (DNS, reset, socket closed) — worth one quick retry. */
+function isNetworkError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : "";
+  const code = String((error as { cause?: { code?: string } })?.cause?.code ?? "").toLowerCase();
+  return msg.includes("fetch failed") || /econnreset|enotfound|eai_again|etimedout|und_err_socket|und_err_connect/.test(code);
+}
+
+/** The z.ai platform SDK only works where its config file exists (hosted env). */
+function isMissingPlatformConfig(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : "";
+  return msg.includes("configuration file not found");
 }
 
 function isAuthError(error: unknown): boolean {
@@ -316,7 +336,8 @@ export async function gatewayChatComplete(
 
     // Auth-like failures get one quick retry (platform token rotation window);
     // everything else moves straight to the next route.
-    const tries = route.provider.kind === "platform" ? 2 : 1;
+    // HTTP providers get one retry for connection blips (flaky networks).
+    const tries = 2;
     for (let t = 0; t < tries; t++) {
       const started = Date.now();
       try {
@@ -347,6 +368,19 @@ export async function gatewayChatComplete(
         h.lastError = message.slice(0, 200);
         if (h.consecutiveFailures >= FAILURES_TO_OPEN) {
           h.openUntil = Date.now() + COOLDOWN_MS;
+        }
+        // No platform config on this machine — it will never work here, so
+        // park the route for a long time instead of paying for it every turn.
+        if (isMissingPlatformConfig(error)) {
+          h.openUntil = Date.now() + 60 * 60 * 1000;
+          break;
+        }
+        if (t < tries - 1 && route.provider.kind !== "platform") {
+          if (isNetworkError(error)) {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            continue;
+          }
+          break;
         }
         if (t < tries - 1 && isAuthError(error)) {
           await new Promise((resolve) => setTimeout(resolve, 500));

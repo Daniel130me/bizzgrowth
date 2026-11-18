@@ -30,12 +30,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# Local env files; track only the safe example template.
 .env*
+!.env.example
 
 # vercel
 .vercel
-
+graphify-out
+CLAUDE.md
 
 # typescript
 *.tsbuildinfo

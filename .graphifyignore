@@ -1,0 +1,18 @@
+# graphify: index only app source (src/, scripts/). Generated/scratch folders excluded.
+node_modules/
+.next/
+tool-results/
+download/
+upload/
+public/
+db/
+agent-ctx/
+.zscripts/
+tests/
+examples/
+mini-services/
+prisma/migrations/
+graphify-out/
+.env*
+bun.lock
+*.log

@@ -33,6 +33,34 @@ const TEXT_SLOT_KEYS: SlotKey[] = ["businessType", "sells", "targetMarket", "loc
  * a degraded conversation never repeats one verbatim line (the "scripted robot"
  * failure mode).
  */
+/** Ready-made ANSWERS the owner can tap for each slot (never questions). */
+const ANSWER_CHIPS: Record<SlotKey, string[]> = {
+  businessType: ["Service business", "Online store", "Agency / freelance", "Not sure"],
+  sells: ["Services", "Physical products", "Digital products", "Not sure"],
+  targetMarket: ["Small businesses", "Consumers / individuals", "Larger companies", "Not sure"],
+  location: ["Local area only", "Nationwide", "International", "Skip this"],
+  goal: ["More enquiries", "Convert more enquiries", "Higher prices / bigger jobs", "Not sure"],
+  channels: ["Referrals / word of mouth", "Instagram", "Google search", "Not sure"],
+  enquiries: ["Increased", "Decreased", "About the same", "Don't know"],
+  customers: ["Increased", "Decreased", "About the same", "Don't know"],
+  revenue: ["Increased", "Decreased", "About the same", "Don't know"],
+  changes: ["Nothing major", "New pricing", "New marketing channel", "Skip this"],
+};
+
+/** Keep only chips that read as answers: drop anything phrased as a question. */
+function answerChips(raw: unknown, slot: SlotKey | "none"): string[] {
+  const QUESTION_START = /^(who|what|which|where|when|why|how|do|does|did|is|are|can|could|would|should|tell me|describe|explain)\b/i;
+  const list = Array.isArray(raw)
+    ? raw
+        .filter((c): c is string => typeof c === "string")
+        .map((c) => c.trim().slice(0, 40))
+        .filter((c) => c && !c.includes("?") && !QUESTION_START.test(c))
+        .slice(0, 4)
+    : [];
+  if (list.length >= 2) return list;
+  return slot === "none" ? [] : ANSWER_CHIPS[slot];
+}
+
 const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
   businessType: [
     "Is this mainly a service business, or do you sell products?",
@@ -123,7 +151,7 @@ OUTPUT — return ONLY valid JSON, no markdown:
   },
   "learnedChips": ["up to 3 chips <= 46 chars describing what changed in the model THIS turn; prefix 'Updated:' when a correction changed something"],
   "nextSlot": "the ONE missing slot your question goes after, or \\"none\\" when wrapping up",
-  "chips": ["up to 4 short suggested replies <= 40 chars for your NEXT question — always include a comfortable option like 'Not sure' or 'Skip this' when sensible; empty when wrapping"]
+  "chips": ["up to 4 tap-to-send ANSWERS <= 40 chars the OWNER could give to your NEXT question, written in the owner's voice — e.g. for 'Who are your main clients?' → 'Small businesses', 'Startups', 'Local restaurants', 'Not sure'. NEVER a question, never ending in '?', never 'Tell me…'/'Who…'/'Which…'. Include a comfortable option like 'Not sure' or 'Skip this' when sensible; empty when wrapping"]
 }
 RULES
 - slotUpdates: include ONLY slots learned or corrected THIS turn. For trend slots use exactly the enum values; "Don't know" when the owner could not or would not say.
@@ -345,7 +373,8 @@ function fallbackTurn(body: {
     const pendingCandidates = TEXT_SLOT_KEYS.filter((k) => !isResolved(merged, k));
     const pending =
       pendingCandidates.find((k) => (askCounts[k] ?? 0) > 0) ??
-      (pendingCandidates.includes("sells") && !transcript.some((tr) => tr.role === "user") ? "sells" : undefined);
+      // transcript already contains the message being answered, so "first reply" = exactly one owner line.
+      (pendingCandidates.includes("sells") && transcript.filter((tr) => tr.role === "user").length <= 1 ? "sells" : undefined);
     if (pending === "businessType") textUpdates.businessType = snippet(lastUser);
     else if (pending === "sells") textUpdates.sells = snippet(lastUser);
     else if (pending === "targetMarket") textUpdates.targetMarket = snippet(lastUser);
@@ -405,7 +434,7 @@ function fallbackTurn(body: {
     phase: "interview",
     slots: merged,
     askCounts: nextAskCounts,
-    chips: [],
+    chips: ANSWER_CHIPS[target],
     degraded: true,
   };
 }
@@ -549,12 +578,7 @@ export async function POST(request: NextRequest) {
       ? parsed.learnedChips.filter((c) => typeof c === "string").map((c) => String(c).slice(0, 46)).slice(0, 3)
       : deriveLearnedChips(updates);
 
-    const chips =
-      outPhase === "done"
-        ? []
-        : Array.isArray(parsed.chips)
-          ? parsed.chips.filter((c) => typeof c === "string").map((c) => String(c).slice(0, 40)).slice(0, 4)
-          : [];
+    const chips = outPhase === "done" ? [] : answerChips(parsed.chips, nextSlot);
 
     const result: ChatTurnResult = {
       read,

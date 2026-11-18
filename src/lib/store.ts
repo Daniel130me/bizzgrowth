@@ -122,6 +122,8 @@ interface BizzState {
   deleteManualEntry: (id: string) => void;
   setCheckupFacts: (facts: BusinessFacts, transcript: TranscriptTurn[]) => void;
   setCheckupJourney: (journey: string[]) => void;
+  /** Owner corrections to the extracted facts — clears the now-stale diagnosis so it regenerates. */
+  updateCheckupFacts: (facts: BusinessFacts) => void;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   setAiInsights: (items: Insight[]) => void;
@@ -359,6 +361,16 @@ export const useBizz = create<BizzState>((set, get) => ({
     const checkup: CheckupState = { ...s.checkup, facts: { ...s.checkup.facts, journey } };
     set({ checkup });
     persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+  },
+  updateCheckupFacts: (facts) => {
+    const s = get();
+    if (!s.checkup.facts) return;
+    const userWorkspace = s.userWorkspace && s.userWorkspace.type !== facts.businessType
+      ? { ...s.userWorkspace, type: facts.businessType }
+      : s.userWorkspace;
+    const checkup: CheckupState = { ...s.checkup, facts, diagnosis: null, improved: null };
+    set({ checkup, userWorkspace });
+    persistCheckup({ userWorkspace, checkup });
   },
   setCheckupDiagnosis: (diagnosis) => {
     const s = get();
