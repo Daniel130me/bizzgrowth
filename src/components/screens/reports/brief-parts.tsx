@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useBizz } from "@/lib/store";
 import { toast } from "sonner";
+import { TryThisBox } from "@/components/shared/try-this";
 
 // ---------- Goodness styling ----------
 
@@ -91,11 +92,19 @@ export function ExecMetricChip({ metric }: { metric: ParsedMetric }) {
 
 // ---------- Accent sections with CTA links ----------
 
-type CtaRoute = "goals" | "experiments/exp-sh-1" | "experiments/exp-kh-1" | "performance/marketing" | "performance/website";
+type CtaRoute = "goals" | "experiments/exp-sh-1" | "experiments/exp-kh-1" | "performance/marketing" | "performance/website" | "first-diagnosis" | "ask";
 
 function ctaFor(heading: string, businessId: string): { label: string; route: CtaRoute } | null {
-  const isKora = businessId === "korahome" || businessId === "user-workspace";
   const h = heading.toLowerCase();
+  // The owner's own brief links to THEIR diagnosis, plan and analyst — never to a sample business.
+  if (businessId === "user-workspace") {
+    if (h.startsWith("pay attention")) return { label: "Open my diagnosis", route: "first-diagnosis" };
+    if (h.startsWith("opportunity")) return { label: "Ask about this opportunity", route: "ask" };
+    if (h.startsWith("recommended action")) return { label: "Open my plan", route: "first-diagnosis" };
+    if (h.startsWith("goal progress")) return { label: "View goals", route: "goals" };
+    return null;
+  }
+  const isKora = businessId === "korahome";
   if (h.startsWith("pay attention")) return { label: isKora ? "Open website performance" : "Open marketing performance", route: isKora ? "performance/website" : "performance/marketing" };
   if (h.startsWith("opportunity")) return { label: "Open marketing performance", route: "performance/marketing" };
   if (h.startsWith("recommended action")) return { label: isKora ? "View the running experiment" : "View the running experiment", route: isKora ? "experiments/exp-kh-1" : "experiments/exp-sh-1" };
@@ -115,7 +124,7 @@ function accentFor(heading: string) {
   if (h.startsWith("pay attention")) return ACCENTS.attention;
   if (h.startsWith("opportunity")) return ACCENTS.opportunity;
   if (h.startsWith("recommended action")) return ACCENTS.action;
-  if (h.startsWith("goal progress")) return ACCENTS.goal;
+  if (h.startsWith("goal progress") || h.startsWith("what's working") || h.startsWith("what is working")) return ACCENTS.goal;
   return null;
 }
 
@@ -123,6 +132,10 @@ export function BriefSectionBlock({ section, businessId }: { section: BriefSecti
   const accent = accentFor(section.heading);
   const cta = ctaFor(section.heading, businessId);
   const navigate = useBizz((s) => s.navigate);
+  // The week's ready-to-send message: one tap to copy or open in WhatsApp.
+  if (/^something to send/i.test(section.heading) && section.paragraphs?.[0]) {
+    return <TryThisBox label={section.heading} title="Ready to send — tweak a word or two first" body={section.paragraphs.join("\n\n")} />;
+  }
   const body = (
     <>
       {section.paragraphs?.map((p, i) => (

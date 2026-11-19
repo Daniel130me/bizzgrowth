@@ -17,6 +17,7 @@ import { insightsFor } from "@/lib/data/intelligence";
 import { REPORTING_MONTH } from "@/lib/data/businesses";
 import { useBizz } from "@/lib/store";
 import { ownerMonthsFromEntries } from "@/lib/data/user-business";
+import { buildBusinessContext } from "@/lib/ai-context";
 import type { Insight } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
 import { sortInsights } from "./parts";
@@ -37,6 +38,7 @@ export function InsightsFeed(_props: ScreenProps) {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const facts = useBizz((s) => s.checkup.facts);
+  const diagnosis = useBizz((s) => s.checkup.diagnosis);
   const manualEntries = useBizz((s) => s.manualEntries);
   const aiInsights = useBizz((s) => s.aiInsights);
   const setAiInsights = useBizz((s) => s.setAiInsights);
@@ -57,13 +59,20 @@ export function InsightsFeed(_props: ScreenProps) {
           workspaceName: userWorkspace?.name,
           country: userWorkspace?.country,
           facts,
+          // Everything the owner told the checkup + their diagnosis and plan — insights build on it.
+          context: buildBusinessContext({
+            workspace: userWorkspace,
+            facts,
+            diagnosis,
+            months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+          }),
           months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
         }),
       });
       const data = (await res.json()) as { ok?: boolean; insights?: Insight[]; error?: string };
       if (data?.ok && data.insights?.length) {
         setAiInsights(data.insights);
-        toast.success("First insights generated", { description: "Written from your checkup answers — every conclusion shows its evidence." });
+        toast.success("Your insights are ready", { description: "Built on your checkup and diagnosis — every figure checked against your answers." });
       } else {
         toast.error("Could not generate insights", { description: "Nothing was invented in the attempt. Please try again in a moment." });
       }
@@ -113,8 +122,10 @@ export function InsightsFeed(_props: ScreenProps) {
         description="What your business data is telling the system this period — with the evidence and confidence behind every conclusion."
       />
 
-      <InfoBanner tone="ai" title="How insights work" >
-        Insights are generated from your connected data and entries. Every conclusion shows its evidence and confidence.
+      <InfoBanner tone="ai" title="How insights work">
+        {isOwnerWorkspace
+          ? "Written from your own checkup answers, your diagnosis and any numbers you entered. Every figure is checked against them before you see it — nothing is made up."
+          : "Insights are generated from your connected data and entries. Every conclusion shows its evidence and confidence."}
       </InfoBanner>
 
       {all.length === 0 ? (
@@ -122,20 +133,20 @@ export function InsightsFeed(_props: ScreenProps) {
           {isOwnerWorkspace && facts ? (
             <EmptyState
               icon={generating ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
-              title="Your first insights are ready to be written"
-              description="The intelligence engine can already reason over what you told us — what you sell, who you serve, your channels and the trends you described. It will state what you established, flag what is still unknown, and never invent a number."
+              title="Three things worth knowing about your business"
+              description="Built on your checkup and your diagnosis: an opportunity you may be missing, something to watch, and a quick win for this week — with the exact words to use where it helps. Every figure is checked against your answers; nothing is made up."
               actions={
                 <>
                   <Button size="sm" className="bg-violet-600 hover:bg-violet-700" disabled={generating} onClick={() => void generateInsights()}>
                     {generating ? (
                       <>
                         <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-                        Writing your first insights…
+                        Studying your answers — up to a minute…
                       </>
                     ) : (
                       <>
                         <Sparkles className="mr-1.5 size-3.5" aria-hidden />
-                        Generate insights from my checkup
+                        Show me my insights
                       </>
                     )}
                   </Button>

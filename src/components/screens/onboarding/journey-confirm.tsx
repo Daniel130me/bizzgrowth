@@ -238,7 +238,8 @@ export default function JourneyConfirm(_props: ScreenProps) {
         <Button
           onClick={() => {
             saveJourney(steps);
-            navigate("business-understanding");
+            // Reached from the diagnosis ("check the details") — go back to it.
+            navigate(checkupFacts ? "first-diagnosis" : "business-understanding");
           }}
           className="w-full sm:w-auto"
         >

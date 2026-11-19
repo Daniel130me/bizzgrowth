@@ -76,6 +76,41 @@ const PROVIDER_DEFS: ProviderDef[] = [
 
 const DEFAULT_ORDER: GatewayProviderId[] = ["z.ai", "openai", "groq", "openrouter", "gemini"];
 
+/**
+ * Call profiles. "default" keeps AI_GATEWAY_ORDER for every existing feature.
+ *  - "fast": live conversation turns, where every second of waiting is felt.
+ *    Low-latency providers first (AI_GATEWAY_FAST_ORDER) and a short timeout,
+ *    so a slow provider fails over instead of leaving the owner waiting.
+ *  - "quality": the diagnosis — one call that decides whether the product
+ *    impresses. Strongest reasoning first (AI_GATEWAY_QUALITY_ORDER), more
+ *    reasoning effort on reasoning models.
+ * Providers missing from a profile's list are appended in default order, and
+ * only configured providers are ever called.
+ */
+export type GatewayProfile = "default" | "fast" | "quality";
+
+const PROFILE_ORDER: Record<Exclude<GatewayProfile, "default">, { env: string; fallback: GatewayProviderId[] }> = {
+  // Measured on this project's keys (Nov 2026): Groq ~1.3s, OpenRouter ~1.7s,
+  // z.ai ~2.2s on a short prompt; Gemini flash-lite was returning 503 "high demand".
+  fast: { env: "AI_GATEWAY_FAST_ORDER", fallback: ["groq", "openrouter", "z.ai", "openai", "gemini"] },
+  quality: { env: "AI_GATEWAY_QUALITY_ORDER", fallback: ["groq", "openrouter", "openai", "z.ai", "gemini"] },
+};
+
+/**
+ * A rate limit (429) or "overloaded" (503) answer says the provider will keep
+ * refusing for a while — park it right away for that long (2s–60s) so the
+ * next turns go straight to a provider that will answer.
+ */
+function parkFor(error: unknown): number | null {
+  const status = (error as { status?: number })?.status;
+  if (status !== 429 && status !== 503) return null;
+  const msg = error instanceof Error ? error.message : "";
+  const m = msg.match(/try again in\s*(?:(\d+)m)?\s*(\d+(?:\.\d+)?)\s*(ms|s)\b/i);
+  let ms = status === 503 ? 30_000 : 20_000;
+  if (m) ms = (Number(m[1] ?? 0) * 60 + (m[3] === "ms" ? Number(m[2]) / 1000 : Number(m[2]))) * 1000;
+  return Math.max(2_000, Math.min(60_000, ms));
+}
+
 function envInt(name: string, fallback: number): number {
   const raw = process.env[name];
   const n = raw ? Number(raw) : NaN;
@@ -83,6 +118,7 @@ function envInt(name: string, fallback: number): number {
 }
 
 const TIMEOUT_MS = envInt("AI_GATEWAY_TIMEOUT_MS", 45_000);
+const FAST_TIMEOUT_MS = envInt("AI_GATEWAY_FAST_TIMEOUT_MS", 12_000);
 const COOLDOWN_MS = envInt("AI_GATEWAY_COOLDOWN_MS", 60_000);
 const FAILURES_TO_OPEN = 2;
 
@@ -145,17 +181,20 @@ function splitKeys(raw: string | undefined): string[] {
     .filter((k) => k.length > 0);
 }
 
-function parseOrder(): GatewayProviderId[] {
-  const raw = process.env.AI_GATEWAY_ORDER;
-  if (!raw) return DEFAULT_ORDER;
+function parseOrder(profile: GatewayProfile = "default"): GatewayProviderId[] {
+  const spec = profile === "default" ? null : PROFILE_ORDER[profile];
+  const raw = spec ? process.env[spec.env] : process.env.AI_GATEWAY_ORDER;
+  const base = spec ? spec.fallback : DEFAULT_ORDER;
   const ids = raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter((s): s is GatewayProviderId => PROVIDER_DEFS.some((p) => p.id === s));
+    ? raw
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter((s): s is GatewayProviderId => PROVIDER_DEFS.some((p) => p.id === s))
+    : base;
   // Dedupe, preserve first occurrence; providers omitted from the list are appended.
   const seen = new Set<GatewayProviderId>();
   const merged: GatewayProviderId[] = [];
-  for (const id of [...ids, ...DEFAULT_ORDER]) {
+  for (const id of [...ids, ...base, ...DEFAULT_ORDER]) {
     if (!seen.has(id)) {
       seen.add(id);
       merged.push(id);
@@ -166,9 +205,9 @@ function parseOrder(): GatewayProviderId[] {
 
 /** Routes in failover order. Only configured providers are included
  *  (z.ai is the platform default and is always included). */
-function buildRoutes(): Route[] {
+function buildRoutes(profile: GatewayProfile = "default"): Route[] {
   const routes: Route[] = [];
-  for (const id of parseOrder()) {
+  for (const id of parseOrder(profile)) {
     const def = PROVIDER_DEFS.find((p) => p.id === id);
     if (!def) continue;
     if (def.kind === "platform") {
@@ -203,6 +242,7 @@ async function callOpenAiCompatible(
   user: string,
   maxTokens: number,
   timeoutMs: number,
+  reasoningEffort: "low" | "medium" = "low",
 ): Promise<string> {
   if (!route.apiKey) throw new Error("missing key");
   if (!route.provider.baseUrl) throw new Error("missing base URL");
@@ -226,7 +266,7 @@ async function callOpenAiCompatible(
         max_tokens: maxTokens,
         // Reasoning models (gpt-oss) spend max_tokens on hidden reasoning and
         // return empty content on short budgets — keep reasoning minimal.
-        ...(/gpt-oss/i.test(route.model) ? { reasoning_effort: "low" } : {}),
+        ...(/gpt-oss/i.test(route.model) ? { reasoning_effort: reasoningEffort } : {}),
         // GLM models think by default; disable it for fast, non-empty replies.
         ...(route.provider.id === "z.ai" ? { thinking: { type: "disabled" } } : {}),
         messages: [
@@ -313,15 +353,18 @@ export interface GatewayResult {
 export async function gatewayChatComplete(
   system: string,
   user: string,
-  opts?: { maxTokens?: number },
+  opts?: { maxTokens?: number; profile?: GatewayProfile; timeoutMs?: number },
 ): Promise<GatewayResult> {
   if (process.env.BIZZ_AI_DISABLED === "1") {
     console.warn("[bizzGrowth AI] disabled via BIZZ_AI_DISABLED=1 — gateway will not be called");
     return { text: null, attempts: [] };
   }
 
-  const routes = buildRoutes();
+  const profile: GatewayProfile = opts?.profile ?? "default";
+  const routes = buildRoutes(profile);
   const maxTokens = opts?.maxTokens ?? 2000;
+  const timeoutMs = opts?.timeoutMs ?? (profile === "fast" ? Math.min(FAST_TIMEOUT_MS, TIMEOUT_MS) : TIMEOUT_MS);
+  const reasoningEffort = profile === "quality" ? "medium" : "low";
   const attempts: GatewayAttempt[] = [];
   const now = Date.now();
   const anyRouteAvailable = routes.some((r) => healthFor(r.key).openUntil <= now);
@@ -343,8 +386,8 @@ export async function gatewayChatComplete(
       try {
         const text =
           route.provider.kind === "platform"
-            ? await callZai(system, user, TIMEOUT_MS)
-            : await callOpenAiCompatible(route, system, user, maxTokens, TIMEOUT_MS);
+            ? await callZai(system, user, timeoutMs)
+            : await callOpenAiCompatible(route, system, user, maxTokens, timeoutMs, reasoningEffort);
         const latencyMs = Date.now() - started;
         h.consecutiveFailures = 0;
         h.openUntil = 0;
@@ -368,6 +411,11 @@ export async function gatewayChatComplete(
         h.lastError = message.slice(0, 200);
         if (h.consecutiveFailures >= FAILURES_TO_OPEN) {
           h.openUntil = Date.now() + COOLDOWN_MS;
+        }
+        const park = parkFor(error);
+        if (park !== null) {
+          h.openUntil = Math.max(h.openUntil, Date.now() + park);
+          break;
         }
         // No platform config on this machine — it will never work here, so
         // park the route for a long time instead of paying for it every turn.

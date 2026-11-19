@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeText } from "@/lib/ai";
-import { extractJson, clampPercent, type BusinessFacts } from "@/lib/checkup";
+import { extractJson, clampPercent, type BusinessContextPayload, type BusinessFacts } from "@/lib/checkup";
+import { parseAmount, plainify } from "@/lib/checkup-math";
+import { CONSULTANT_PATTERNS, NUMBER_RULES, VOICE_RULES, formatBusinessContext } from "@/lib/ai-voice";
+import { collectAllowedNumbers, dropUngroundedSentences, ungroundedNumbers } from "@/lib/grounding";
 import type { EvidenceItem, Insight } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -8,109 +11,145 @@ export const runtime = "nodejs";
 const INSIGHT_TYPES = ["problem", "opportunity", "improvement", "watch"] as const;
 const IMPORTANCE = ["critical", "high", "medium", "low"] as const;
 const PROVENANCE = ["measured", "user-supplied", "estimated", "ai-interpretation"] as const;
+/** Plain metric words — they label the insight and link to the matching metric page. */
+const METRICS = ["Enquiries", "Customers", "Repeat customers", "Revenue", "Orders"] as const;
 
-const SYSTEM = `You are the intelligence analyst inside bizzGrowth. You generate the FIRST insights for a small-business owner from their checkup facts — before any measured data exists. Everything must trace back to the facts you are given.
+/**
+ * Insights complement the diagnosis: the owner has already read their main
+ * problem, so each insight must add something NEW — an opportunity they are
+ * missing, a risk to watch, a quick win — specific, grounded, and usable.
+ */
+const SYSTEM = `You are the owner's own business analyst inside bizzGrowth. Write 3 INSIGHTS for this owner — things worth knowing BEYOND their diagnosis.
+
+They have already read their diagnosis (it is in the context). Do NOT repeat its main point. Each insight must give them something new, specific and usable:
+1. an OPPORTUNITY they are probably missing (type "opportunity") — e.g. past customers who would buy again, people who already trust them, a better offer, a group who already asks;
+2. something to WATCH (type "watch") — a real risk implied by their own answers (e.g. relying on one way people find them, being too stretched to follow up, the quiet months);
+3. a QUICK WIN for this week (type "improvement") — a small change with an obvious payoff.
+
+Each insight:
+- is grounded in what the owner told us; "known" lists the answers it rests on, in plain words;
+- has one concrete "recommendedAction" they can do without measured data;
+- when the action involves saying or sending something, includes the exact words in "tryThis" (short, friendly, WhatsApp-ready, [name] where a name goes);
+- "unknown" names what would confirm it (e.g. "how many past customers you could message").
+
+${CONSULTANT_PATTERNS}
+
+${NUMBER_RULES}
+
+${VOICE_RULES}
 
 Return ONLY valid JSON, no markdown:
 {
   "insights": [
     {
-      "type": "problem|opportunity|improvement|watch",
+      "type": "opportunity|watch|improvement|problem",
       "importance": "critical|high|medium|low",
-      "title": "max 80 chars, specific to THIS business, no numbers you were not given",
-      "summary": "1-2 sentences grounded in the facts",
-      "meaning": "2-3 sentences: what it means for growth, reasoning from their words",
-      "known": ["2-4 short strings the owner actually established"],
-      "unknown": ["1-3 short strings that are genuinely unknown until data arrives"],
-      "evidence": [{ "label": "short label", "value": "exact short fact from the facts", "provenance": "user-supplied|estimated|ai-interpretation", "source": "Your checkup answers" }],
-      "recommendedAction": "one concrete next step that does NOT require measured data",
-      "primaryMetric": "one word: Enquiries|Customers|Revenue|Conversion|Retention|Traffic|Orders|CAC"
+      "title": "max 80 chars, specific to THIS business",
+      "summary": "1-2 sentences",
+      "meaning": "2-3 sentences: why it matters for growing THIS business",
+      "known": ["2-4 short strings the owner told us"],
+      "unknown": ["1-2 short strings"],
+      "evidence": [{ "label": "short label", "value": "short fact from the context", "provenance": "user-supplied|estimated|ai-interpretation", "source": "Your checkup answers|Your diagnosis|Your entered totals" }],
+      "recommendedAction": "one concrete next step",
+      "tryThis": { "title": "<= 60 chars", "body": "the exact words" } or null,
+      "primaryMetric": "Enquiries|Customers|Repeat customers|Revenue|Orders"
     }
   ]
-}
+}`;
 
-HARD RULES
-- 2-3 insights. At least one should connect to their stated goal.
-- NEVER invent a number, percentage, currency amount, or timeframe not present in the facts. Words like "growing" or "flat" are fine when they match stated trends.
-- Every evidence value must be copied or minimally shortened from the facts. provenance "user-supplied" for things the owner said; "estimated" for their directional trends; "ai-interpretation" only for your reasoning labels.
-- "unknown" must include at least one thing a connected data source would settle (e.g. actual response time, per-channel conversion).
-- No emoji, no markdown, plain professional English.`;
-
-interface FactsInput {
+interface InsightsInput {
   workspaceName?: string;
   country?: string;
   facts?: BusinessFacts;
+  context?: BusinessContextPayload | null;
   months?: { label: string; revenue?: number; enquiries?: number; customers?: number }[];
 }
 
+type RawInsight = Record<string, unknown>;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as FactsInput;
-    const facts = body.facts;
+    const body = (await request.json()) as InsightsInput;
+    const facts = body.context?.facts ?? body.facts;
     if (!facts) {
       return NextResponse.json({ ok: false, error: "Missing checkup facts" }, { status: 400 });
     }
+    const context: BusinessContextPayload = body.context ?? {
+      name: (body.workspaceName ?? "Your business").slice(0, 120),
+      country: (body.country ?? "Nigeria").slice(0, 80),
+      facts,
+      months: body.months,
+    };
 
-    const name = (body.workspaceName ?? "Your business").slice(0, 120);
-    const country = (body.country ?? "Nigeria").slice(0, 80);
+    const prompt = formatBusinessContext(context);
+    const allowed = collectAllowedNumbers(prompt);
+    const priceRange = parseAmount(facts.jobValue);
+    const textOf = (r: RawInsight) =>
+      [r.title, r.summary, r.meaning, r.recommendedAction, ...(Array.isArray(r.known) ? r.known : [])].map((v) => String(v ?? ""));
+    const invented = (list: RawInsight[]) =>
+      [...new Set(list.flatMap((r) => [...textOf(r).flatMap((t) => ungroundedNumbers(t, allowed)), ...ungroundedNumbers(String((r.tryThis as { body?: string } | null)?.body ?? ""), allowed, { priceRange })]))];
 
-    const userPrompt = [
-      `Business: ${name} (${country})`,
-      `Type: ${facts.businessType}`,
-      `What they sell: ${facts.whatTheySell}`,
-      `Customers: ${facts.customers}`,
-      `Goal: ${facts.primaryGoal}`,
-      `Channels: ${facts.channels.join(", ") || "not specified"}`,
-      `Stated trends: enquiries ${facts.trends.enquiries}, customers ${facts.trends.customers}, revenue ${facts.trends.revenue}`,
-      `Recent changes: ${facts.recentChanges.join("; ") || "none reported"}`,
-      body.months?.length
-        ? `Owner-entered months (their own numbers): ${JSON.stringify(body.months.slice(-3))}`
-        : "Owner-entered months: none yet",
-    ].join("\n");
+    let list: RawInsight[] = [];
+    let feedback = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const raw = await completeText(SYSTEM, attempt === 0 ? prompt : `${prompt}\n\n${feedback}`, { maxTokens: 3200, profile: "quality" });
+      if (!raw) break;
+      const parsed = extractJson<{ insights?: unknown }>(raw);
+      if (!parsed || !Array.isArray(parsed.insights) || parsed.insights.length === 0) {
+        feedback = "YOUR PREVIOUS ANSWER WAS NOT VALID JSON. Output ONLY the raw JSON object.";
+        continue;
+      }
+      list = parsed.insights.filter((r): r is RawInsight => !!r && typeof r === "object");
+      const bad = invented(list);
+      if (bad.length === 0) break;
+      feedback = `YOUR PREVIOUS ANSWER USED FIGURES THAT ARE NOT IN THE CONTEXT (${bad.join(", ")}). Write it again without them.`;
+    }
 
-    const raw = await completeText(SYSTEM, userPrompt, { maxTokens: 1400 });
-    const parsed = extractJson<{ insights?: unknown }>(raw);
-
-    if (!parsed || !Array.isArray(parsed.insights) || parsed.insights.length === 0) {
+    if (list.length === 0) {
       return NextResponse.json({ ok: false, error: "No insights produced" }, { status: 502 });
     }
 
+    const ownerText = "";
+    const plain = (v: unknown, cap: number) => plainify(dropUngroundedSentences(String(v ?? "").trim(), allowed), ownerText).slice(0, cap);
     const today = new Date().toISOString().slice(0, 10);
-    const insights: Insight[] = parsed.insights.slice(0, 3).map((r: Record<string, unknown>, i: number) => {
-      const confidence = clampPercent(Number(r.confidence) || 55, 35, 72, 55);
+    const insights: Insight[] = list.slice(0, 3).map((r, i) => {
+      const confidence = clampPercent(Number(r.confidence) || 56, 35, 72, 56);
       const evidence: EvidenceItem[] = Array.isArray(r.evidence)
-        ? (r.evidence as Record<string, unknown>[])
-            .filter((e) => e && typeof e.label === "string" && typeof e.value === "string")
+        ? (r.evidence as RawInsight[])
+            .filter((e) => e && typeof e.label === "string" && typeof e.value === "string" && ungroundedNumbers(String(e.value), allowed).length === 0)
             .map((e) => ({
-              label: String(e.label).slice(0, 60),
+              label: plain(e.label, 60),
               value: String(e.value).slice(0, 60),
-              provenance: (PROVENANCE as readonly string[]).includes(String(e.provenance))
-                ? (e.provenance as EvidenceItem["provenance"])
-                : "ai-interpretation",
+              provenance: (PROVENANCE as readonly string[]).includes(String(e.provenance)) ? (e.provenance as EvidenceItem["provenance"]) : "ai-interpretation",
               source: String(e.source ?? "Your checkup answers").slice(0, 80),
             }))
             .slice(0, 4)
         : [];
+      const tt = r.tryThis as { title?: unknown; body?: unknown } | null | undefined;
+      const tryThis =
+        tt && typeof tt.body === "string" && tt.body.trim().length > 15 && ungroundedNumbers(tt.body, allowed, { priceRange }).length === 0
+          ? { title: plain(tt.title ?? "Try this", 70), body: plainify(tt.body.trim()).slice(0, 700) }
+          : undefined;
+      const metric = (METRICS as readonly string[]).find((m) => m.toLowerCase() === String(r.primaryMetric ?? "").toLowerCase()) ?? "Customers";
 
       return {
         id: `ins-ai-${Date.now().toString(36)}-${i}`,
         businessId: "user-workspace",
         type: (INSIGHT_TYPES as readonly string[]).includes(String(r.type)) ? (r.type as Insight["type"]) : "watch",
-        importance: (IMPORTANCE as readonly string[]).includes(String(r.importance))
-          ? (r.importance as Insight["importance"])
-          : "medium",
-        title: String(r.title ?? "Insight from your checkup").slice(0, 100),
-        summary: String(r.summary ?? "").slice(0, 300),
+        importance: (IMPORTANCE as readonly string[]).includes(String(r.importance)) ? (r.importance as Insight["importance"]) : "medium",
+        title: plain(r.title ?? "Insight from your checkup", 100) || "Insight from your checkup",
+        summary: plain(r.summary, 300),
         date: today,
         confidence,
         confidenceLevel: confidence >= 65 ? "high" : confidence >= 50 ? "medium" : "low",
-        meaning: String(r.meaning ?? "").slice(0, 700),
-        known: Array.isArray(r.known) ? r.known.filter((k: unknown) => typeof k === "string").map((k) => String(k).slice(0, 120)).slice(0, 4) : [],
-        unknown: Array.isArray(r.unknown) ? r.unknown.filter((k: unknown) => typeof k === "string").map((k) => String(k).slice(0, 120)).slice(0, 3) : [],
+        meaning: plain(r.meaning, 700),
+        known: Array.isArray(r.known) ? r.known.filter((k): k is string => typeof k === "string").map((k) => plain(k, 120)).filter(Boolean).slice(0, 4) : [],
+        unknown: Array.isArray(r.unknown) ? r.unknown.filter((k): k is string => typeof k === "string").map((k) => plain(k, 120)).filter(Boolean).slice(0, 3) : [],
         evidence,
-        recommendedAction: String(r.recommendedAction ?? "").slice(0, 300),
-        missingToImprove: ["Connected data for measured confirmation"],
-        primaryMetric: String(r.primaryMetric ?? "Enquiries").slice(0, 30),
+        recommendedAction: plain(r.recommendedAction, 300),
+        missingToImprove: ["Your own numbers — entered totals or a connected source — to confirm this"],
+        primaryMetric: metric,
+        ...(tryThis ? { tryThis } : {}),
       } satisfies Insight;
     });
 

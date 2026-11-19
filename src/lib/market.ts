@@ -13,6 +13,7 @@
 
 import { db } from "./db";
 import { completeText } from "./ai";
+import { plainify } from "./checkup-math";
 import type { Specialist, MarketTask } from "@prisma/client";
 
 // ---------- DTOs (serialised to the client) ----------
@@ -274,6 +275,7 @@ export async function matchTask(input: {
     "- If the task's category is unclear, infer the best category id from: " + CATEGORY_IDS.join(", ") + ".",
     "- skillsToSeek: 3-5 concrete skills an owner should look for when hiring for this task.",
     "- note: one sentence of candid hiring advice for the owner (what to watch out for).",
+    "- Write reasons and the note in plain everyday words a small-business owner understands — no jargon (leads, conversion, funnel, CTR, ROI, KPI, acquisition, synergy).",
     "Output ONLY raw JSON: {\"category\":string,\"skillsToSeek\":string[],\"note\":string,\"matches\":[{\"id\":string,\"reason\":string}]}",
   ].join("\n");
 
@@ -298,7 +300,7 @@ export async function matchTask(input: {
 
   let aiPayload: AiMatchPayload | null = null;
   try {
-    const raw = await completeText(system, user, { maxTokens: 1200 });
+    const raw = await completeText(system, user, { maxTokens: 1600, profile: "quality" });
     if (raw) {
       const start = raw.indexOf("{");
       const end = raw.lastIndexOf("}");
@@ -316,7 +318,7 @@ export async function matchTask(input: {
       for (const m of aiPayload.matches) {
         if (m && typeof (m as { id?: unknown }).id === "string" && typeof (m as { reason?: unknown }).reason === "string") {
           const { id, reason } = m as { id: string; reason: string };
-          if (byId.has(id) && reason.trim()) aiReasonById.set(id, reason.trim().slice(0, 220));
+          if (byId.has(id) && reason.trim()) aiReasonById.set(id, plainify(reason.trim()).slice(0, 220));
         }
       }
     }
@@ -328,7 +330,7 @@ export async function matchTask(input: {
       if (seek.length) result.skillsToSeek = seek.slice(0, 5);
     }
     if (typeof aiPayload.note === "string" && aiPayload.note.trim()) {
-      result.note = aiPayload.note.trim().slice(0, 240);
+      result.note = plainify(aiPayload.note.trim()).slice(0, 240);
     }
   }
 

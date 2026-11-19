@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useBizz } from "@/lib/store";
 import { BRIEF_ARCHIVE } from "@/lib/data/operations";
 import { ownerMonthsFromEntries } from "@/lib/data/user-business";
+import { buildBusinessContext } from "@/lib/ai-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/layout";
@@ -28,6 +29,7 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const facts = useBizz((s) => s.checkup.facts);
+  const diagnosis = useBizz((s) => s.checkup.diagnosis);
   const manualEntries = useBizz((s) => s.manualEntries);
   const aiBrief = useBizz((s) => s.aiBrief);
   const setAiBrief = useBizz((s) => s.setAiBrief);
@@ -48,13 +50,20 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
           country: userWorkspace?.country,
           kind: tab === "monthly" ? "monthly" : "weekly",
           facts,
+          // The brief builds on the checkup, the diagnosis and how far the owner is with the plan.
+          context: buildBusinessContext({
+            workspace: userWorkspace,
+            facts,
+            diagnosis,
+            months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+          }),
           months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
         }),
       });
       const data = (await res.json()) as { ok?: boolean; brief?: typeof aiBrief; error?: string };
       if (data?.ok && data.brief) {
         setAiBrief(data.brief);
-        toast.success("Your first brief is ready", { description: "Written from your checkup answers — no invented figures." });
+        toast.success("Your brief is ready", { description: "Built on your checkup, diagnosis and plan — every figure checked against your answers." });
       } else {
         toast.error("Could not write the brief", { description: "Nothing was invented in the attempt. Please try again in a moment." });
       }

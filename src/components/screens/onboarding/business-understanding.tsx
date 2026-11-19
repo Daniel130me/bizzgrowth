@@ -55,10 +55,23 @@ function applyEdits(base: BusinessFacts, rows: Fact[], type: BusinessFacts["busi
   const next: BusinessFacts = { ...base, businessType: type, trends };
   for (const r of rows) {
     const s = r.section.toLowerCase();
-    if (/journey/.test(s)) {
+    // Specific checkup answers first — "Enquiries that become customers" must
+    // update the close rate, never the "Customers" description.
+    if (/become customers|how many pay|enquiries that/.test(s)) next.closeRate = r.value;
+    else if (/give your price|how you give|price is given/.test(s)) next.pricePresentation = r.value;
+    else if (/don't buy|dont buy|do not buy|don't go ahead/.test(s)) next.lostReason = r.value;
+    else if (/room for more|more work|capacity/.test(s)) next.capacity = r.value;
+    else if (/past work|proof|examples/.test(s)) next.proof = r.value;
+    else if (/coming back|come back|repeat/.test(s)) next.repeat = r.value;
+    else if (/think is causing|your view|your theory/.test(s)) next.ownerTheory = r.value;
+    else if (/stuck|bottleneck|hardest/.test(s)) next.bottleneck = r.value;
+    else if (/handled|follow|getting back/.test(s)) next.followUp = r.value;
+    else if (/job value|typical job|order value/.test(s)) next.jobValue = r.value;
+    else if (/each month|a month|per month/.test(s)) next.monthlyEnquiries = r.value;
+    else if (/journey/.test(s)) {
       const steps = r.value.split(/\s*(?:→|->|>|,|;|\n)\s*/).map((v) => v.trim()).filter(Boolean);
       if (steps.length > 0) next.journey = steps.slice(0, 12);
-    } else if (/channel|source/.test(s)) next.channels = splitList(r.value);
+    } else if (/channel|source|find you|found via/.test(s)) next.channels = splitList(r.value);
     else if (/recent change/.test(s)) next.recentChanges = splitList(r.value);
     else if (/goal/.test(s)) next.primaryGoal = r.value;
     else if (/sell|offer|product|service/.test(s)) next.whatTheySell = r.value;
@@ -146,7 +159,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
       source: "Waiting for your checkup conversation",
     },
     {
-      section: "Acquisition channels",
+      section: "How people find you",
       value: "Collected during the private checkup",
       provenance: "user-supplied",
       source: "Waiting for your checkup conversation",

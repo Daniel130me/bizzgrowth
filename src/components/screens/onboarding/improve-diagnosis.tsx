@@ -32,23 +32,30 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [counts, setCounts] = useState<Record<CountKey, string>>({
-    "instagram-enq": "184",
-    "instagram-cus": "11",
-    "google-enq": "62",
-    "google-cus": "24",
-    "referral-enq": "31",
-    "referral-cus": "14",
-  });
+  // Sample figures only ever appear for the demo (no checkup) — a real owner
+  // starts with empty boxes, never someone else's numbers.
+  const [counts, setCounts] = useState<Record<CountKey, string>>((): Record<CountKey, string> =>
+    facts
+      ? {}
+      : {
+          "instagram-enq": "184",
+          "instagram-cus": "11",
+          "google-enq": "62",
+          "google-cus": "24",
+          "referral-enq": "31",
+          "referral-cus": "14",
+        },
+  );
 
   // Channels follow the owner's actual business when the checkup knows them.
   const channels = useMemo(() => {
-    if (facts?.channels && facts.channels.length >= 2) {
-      return facts.channels.slice(0, 3).map((name, i) => ({
+    if (facts?.channels && facts.channels.length >= 1) {
+      const own = facts.channels.slice(0, 3).map((name, i) => ({
         key: `ch-${i}`,
         name,
         hint: i === 0 ? "From your checkup conversation" : "Enter last month's counts",
       }));
+      return own.length === 1 ? [...own, { key: "ch-other", name: "Everything else", hint: "Any other way people found you" }] : own;
     }
     return FALLBACK_CHANNELS.map((c) => ({ ...c }));
   }, [facts]);
@@ -96,7 +103,7 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
       if (data?.ok && data.improved) {
         setImprovedDiagnosis(data.improved);
         toast.success(`Diagnosis improved — confidence increased to ${data.improved.confidence}%`, {
-          description: `${worst.name} converts at ${worst.conversion.toFixed(1)}% vs ${best.conversion.toFixed(1)}% for ${best.name} — computed from your numbers.`,
+          description: `${worst.name}: ${worst.conversion.toFixed(1)}% of people who asked went on to pay, vs ${best.conversion.toFixed(1)}% for ${best.name} — worked out from your numbers.`,
         });
       } else {
         throw new Error("improve failed");
@@ -108,14 +115,14 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
         bestChannel: best.name,
         worstChannel: worst.name,
         headline: `${worst.name} is where enquiries are leaking.`,
-        story: `${worst.name} converts at ${worst.conversion.toFixed(1)}% while ${best.name} converts at ${best.conversion.toFixed(1)}%. The gap between them is now the clearest signal in your diagnosis.`,
+        story: `${worst.conversion.toFixed(1)}% of people who asked through ${worst.name} went on to pay, compared with ${best.conversion.toFixed(1)}% through ${best.name}. The gap between them is now the clearest signal in your diagnosis.`,
         meaning: `With your measured counts, ${worst.name} sends enquiries that rarely become customers (${worst.customers} of ${worst.enquiries}). The constraint is what happens between enquiry and customer on ${worst.name}, not the volume of enquiries.`,
         whyItMatters: "Every week the weakest channel runs unattended, the same effort produces fewer customers than it could elsewhere. Fixing one response or follow-up step is cheaper than buying more traffic.",
         nextInvestigation: `Check the last 20 enquiries from ${worst.name}: response speed and outcome. Then run one focused change for two weeks and keep ${best.name} as the benchmark.`,
         confidence: Math.min(88, (facts?.confidence ?? 62) + 20),
       });
       toast.success(`Diagnosis improved — confidence increased to ${Math.min(88, (facts?.confidence ?? 62) + 20)}%`, {
-        description: `${worst.name} converts at ${worst.conversion.toFixed(1)}% vs ${best.conversion.toFixed(1)}% for ${best.name} — computed from your numbers.`,
+        description: `${worst.name}: ${worst.conversion.toFixed(1)}% of people who asked went on to pay, vs ${best.conversion.toFixed(1)}% for ${best.name} — worked out from your numbers.`,
       });
     } finally {
       setSaving(false);

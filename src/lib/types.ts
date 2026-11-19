@@ -148,6 +148,8 @@ export interface Insight {
   rootCause?: { step: string; note?: string }[];
   missingToImprove: string[];
   primaryMetric: string;
+  /** Ready-to-use words for the recommended action (AI insights only). */
+  tryThis?: { title: string; body: string };
 }
 
 export interface Recommendation {

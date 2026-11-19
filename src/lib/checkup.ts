@@ -24,6 +24,28 @@ export interface BusinessFacts {
   journey: string[];
   trends: { enquiries: TrendDirection; customers: TrendDirection; revenue: TrendDirection };
   recentChanges: string[];
+  /** Where the owner feels growth is stuck, in their words (e.g. "turning enquiries into paying clients"). */
+  bottleneck?: string;
+  /** Owner's rough estimate of how many enquiries become paying customers (e.g. "about 3 in 10"). */
+  closeRate?: string;
+  /** How enquiries are handled — reply speed and follow-up, in their words. */
+  followUp?: string;
+  /** Rough amount one customer pays for a typical job or order (e.g. "₦200k – ₦500k"). */
+  jobValue?: string;
+  /** Rough number of people who ask about buying in a normal month (e.g. "6 to 15"). */
+  monthlyEnquiries?: string;
+  /** How and when the owner gives the price (e.g. "a quick figure on WhatsApp"). */
+  pricePresentation?: string;
+  /** What people say or do when they don't buy (e.g. "they just stop replying"). */
+  lostReason?: string;
+  /** Whether the owner could take on more work right now. */
+  capacity?: string;
+  /** Whether new people see past work or results before the price. */
+  proof?: string;
+  /** Whether past customers come back or order again. */
+  repeat?: string;
+  /** What the owner thinks is causing the problem — their own observations and hunches. */
+  ownerTheory?: string;
   chips: string[];
   facts: CheckupFact[];
   confidence: number;
@@ -44,6 +66,37 @@ export interface DiagnosisDelta {
   customValue?: string;
 }
 
+/**
+ * "What it's worth" — worked out ONLY from the owner's own estimates
+ * (close rate, typical job value, people asking per month). Deterministic:
+ * never written by the model, so every figure can be traced to an answer.
+ */
+export interface DiagnosisStake {
+  /** The big figure, e.g. "+50%" or "₦240k–₦1.5m". */
+  figure: string;
+  /** What the figure means, e.g. "more paying clients from the same referrals". */
+  label: string;
+  /** Optional second line, e.g. "about 1–3 more paying clients a month". */
+  detail?: string;
+  /** The working, step by step, in plain words. */
+  working: string[];
+  /** True when the figure is money (so the page can invite the missing inputs otherwise). */
+  isMoney: boolean;
+}
+
+/** Ready-to-use help on the diagnosis page: something to send, say or offer today. */
+export interface DiagnosisTool {
+  kind: "message" | "script" | "offer";
+  title: string;
+  /** When to use it, one short line. */
+  when?: string;
+  /** The exact words, ready to copy. */
+  body: string;
+}
+
+/** Bump when the diagnosis page needs fields older stored diagnoses lack — they are regenerated. */
+export const DIAGNOSIS_VERSION = 2;
+
 export interface DiagnosisContent {
   headline: string;
   story: string;
@@ -52,7 +105,33 @@ export interface DiagnosisContent {
   whyItMatters: string;
   nextInvestigation: string;
   confidence: number;
+  /** Where in the customer journey growth most likely breaks — drives the page's focus visual. */
+  focusStage?: FocusStage;
+  /** 2-3 concrete, owner-specific actions for this week. */
+  steps?: string[];
+  /** Format version (see DIAGNOSIS_VERSION). */
+  version?: number;
+  /** The connection the owner has probably not made — links two of their answers. */
+  insight?: string;
+  /** What is already working, acknowledged before the gap. */
+  working?: string;
+  /** What fixing it is worth, from their own estimates. null when they gave too little to work it out. */
+  stake?: DiagnosisStake | null;
+  /** Ready-to-use help: a message to send, what to say, an offer layout. */
+  tools?: DiagnosisTool[];
+  /** True when every figure in the diagnosis was traced to the owner's own answers (grounding check). */
+  checked?: boolean;
 }
+
+export type FocusStage = "found" | "enquire" | "convert" | "deliver" | "return";
+
+export const FOCUS_STAGES: { id: FocusStage; label: string; hint: string }[] = [
+  { id: "found", label: "Getting found", hint: "How people discover you" },
+  { id: "enquire", label: "Enquiries", hint: "People reaching out" },
+  { id: "convert", label: "Becoming customers", hint: "Enquiries that pay" },
+  { id: "deliver", label: "Delivering", hint: "Capacity and quality" },
+  { id: "return", label: "Coming back", hint: "Repeat work and referrals" },
+];
 
 export interface ChannelCountInput {
   name: string;
@@ -89,10 +168,41 @@ export interface AskAnswerContent {
   limitations?: string[];
   evidence: AskEvidenceItem[];
   referencedPeriod: string;
+  /** Ready-to-use words when the question calls for them (a message, what to say). */
+  tryThis?: { title: string; body: string } | null;
+  /** 2-3 natural next questions the owner might ask. */
+  followUps?: string[];
+  /** True when every figure in the answer was traced to the workspace data (grounding check). */
+  verified?: boolean;
+}
+
+/**
+ * Everything the AI knows about an owner's business, in one shape every AI
+ * feature (Ask, insights, briefs, improve) receives — so each one builds on
+ * the checkup, the diagnosis and the plan instead of starting from scratch.
+ */
+export interface BusinessContextPayload {
+  name: string;
+  country?: string;
+  currency?: string;
+  facts?: BusinessFacts | null;
+  diagnosis?: {
+    headline: string;
+    insight?: string;
+    focusStage?: FocusStage;
+    stake?: { figure: string; label: string; working: string[] } | null;
+    steps?: string[];
+    stepsDone?: string[];
+    tools?: { kind: string; title: string }[];
+  } | null;
+  /** Owner-entered monthly totals, oldest first. */
+  months?: { label: string; revenue?: number; enquiries?: number; customers?: number }[];
 }
 
 /** Workspace snapshot sent to the Ask endpoint so answers stay grounded. */
 export interface AskWorkspaceContext {
+  /** The owner's own business, in full (checkup, diagnosis, plan). */
+  business?: BusinessContextPayload | null;
   name: string;
   type: "service" | "ecommerce";
   location: string;
@@ -145,7 +255,18 @@ export type SlotKey =
   | "enquiries"
   | "customers"
   | "revenue"
-  | "changes";
+  | "changes"
+  | "bottleneck"
+  | "closeRate"
+  | "followUp"
+  | "jobValue"
+  | "monthlyEnquiries"
+  | "pricePresentation"
+  | "lostReason"
+  | "capacity"
+  | "proof"
+  | "repeat"
+  | "ownerTheory";
 
 export const SLOT_KEYS: SlotKey[] = [
   "businessType",
@@ -158,10 +279,71 @@ export const SLOT_KEYS: SlotKey[] = [
   "customers",
   "revenue",
   "changes",
+  "bottleneck",
+  "closeRate",
+  "followUp",
+  "jobValue",
+  "monthlyEnquiries",
+  "pricePresentation",
+  "lostReason",
+  "capacity",
+  "proof",
+  "repeat",
+  "ownerTheory",
 ];
 
-/** Slots a first diagnosis genuinely needs — coverage = all of these resolved. */
-export const REQUIRED_SLOTS: SlotKey[] = ["sells", "targetMarket", "goal", "channels", "enquiries", "customers"];
+/**
+ * Follow-up questions asked AFTER the required ones, chosen from what the
+ * owner said is hard — they are what lets the diagnosis name the real cause
+ * (price given too early, no proof, no room for more work…) instead of a
+ * generic one. Owners would rather answer a few more questions than get a
+ * shallow diagnosis.
+ */
+export const DEPTH_SLOTS: SlotKey[] = ["pricePresentation", "lostReason", "proof", "repeat", "capacity"];
+
+export function depthSlotsFor(slots: Pick<CheckupSlots, "bottleneck" | "closeRate">): SlotKey[] {
+  const b = (slots.bottleneck ?? "").toLowerCase();
+  const priceOrBuying = /price|expensive|cost|afford|pay|buy|quote|quiet|leave|commit|convert|close|decid|don't buy|dont buy/.test(b);
+  const visibility = /not enough|find|visib|reach|known|more (people|customers|clients)|enquir|aware/.test(b);
+  const busy = /busy|time|capacity|staff|overwhelm|too much|deliver/.test(b);
+  const unsteady = /steady|consistent|season|some months|irregular|up and down|slow months|quiet months|not regular|dry/.test(b);
+  const out: SlotKey[] = [];
+  if (priceOrBuying || busy) out.push("pricePresentation");
+  if (priceOrBuying) out.push("lostReason");
+  if (priceOrBuying || visibility || unsteady) out.push("proof");
+  if (unsteady || visibility || !priceOrBuying) out.push("repeat");
+  out.push("capacity");
+  return out;
+}
+
+/**
+ * Slots a first diagnosis genuinely needs — coverage = all of these resolved.
+ * close rate + people asking a month + typical job value are what let the
+ * diagnosis say what fixing the problem is WORTH, from the owner's own numbers.
+ */
+export const REQUIRED_SLOTS: SlotKey[] = [
+  "sells",
+  "targetMarket",
+  "channels",
+  "bottleneck",
+  // What the owner thinks is causing it — they often know things that happen
+  // offline (a cheaper competitor nearby, a bad month, what customers say).
+  "ownerTheory",
+  "closeRate",
+  "monthlyEnquiries",
+  "jobValue",
+  "followUp",
+];
+
+/**
+ * Slots that carry real diagnostic signal. Owners who do not track numbers can
+ * still answer the qualitative ones (bottleneck, close rate, follow-up), so a
+ * checkup never ends on "don't know" across the board.
+ */
+export const SIGNAL_SLOTS: SlotKey[] = ["bottleneck", "closeRate", "followUp", "jobValue", "monthlyEnquiries", "enquiries", "customers", "revenue"];
+
+/** Minimum known signals before the consultant may wrap up. */
+export const MIN_SIGNALS = 3;
 
 /** How many times the consultant may ask about a slot before accepting the gap. */
 export const ASK_CAP: Record<SlotKey, number> = {
@@ -169,12 +351,23 @@ export const ASK_CAP: Record<SlotKey, number> = {
   sells: 3,
   targetMarket: 3,
   location: 1,
-  goal: 3,
+  goal: 1,
   channels: 3,
-  enquiries: 2,
-  customers: 2,
-  revenue: 2,
-  changes: 2,
+  enquiries: 1,
+  customers: 1,
+  revenue: 1,
+  changes: 1,
+  bottleneck: 2,
+  closeRate: 2,
+  followUp: 2,
+  jobValue: 2,
+  monthlyEnquiries: 2,
+  pricePresentation: 1,
+  lostReason: 1,
+  capacity: 1,
+  proof: 1,
+  repeat: 1,
+  ownerTheory: 1,
 };
 
 export const SLOT_LABELS: Record<SlotKey, string> = {
@@ -188,6 +381,17 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
   customers: "Customers vs last month",
   revenue: "Revenue vs last month (optional)",
   changes: "Recent changes",
+  bottleneck: "Where growth feels stuck",
+  closeRate: "Out of the people who ask, how many pay — BOTH numbers, e.g. '2 out of 5'",
+  followUp: "How fast enquiries get a reply and whether they check back",
+  jobValue: "Rough amount one customer pays for a typical job or order",
+  monthlyEnquiries: "Rough number of people who ask about buying in a normal month",
+  pricePresentation: "How and when they give the price (quick figure on WhatsApp, written quote, after a call or visit)",
+  lostReason: "What people say or do when they don't go ahead",
+  capacity: "Whether they could take on more work right now",
+  proof: "Whether new people see past work or results before hearing the price",
+  repeat: "Whether past customers come back or order again, or it is mostly one-off work",
+  ownerTheory: "What the owner thinks is causing the problem — their own observations, checks or hunches",
 };
 
 /** What the engine currently understands about the business. Updated every turn. */
@@ -202,6 +406,19 @@ export interface CheckupSlots {
   customers?: TrendDirection;
   revenue?: TrendDirection;
   changes?: string[];
+  bottleneck?: string;
+  closeRate?: string;
+  followUp?: string;
+  jobValue?: string;
+  monthlyEnquiries?: string;
+  pricePresentation?: string;
+  lostReason?: string;
+  capacity?: string;
+  proof?: string;
+  repeat?: string;
+  ownerTheory?: string;
+  /** The slot the last question asked about — lets the next turn read a short reply in context. */
+  pending?: SlotKey;
   /** Slots the owner declined to answer — accepted gaps, never fabricated. */
   declined: string[];
   /** How many times the owner corrected the engine's understanding. */

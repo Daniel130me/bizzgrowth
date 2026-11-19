@@ -107,7 +107,9 @@ export default function Welcome(_props: ScreenProps) {
             iconCls="bg-violet-100 text-violet-700"
             title="Resume setup"
             body={`Continue where you left off — the checkup for ${userWorkspace.name}.`}
-            onClick={() => navigate("checkup-intro")}
+            // Straight back into the conversation — it restores every earlier
+            // message (from this browser or the server) and carries on.
+            onClick={() => navigate("onboarding-chat")}
           />
         ) : null}
       </div>

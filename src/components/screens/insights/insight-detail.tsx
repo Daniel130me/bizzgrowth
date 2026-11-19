@@ -19,6 +19,7 @@ import { useBizz } from "@/lib/store";
 import type { ScreenProps } from "../view-types";
 import { guessCategory } from "../market/parts";
 import { BackLink, IMPORTANCE_LABEL, INSIGHT_TYPE_META, evidenceWithFacts, metricSlugFor } from "./parts";
+import { TryThisBox } from "@/components/shared/try-this";
 
 export function InsightDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
@@ -206,6 +207,11 @@ export function InsightDetail({ params }: ScreenProps) {
           className="border-violet-200 bg-violet-50/40"
         >
           <p className="text-[15px] leading-relaxed">{insight.recommendedAction}</p>
+          {insight.tryThis ? (
+            <div className="mt-4">
+              <TryThisBox title={insight.tryThis.title} body={insight.tryThis.body} />
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
             {insight.recommendationId ? (
               <>

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { EmptyState } from "@/components/shared/states";
-import { BriefDocShell, ExecMetricChip, ExplanationsCard, OpportunityCard, RiskCard, WorkedDidNotGrid, parseMetricBullet } from "./brief-parts";
+import { BriefDocShell, BriefSectionBlock, ExecMetricChip, ExplanationsCard, OpportunityCard, RiskCard, WorkedDidNotGrid, parseMetricBullet } from "./brief-parts";
 import { monthlyBriefFor } from "./brief-data";
 import type { BriefSection } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
@@ -32,17 +32,7 @@ export function BriefMonthly({ params: _params }: ScreenProps) {
         <div className="mx-auto w-full max-w-4xl">
           <BriefDocShell brief={aiBrief} businessName={userWorkspace?.name ?? "Your business"} generated={aiBrief.period} shareable={false}>
             {aiBrief.sections.map((s) => (
-              <section key={s.heading} className="border-t pt-6">
-                <h2 className="text-base font-semibold">{s.heading}</h2>
-                <div className="mt-3 space-y-3">
-                  {s.paragraphs?.map((p, i) => (
-                    <p key={i} className="text-[15px] leading-7 text-slate-700">{p}</p>
-                  ))}
-                  {s.bullets?.map((b, i) => (
-                    <p key={i} className="text-[15px] leading-7 text-slate-700">· {b}</p>
-                  ))}
-                </div>
-              </section>
+              <BriefSectionBlock key={s.heading} section={s} businessId={businessId} />
             ))}
           </BriefDocShell>
         </div>

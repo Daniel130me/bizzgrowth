@@ -8,6 +8,9 @@ import {
   type ChannelConversionRow,
   type ImprovedDiagnosis,
 } from "@/lib/checkup";
+import { plainify } from "@/lib/checkup-math";
+import { VOICE_RULES } from "@/lib/ai-voice";
+import { collectAllowedNumbers, ungroundedNumbers } from "@/lib/grounding";
 
 export const runtime = "nodejs";
 
@@ -45,22 +48,20 @@ function narrative(
   facts: BusinessFacts,
   name: string,
 ): Omit<ImprovedDiagnosis, "channelRows" | "bestChannel" | "worstChannel" | "confidence"> {
-  const fmt = (r: ChannelConversionRow) => `${r.name} converts at ${r.conversion.toFixed(1)}%`;
-  const bestS = best ? fmt(best) : "your best channel";
-  const worstS = worst ? fmt(worst) : "your weakest channel";
+  const fmt = (r: ChannelConversionRow) => `${r.customers} of the ${r.enquiries} people who asked through ${r.name} went on to pay`;
   return {
-    headline: worst
-      ? `${worst.name} is where enquiries are leaking.`
-      : "Your channel picture just got clearer.",
-    story: `You added real counts for ${rows.length} channel${rows.length === 1 ? "" : "s"}. ${bestS}${worst && best ? ` while ${worst.name} converts at ${worst.conversion.toFixed(1)}%` : ""}. The gap between them is now the clearest signal in your diagnosis.`,
+    headline: worst && best && worst.name !== best.name
+      ? `People who find you through ${worst.name} are the ones slipping away`
+      : "Your own numbers now back up your diagnosis",
+    story: `You added real counts for ${rows.length} way${rows.length === 1 ? "" : "s"} people find you. ${best ? `${fmt(best)}` : ""}${worst && best && worst.name !== best.name ? `, while ${worst.customers} of the ${worst.enquiries} who asked through ${worst.name} did` : ""}. That gap is now the clearest signal in your diagnosis.`,
     meaning: worst
-      ? `With measured counts, ${worst.name} sends enquiries that rarely become customers for ${name} (${worst.customers} of ${worst.enquiries}). ${best && best.name !== worst.name ? `${best.name} proves your offer converts when the right people arrive — ${best.conversion.toFixed(1)}% conversion. ` : ""}The constraint is the quality of what happens between enquiry and customer on ${worst.name}, not the volume of enquiries.`
-      : `The counts you entered now anchor the diagnosis in your own numbers for ${name}.`,
+      ? `${worst.name} brings people to ${name} who rarely go on to pay (${worst.customers} of ${worst.enquiries}). ${best && best.name !== worst.name ? `${best.name} shows your offer works when the right people arrive. ` : ""}So the thing to fix is what happens after people from ${worst.name} first get in touch — not how many of them there are.`
+      : `The counts you entered now ground your diagnosis in your own numbers for ${name}.`,
     whyItMatters:
-      "Every week the weakest channel runs unattended, spend and effort convert below what the same work could produce elsewhere. Fixing one response or follow-up step on that single channel usually costs less than buying more traffic.",
+      "Every week this stays the same, the effort that brings those people in buys fewer customers than it could. Improving one step — a faster reply, a clearer price, one follow-up — usually costs far less than finding more people.",
     nextInvestigation: worst
-      ? `Look at the last 20 enquiries from ${worst.name}: how fast did each get a first reply, and what happened after? Then run one focused change (faster reply, a standard quote, or one follow-up) for two weeks and keep ${best ? best.name : "your best channel"} as the benchmark.`
-      : "Compare conversion per channel over the next two weeks and re-run this diagnosis with response-time information.",
+      ? `Look back at the last people who asked through ${worst.name}: how fast did each get a reply, and what happened after? Then change one thing — a faster reply, a clear price with options, or one friendly follow-up — for two weeks, and compare with ${best ? best.name : "your best way of finding customers"}.`
+      : "Keep counting who asks and who pays for the next two weeks, then update your diagnosis.",
   };
 }
 
@@ -90,45 +91,61 @@ export async function POST(request: NextRequest) {
     const baseConfidence = typeof facts.confidence === "number" ? facts.confidence : 62;
 
     const payload = {
-      business: { name, type: facts.businessType, goal: facts.primaryGoal },
-      statedTrends: facts.trends,
-      measuredByOwner: rows,
+      business: { name, type: facts.businessType, sells: facts.whatTheySell, customers: facts.customers, goal: facts.primaryGoal },
+      whatTheyToldUs: {
+        whereItFeelsStuck: facts.bottleneck ?? null,
+        whatTheyThinkIsCausingIt: facts.ownerTheory ?? null,
+        howTheyReplyAndFollowUp: facts.followUp ?? null,
+        howTheyGiveThePrice: facts.pricePresentation ?? null,
+        whenPeopleDontBuy: facts.lostReason ?? null,
+      },
+      measuredByOwner: rows.map((r) => ({ way: r.name, peopleWhoAsked: r.enquiries, peopleWhoPaid: r.customers, sharePaidPercent: r.conversion })),
       computed: {
-        bestChannel: { name: best.name, conversion: best.conversion },
-        worstChannel: { name: worst.name, conversion: worst.conversion },
-        totalEnquiries: rows.reduce((a, r) => a + r.enquiries, 0),
-        totalCustomers: rows.reduce((a, r) => a + r.customers, 0),
+        bestWay: { name: best.name, sharePaidPercent: best.conversion },
+        weakestWay: { name: worst.name, sharePaidPercent: worst.conversion },
+        totalPeopleWhoAsked: rows.reduce((a, r) => a + r.enquiries, 0),
+        totalPeopleWhoPaid: rows.reduce((a, r) => a + r.customers, 0),
       },
     };
+    const payloadText = JSON.stringify(payload, null, 2);
+    const allowed = collectAllowedNumbers(payloadText);
 
     const raw = await completeText(
-      `You are the senior analyst inside bizzGrowth. The owner of a small business just added per-channel enquiry and customer counts during their first diagnosis. The numbers are ALREADY computed for you — never recalculate or invent any number; only reference the exact values provided under "measuredByOwner" and "computed".
+      `You are the owner's own analyst inside bizzGrowth. They just counted, for each way people find them, how many people asked and how many paid. The figures are ALREADY worked out for you — never recalculate or invent any number; use only the exact values in "measuredByOwner" and "computed".
+
+Explain what their own numbers show, connect it to what they told you in the checkup (whatTheyToldUs), and give the single most useful thing to change next.
+
+${VOICE_RULES}
 
 Return ONLY valid JSON:
 {
-  "headline": "max 80 chars naming the weak channel",
-  "story": "max 220 chars summarising what the new numbers reveal",
-  "meaning": "3-4 sentences interpreting the conversion gap using ONLY the provided numbers and channel names",
-  "whyItMatters": "2-3 sentences on the cost of leaving the weak channel unfixed",
-  "nextInvestigation": "2-3 sentences with the single most useful next check or two-week experiment on that channel"
-}
-Plain, direct English. No emoji. No markdown.`,
-      JSON.stringify(payload, null, 2),
-      { maxTokens: 800 },
+  "headline": "max 80 chars — what their numbers show, in plain words",
+  "story": "max 220 chars — what the new numbers reveal",
+  "meaning": "3 sentences — what is probably happening, linking the numbers to what they told us",
+  "whyItMatters": "2 sentences — the cost of leaving it as it is",
+  "nextInvestigation": "2-3 sentences — the one change to try for two weeks, and what to count"
+}`,
+      payloadText,
+      { maxTokens: 1600, profile: "quality" },
     );
 
     const parsed = extractJson<Partial<ImprovedDiagnosis>>(raw);
     const fallback = narrative(rows, best, worst, facts, name);
+    // A field with an untraceable figure falls back to the computed narrative.
+    const pick = (v: unknown, fb: string, cap: number) => {
+      const s = typeof v === "string" ? v.trim() : "";
+      return (s && ungroundedNumbers(s, allowed).length === 0 ? plainify(s) : fb).slice(0, cap);
+    };
 
     const improved: ImprovedDiagnosis = {
       channelRows: rows,
       bestChannel: best.name,
       worstChannel: worst.name,
-      headline: String(parsed?.headline ?? fallback.headline).slice(0, 120),
-      story: String(parsed?.story ?? fallback.story).slice(0, 400),
-      meaning: String(parsed?.meaning ?? fallback.meaning).slice(0, 700),
-      whyItMatters: String(parsed?.whyItMatters ?? fallback.whyItMatters).slice(0, 550),
-      nextInvestigation: String(parsed?.nextInvestigation ?? fallback.nextInvestigation).slice(0, 550),
+      headline: pick(parsed?.headline, fallback.headline, 120),
+      story: pick(parsed?.story, fallback.story, 400),
+      meaning: pick(parsed?.meaning, fallback.meaning, 700),
+      whyItMatters: pick(parsed?.whyItMatters, fallback.whyItMatters, 550),
+      nextInvestigation: pick(parsed?.nextInvestigation, fallback.nextInvestigation, 550),
       confidence: clampPercent(baseConfidence + 20, 50, 88, 82),
     };
 

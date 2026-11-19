@@ -11,12 +11,14 @@ import {
   BarChart3,
   CalendarDays,
   CircleDashed,
+  CornerDownRight,
   Database,
   History,
   MessageCircleQuestion,
   RotateCcw,
   Search,
   Send,
+  ShieldCheck,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -32,6 +34,9 @@ import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { ownerMonthsFromEntries } from "@/lib/data/user-business";
 import type { AskWorkspaceContext } from "@/lib/checkup";
+import { buildBusinessContext } from "@/lib/ai-context";
+import { TryThisBox } from "@/components/shared/try-this";
+import { chatDraftKey, getClientId, loadDraft, newChatId, saveDraft, syncChat, type ChatLogMessage } from "@/lib/chat-log";
 import type { Provenance } from "@/lib/types";
 import type { ViewMap } from "../view-types";
 
@@ -51,6 +56,32 @@ interface AnswerContent {
   limitations?: string[];
   evidence: AskEvidence[];
   referencedPeriod: string;
+  tryThis?: { title: string; body: string } | null;
+  followUps?: string[];
+  verified?: boolean;
+}
+
+/** Questions worth asking, written from this owner's own checkup and diagnosis. */
+function suggestionsFor(
+  facts: { bottleneck?: string; pricePresentation?: string; followUp?: string; repeat?: string } | null,
+  stage: string | undefined,
+): string[] | null {
+  if (!facts) return null;
+  const b = (facts.bottleneck ?? "").toLowerCase();
+  const out: string[] = ["What should I do first this week?"];
+  if (stage === "convert" || /price|pay|buy|expensive|leave|quiet/.test(b)) {
+    out.push("How do I follow up without sounding pushy?", "What should I say when someone says it's too expensive?", "How should I present my prices?");
+  } else if (stage === "found" || /not enough|find|known|visib/.test(b)) {
+    out.push("How can I get more people to hear about me?", "How do I ask happy customers to recommend me?", "Where do my best customers come from?");
+  } else if (stage === "return" || /steady|season|some months/.test(b)) {
+    out.push("How do I get past customers to come back?", "How can I make the quiet months less quiet?", "What should I send past customers?");
+  } else if (stage === "deliver" || /busy|time|capacity/.test(b)) {
+    out.push("Should I raise my prices?", "How do I say no to work without losing customers?", "What can I stop doing myself?");
+  } else {
+    out.push("What's holding my business back?", "How do I get more paying customers?", "What should I track each week?");
+  }
+  out.push("What would make the biggest difference this month?");
+  return out.slice(0, 5);
 }
 
 // ---------- Screen 48 — Ask Your Business ----------
@@ -64,6 +95,7 @@ function AskScreen() {
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const checkupFacts = useBizz((s) => s.checkup.facts);
+  const checkupDiagnosis = useBizz((s) => s.checkup.diagnosis);
   const checkupImproved = useBizz((s) => s.checkup.improved);
   const manualEntries = useBizz((s) => s.manualEntries);
   const recordAsk = useBizz((s) => s.recordAsk);
@@ -72,16 +104,65 @@ function AskScreen() {
 
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [thread, setThread] = useState<ThreadItem[]>([]);
   const threadRef = useRef<ThreadItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydrated = useBizz((s) => s.hydrated);
+  // Chat log: kept in the browser (resume after reload) and on the server (quality review).
+  const conversationIdRef = useRef("");
+  const startedAtRef = useRef("");
+  const logRef = useRef<ChatLogMessage[]>([]);
+  const draftKeyRef = useRef("");
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || draftKeyRef.current) return;
+    draftKeyRef.current = chatDraftKey("ask", `${businessId}-${userWorkspace?.name ?? ""}`);
+    const draft = loadDraft<{ v: 1; conversationId: string; startedAt: string; thread: ThreadItem[]; log: ChatLogMessage[] }>(draftKeyRef.current);
+    if (draft && draft.v === 1 && Array.isArray(draft.thread) && draft.thread.length > 0) {
+      conversationIdRef.current = draft.conversationId;
+      startedAtRef.current = draft.startedAt;
+      logRef.current = draft.log ?? [];
+      threadRef.current = draft.thread;
+      setThread(draft.thread);
+    } else {
+      conversationIdRef.current = newChatId("ask");
+      startedAtRef.current = new Date().toISOString();
+    }
+  }, [hydrated, businessId, userWorkspace?.name]);
+
+  // Keep the thread in the browser so a reload resumes the conversation.
+  useEffect(() => {
+    if (!draftKeyRef.current || thread.length === 0) return;
+    saveDraft(draftKeyRef.current, { v: 1, conversationId: conversationIdRef.current, startedAt: startedAtRef.current, thread, log: logRef.current });
+  }, [thread]);
+
+  /** Record one chat message on the server (and in the local log). */
+  function logMessage(role: "ai" | "user", text: string, meta?: Record<string, unknown>) {
+    if (!conversationIdRef.current) {
+      conversationIdRef.current = newChatId("ask");
+      startedAtRef.current = new Date().toISOString();
+    }
+    logRef.current = [...logRef.current, { seq: logRef.current.length, role, text, at: new Date().toISOString(), meta }];
+    syncChat({
+      id: conversationIdRef.current,
+      chatType: "ask",
+      screen: "ask",
+      clientId: getClientId(),
+      workspaceId: businessId,
+      workspaceName: business.name,
+      startedAt: startedAtRef.current,
+      facts: checkupFacts,
+      messages: logRef.current,
+    });
+  }
 
   /** Snapshot of the workspace the server-side analyst reasons over. */
   function buildContext(): AskWorkspaceContext {
@@ -92,6 +173,13 @@ function AskScreen() {
       const last = months.length ? months[months.length - 1] : undefined;
       const prev = months.length > 1 ? months[months.length - 2] : undefined;
       return {
+        // Everything the owner told the checkup, their diagnosis and how far they are with the plan.
+        business: buildBusinessContext({
+          workspace: userWorkspace,
+          facts: checkupFacts,
+          diagnosis: checkupDiagnosis,
+          months: months.map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+        }),
         name: business.name,
         type: business.type,
         location: business.location,
@@ -171,22 +259,24 @@ function AskScreen() {
     };
   }
 
+  const ownSuggestions = businessId === "user-workspace" ? suggestionsFor(checkupFacts, checkupDiagnosis?.focusStage) : null;
   const suggestions =
-    business.type === "service"
+    ownSuggestions ??
+    (business.type === "service"
       ? [
-          "Where are we in this business right now?",
+          "How is my business doing right now?",
           "What should I focus on this week?",
-          "Which channel is performing best?",
+          "Where are my best customers coming from?",
           "What changed recently?",
           "What have we tried before?",
         ]
       : [
-          "Why is traffic growing but orders falling?",
+          "Why are more people looking but fewer buying?",
           "What should I focus on this week?",
-          "Which channel is performing best?",
+          "Where are my best customers coming from?",
           "What changed recently?",
           "What have we tried before?",
-        ];
+        ]);
 
   function pushItem(item: ThreadItem) {
     setThread((t) => {
@@ -215,7 +305,11 @@ function AskScreen() {
     if (typing) return;
     setInput("");
     pushItem({ kind: "question", text: q });
+    logMessage("user", q);
     setTyping(true);
+    setSlow(false);
+    // A considered answer can take a little while — say so instead of leaving dots.
+    const slowTimer = setTimeout(() => setSlow(true), 6000);
     void (async () => {
       try {
         const res = await fetch("/api/ask", {
@@ -225,10 +319,10 @@ function AskScreen() {
             question: q,
             history: threadRef.current
               .filter((item): item is Extract<ThreadItem, { kind: "answer" }> => item.kind === "answer")
-              .slice(-3)
+              .slice(-4)
               .map((item) => ({
                 question: item.question,
-                summary: item.content.grounded.join(" ").slice(0, 200),
+                summary: item.content.grounded.join(" ").slice(0, 420),
               })),
             workspace: buildContext(),
           }),
@@ -236,6 +330,7 @@ function AskScreen() {
         const data = (await res.json()) as { ok?: boolean; answer?: AnswerContent; error?: string };
         if (data?.ok && data.answer && Array.isArray(data.answer.grounded) && data.answer.grounded.length > 0) {
           pushItem({ kind: "answer", question: q, content: data.answer });
+          logMessage("ai", data.answer.grounded.join("\n\n"), { answer: data.answer });
           setTyping(false);
           // Remember the real conversation for the history screen.
           recordAsk({
@@ -250,7 +345,11 @@ function AskScreen() {
       } catch {
         // Honest failure — no canned answer can stand in for the analyst.
         pushItem({ kind: "failed", question: q });
+        logMessage("ai", "(The analyst could not answer — the owner was shown a retry option.)", { failed: true });
         setTyping(false);
+      } finally {
+        clearTimeout(slowTimer);
+        setSlow(false);
       }
     })();
   }
@@ -336,7 +435,14 @@ function AskScreen() {
               </p>
             </div>
           ) : item.kind === "answer" ? (
-            <AnswerCard key={i} answer={item.content} question={item.question} onFollowUp={() => inputRef.current?.focus()} />
+            <AnswerCard
+              key={i}
+              answer={item.content}
+              question={item.question}
+              onFollowUp={() => inputRef.current?.focus()}
+              onAsk={(q) => ask(q)}
+              canAsk={!typing}
+            />
           ) : (
             <FailedCard key={i} question={item.question} onRetry={() => removeFailedAndRetry(item.question)} />
           )
@@ -352,7 +458,9 @@ function AskScreen() {
               <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
               <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
             </div>
-            <span className="text-sm text-muted-foreground">Thinking through your workspace data…</span>
+            <span className="text-sm text-muted-foreground">
+              {slow ? "Working through your answers and your diagnosis — a good answer is worth a few more seconds…" : "Thinking through your business…"}
+            </span>
           </Card>
         ) : null}
       </div>
@@ -391,10 +499,14 @@ function AnswerCard({
   answer,
   question,
   onFollowUp,
+  onAsk,
+  canAsk,
 }: {
   answer: AnswerContent;
   question: string;
   onFollowUp: () => void;
+  onAsk: (q: string) => void;
+  canAsk: boolean;
 }) {
   const navigate = useBizz((s) => s.navigate);
   return (
@@ -406,6 +518,18 @@ function AnswerCard({
           </div>
           <span className="text-sm font-semibold">Answer</span>
           <ProvenanceBadge provenance="ai-interpretation" />
+          {answer.verified === false ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+              <AlertTriangle className="size-3" aria-hidden /> Some figures couldn&apos;t be checked — treat them as a rough guide
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800"
+              title="Every amount, percentage and count in this answer was checked against your own answers and data before it was shown."
+            >
+              <ShieldCheck className="size-3" aria-hidden /> Every figure checked against your data
+            </span>
+          )}
         </div>
         <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
           <CalendarDays className="size-3" aria-hidden /> {answer.referencedPeriod}
@@ -422,10 +546,11 @@ function AnswerCard({
         ))}
         {answer.interpretation ? (
           <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">AI interpretation</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">What we think is going on</p>
             <p className="mt-1 text-sm leading-relaxed text-violet-900">{answer.interpretation}</p>
           </div>
         ) : null}
+        {answer.tryThis ? <TryThisBox title={answer.tryThis.title} body={answer.tryThis.body} /> : null}
         {answer.limitations && answer.limitations.length > 0 ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -444,7 +569,7 @@ function AnswerCard({
 
       {answer.evidence.length > 0 ? (
         <div className="mt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Inline evidence</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Where this comes from</p>
           <div className="grid gap-2 sm:grid-cols-2">
             {answer.evidence.map((e, i) => (
               <button
@@ -462,6 +587,26 @@ function AnswerCard({
                 </div>
                 <p className="mt-1 text-base font-semibold tnum">{e.value}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{e.source}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {answer.followUps && answer.followUps.length > 0 ? (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ask next</p>
+          <div className="flex flex-wrap gap-2">
+            {answer.followUps.map((q) => (
+              <button
+                key={q}
+                type="button"
+                disabled={!canAsk}
+                onClick={() => onAsk(q)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-violet-700 transition-colors hover:bg-violet-50 disabled:opacity-50"
+              >
+                <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
+                {q}
               </button>
             ))}
           </div>

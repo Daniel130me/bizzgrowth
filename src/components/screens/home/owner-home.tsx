@@ -19,10 +19,13 @@ import {
   Database,
   Eye,
   FileSpreadsheet,
+  Lightbulb,
+  ListChecks,
   Minus,
   PenLine,
   Plug,
   Search,
+  ShieldCheck,
   Sparkles,
   Target,
 } from "lucide-react";
@@ -37,6 +40,8 @@ import { fmtDelta, fmtNum, fmtNaira } from "@/lib/format";
 import { ownerMonthsFromEntries, type OwnerMonth } from "@/lib/data/user-business";
 import type { BusinessFacts, DiagnosisContent, ImprovedDiagnosis, TranscriptTurn, TrendDirection } from "@/lib/checkup";
 import type { ManualEntry } from "@/lib/types";
+import { tidyOwnerText } from "@/lib/checkup-math";
+import { loadPlanProgress, planIdFor } from "@/lib/plan-progress";
 import type { ScreenProps } from "../view-types";
 
 /* ---------- small pieces ---------- */
@@ -171,6 +176,30 @@ export default function OwnerHome(_props: ScreenProps) {
   const numberCards = latest ? ownerNumberCards(latest, months) : [];
   const content: DiagnosisContent | null = diagnosis;
 
+  // Plan progress (ticked on the diagnosis page) — read after mount, it lives in this browser.
+  const planSteps = content?.steps ?? [];
+  const [planDoneMap, setPlanDoneMap] = React.useState<Record<number, boolean>>({});
+  React.useEffect(() => {
+    if (content) setPlanDoneMap(loadPlanProgress(planIdFor(businessName, content.headline)));
+  }, [content, businessName]);
+  const planDone = planSteps.filter((_, i) => planDoneMap[i]).length;
+  const nextStep = planSteps.find((_, i) => !planDoneMap[i]);
+
+  // The answers that matter most, in the owner's own (tidied) words — only the ones they gave.
+  const establishedRows = (
+    [
+      ["You sell", facts?.whatTheySell],
+      ["You serve", facts?.customers],
+      ["People find you through", facts?.channels?.length ? facts.channels.join(", ") : undefined],
+      ["Where it feels stuck", facts?.bottleneck],
+      ["How many go on to pay", facts?.closeRate],
+      ["People asking each month", facts?.monthlyEnquiries],
+      ["A typical job", facts?.jobValue],
+    ] as [string, string | undefined][]
+  )
+    .filter((r): r is [string, string] => typeof r[1] === "string" && r[1].trim().length > 0 && !/^described during/i.test(r[1]))
+    .map(([label, value]) => [label, tidyOwnerText(value)] as [string, string]);
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       {/* Greeting + honest status */}
@@ -209,16 +238,57 @@ export default function OwnerHome(_props: ScreenProps) {
           </div>
           {content ? (
             <>
-              <p className="mt-2 text-[15px] font-semibold leading-snug">{improved?.headline ?? content.headline}</p>
-              <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{improved?.story ?? content.story}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-lg font-semibold leading-snug">{improved?.headline ?? content.headline}</p>
+              {content.insight && !improved ? (
+                <p className="mt-2 flex gap-2 text-sm leading-relaxed text-slate-700">
+                  <Lightbulb className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+                  <span>{content.insight}</span>
+                </p>
+              ) : (
+                <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{improved?.story ?? content.story}</p>
+              )}
+              {content.stake ? (
+                <div className="mt-3 rounded-xl bg-violet-700 px-4 py-3 text-white">
+                  <p className="text-xl font-bold tnum">{content.stake.figure}</p>
+                  <p className="text-xs text-violet-100">
+                    {content.stake.label}
+                    {content.stake.detail ? ` — ${content.stake.detail.replace(/^If /, "if ")}` : ""}
+                  </p>
+                </div>
+              ) : null}
+              {planSteps.length > 0 ? (
+                <div className="mt-3 rounded-xl border border-violet-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                      <ListChecks className="size-4 text-violet-600" aria-hidden /> Your plan this week
+                    </p>
+                    <span className="text-xs text-slate-500 tnum">
+                      {planDone} of {planSteps.length} done
+                    </span>
+                  </div>
+                  <Progress value={(planDone / planSteps.length) * 100} className="mt-2 h-1.5" />
+                  {nextStep ? (
+                    <p className="mt-2 text-sm text-slate-700">
+                      <span className="font-medium">Next: </span>
+                      {nextStep}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm font-medium text-emerald-700">All done — add what happened to sharpen your diagnosis.</p>
+                  )}
+                </div>
+              ) : null}
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-800">
+                <ShieldCheck className="size-3.5" aria-hidden />
                 {improved
-                  ? `Confidence ${improved.confidence}% — now grounded in the channel counts you entered.`
-                  : `Confidence ${content.confidence}% — built from what you described, not measured data yet.`}
+                  ? "Every figure comes from your answers and the counts you entered."
+                  : "Every figure checked against your answers — nothing invented."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" className="bg-violet-600 hover:bg-violet-700" onClick={() => navigate("first-diagnosis")}>
-                  <Eye className="mr-1.5 size-3.5" aria-hidden /> Open full diagnosis
+                  <Eye className="mr-1.5 size-3.5" aria-hidden /> Open my diagnosis &amp; plan
+                </Button>
+                <Button size="sm" variant="outline" className="bg-white" onClick={() => navigate("ask")}>
+                  <Sparkles className="mr-1.5 size-3.5" aria-hidden /> Ask about it
                 </Button>
                 <Button size="sm" variant="ghost" className="text-violet-700 hover:text-violet-800" onClick={() => navigate("first-diagnosis-evidence")}>
                   <Search className="mr-1.5 size-3.5" aria-hidden /> See the evidence
@@ -247,34 +317,23 @@ export default function OwnerHome(_props: ScreenProps) {
             <ProvenanceBadge provenance="user-supplied" />
           </div>
           <dl className="mt-3 space-y-2.5 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">You sell</dt>
-              <dd className="max-w-[60%] text-right font-medium">{facts?.whatTheySell ?? "—"}</dd>
-            </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">You serve</dt>
-              <dd className="max-w-[60%] text-right font-medium">{facts?.customers ?? "—"}</dd>
-            </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">Customers come from</dt>
-              <dd className="max-w-[60%] text-right font-medium">{facts?.channels?.length ? facts.channels.join(", ") : "—"}</dd>
-            </div>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <dt className="text-muted-foreground">Your goal</dt>
-              <dd className="max-w-[60%] text-right font-medium">{facts?.primaryGoal ?? "—"}</dd>
-            </div>
+            {establishedRows.map(([label, value]) => (
+              <div key={label} className="flex flex-wrap items-baseline justify-between gap-2">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="max-w-[60%] text-right font-medium">{value}</dd>
+              </div>
+            ))}
           </dl>
-          {facts?.trends ? (
+          {/* Trends only when the owner actually gave them — never a wall of "not reported". */}
+          {facts?.trends && (["enquiries", "customers", "revenue"] as const).some((k) => facts.trends[k] !== "Don't know") ? (
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-dashed pt-3">
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                Enquiries: <TrendWord trend={facts.trends.enquiries} />
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                Customers: <TrendWord trend={facts.trends.customers} />
-              </span>
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                Revenue: <TrendWord trend={facts.trends.revenue} />
-              </span>
+              {(["enquiries", "customers", "revenue"] as const)
+                .filter((k) => facts.trends[k] !== "Don't know")
+                .map((k) => (
+                  <span key={k} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {k === "enquiries" ? "People asking" : k === "customers" ? "Paying customers" : "Money coming in"}: <TrendWord trend={facts.trends[k]} />
+                  </span>
+                ))}
             </div>
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
@@ -378,7 +437,7 @@ export default function OwnerHome(_props: ScreenProps) {
                   <Target className="size-4 text-blue-600" aria-hidden /> Improve the diagnosis with channel counts
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Enter last month&apos;s enquiries and customers per channel — conversion is computed from your counts, so the
+                  Enter last month&apos;s enquiries and paying customers for each way people find you — we work out how many go on to pay from your own counts, so the
                   numbers are real the moment you type them.
                 </p>
               </div>
