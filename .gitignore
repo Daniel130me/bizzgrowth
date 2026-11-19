@@ -37,7 +37,6 @@ yarn-error.log*
 # vercel
 .vercel
 graphify-out
-CLAUDE.md
 
 # typescript
 *.tsbuildinfo
@@ -54,3 +53,5 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Chat log fallback files (written when the database is unreachable)
+/db/chat-logs/
