@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useBizz, useBizzNotifications } from "@/lib/store";
 import { navigate } from "@/lib/router";
+import { signOut } from "@/lib/auth/client";
 import { getBusiness, DATE_RANGES } from "@/lib/data/businesses";
 
 const APP_NAV = [
@@ -311,7 +312,7 @@ function UserMenu() {
         <DropdownMenuItem onClick={() => navigate("help")}><LifeBuoy className="size-4" aria-hidden /> Help &amp; support</DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate("feedback")}><MessageSquareText className="size-4" aria-hidden /> Send feedback</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate("signin")}><LogOut className="size-4" aria-hidden /> Sign out</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { void signOut().finally(() => navigate("signin")); }}><LogOut className="size-4" aria-hidden /> Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -496,7 +497,7 @@ export function OnboardingLayout({ children, route }: { children: React.ReactNod
       </header>
       <main id="main" className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6">{children}</main>
       <footer className="border-t bg-white px-6 py-4 text-center text-xs text-muted-foreground">
-        Private checkup · Exact figures optional — estimates are fine · You can connect accounts later · Nothing is shared
+        Private checkup · Exact figures optional — estimates are fine · You can connect accounts later · Never shared with other businesses
       </footer>
     </div>
   );

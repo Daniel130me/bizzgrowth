@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBizz } from "@/lib/store";
+import { saveWorkspace } from "@/lib/auth/client";
 import type { ScreenProps } from "../view-types";
 import { TrustRow } from "./parts";
 
@@ -31,6 +32,7 @@ export default function CreateWorkspace(_props: ScreenProps) {
   const [website, setWebsite] = useState("");
   const [touchedCurrency, setTouchedCurrency] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   function onCountryChange(v: string) {
     setCountry(v);
@@ -40,13 +42,21 @@ export default function CreateWorkspace(_props: ScreenProps) {
     }
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
       setError("Give your workspace a business name — you can change it later.");
       return;
     }
     setError("");
+    setSaving(true);
+    // Save the workspace on the server (owned by the signed-in user) first.
+    const saved = await saveWorkspace({ name: name.trim(), type: "service", country, currency, website: website.trim() || undefined });
+    setSaving(false);
+    if (!saved.ok) {
+      setError(saved.error);
+      return;
+    }
     createWorkspace({
       name: name.trim(),
       type: "service",
@@ -143,7 +153,7 @@ export default function CreateWorkspace(_props: ScreenProps) {
             <p className="text-xs text-muted-foreground">Used later to check tracking — never required.</p>
           </div>
 
-          <Button type="submit" className="w-full sm:w-auto">
+          <Button type="submit" className="w-full sm:w-auto" disabled={saving}>
             Continue to the private checkup
             <ArrowRight className="size-4" aria-hidden />
           </Button>

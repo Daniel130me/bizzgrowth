@@ -2,7 +2,7 @@
 // bizzGrowth single-page application root.
 // Served from the only Next route ("/"); everything below is client-side hash navigation.
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useHashRoute } from "@/lib/router";
 import { useBizz } from "@/lib/store";
 import { AppShell, AdminShell, OnboardingLayout, PublicLayout, BareLayout } from "@/components/shell/shell";
@@ -24,6 +24,8 @@ import { views as settingsViews } from "./screens/settings";
 import { views as adminViews } from "./screens/admin";
 import { views as prototypeViews } from "./screens/prototype";
 import type { ScreenComponent, ViewMap } from "./screens/view-types";
+import { syncSession } from "@/lib/auth/client";
+import { navigate } from "@/lib/router";
 
 const EXACT: ViewMap = {
   ...publicViews,
@@ -87,8 +89,17 @@ export default function AppRoot() {
   const hydrate = useBizz((s) => s.hydrate);
   const scrolledRef = useRef("");
 
+  const authChecked = useBizz((s) => s.authChecked);
+  const authUserId = useBizz((s) => s.authUserId);
+  // undefined = the server couldn't say (offline / DB waking up): don't lock the owner out.
+  const [authUnknown, setAuthUnknown] = useState(false);
+
   useEffect(() => {
     hydrate();
+    // Who is signed in comes from the server session cookie, not localStorage.
+    void syncSession().then((me) => {
+      if (me === undefined) setAuthUnknown(true);
+    });
   }, [hydrate]);
 
   useEffect(() => {
@@ -126,6 +137,18 @@ export default function AppRoot() {
   }
 
   const { View, params, route, layout } = resolved;
+  const needsAuth = layout === "app" || layout === "admin" || layout === "onboarding";
+  if (needsAuth && !authUnknown && !authUserId) {
+    if (authChecked) return <RedirectToSignin />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <span className="size-2 animate-pulse rounded-full bg-blue-600" aria-hidden />
+          Checking your session…
+        </div>
+      </div>
+    );
+  }
   const content = <View params={params} />;
 
   if (layout === "bare") return <BareLayout>{content}</BareLayout>;
@@ -133,4 +156,11 @@ export default function AppRoot() {
   if (layout === "onboarding") return <OnboardingLayout route={route}>{content}</OnboardingLayout>;
   if (layout === "public") return <PublicLayout route={route}>{content}</PublicLayout>;
   return <AppShell route={route}>{content}</AppShell>;
+}
+
+function RedirectToSignin() {
+  useEffect(() => {
+    navigate("signin");
+  }, []);
+  return null;
 }

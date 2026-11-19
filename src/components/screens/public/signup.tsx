@@ -7,19 +7,20 @@ import { toast } from "sonner";
 import { useBizz } from "@/lib/store";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { AuthShell, DemoHint, Field, PasswordField, SubmitButton, isEmail, pendingSignup } from "./auth-shared";
+import { signUp } from "@/lib/auth/client";
+import { AuthShell, Field, PasswordField, SubmitButton, isEmail, pendingSignup } from "./auth-shared";
 
 type Errors = { name: string; email: string; password: string; agreed: string };
 type Touched = { name?: boolean; email?: boolean; password?: boolean; agreed?: boolean };
 
 export default function SignupScreen() {
   const navigate = useBizz((s) => s.navigate);
-  const setAuthUser = useBizz((s) => s.setAuthUser);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState("");
   const [touched, setTouched] = useState<Touched>({});
 
   const errors: Errors = {
@@ -32,7 +33,7 @@ export default function SignupScreen() {
   const showErr = (k: keyof Errors) => (touched[k] ? errors[k] : "");
   const blur = (k: keyof Touched) => () => setTouched((t) => ({ ...t, [k]: true }));
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setTouched({ name: true, email: true, password: true, agreed: true });
     if (!valid) {
@@ -42,18 +43,21 @@ export default function SignupScreen() {
       return;
     }
     setSubmitting(true);
-    window.setTimeout(() => {
-      const cleanName = name.trim();
-      const cleanEmail = email.trim().toLowerCase();
-      pendingSignup.name = cleanName;
-      pendingSignup.email = cleanEmail;
-      // Make name/email available to onboarding screens AND persist them —
-      // a reload must never greet the owner with a sample identity.
-      setAuthUser(cleanName, cleanEmail);
-      setSubmitting(false);
-      toast.success("Account created", { description: `We sent a verification link to ${cleanEmail}.` });
-      navigate("verify-email");
-    }, 900);
+    setServerError("");
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    // Creates the real account (password hashed on the server) and signs in.
+    const r = await signUp(cleanName, cleanEmail, password);
+    setSubmitting(false);
+    if (!r.ok) {
+      setServerError(r.error);
+      if (r.field === "email" || r.field === "name" || r.field === "password") setTouched((t) => ({ ...t, [r.field as string]: true }));
+      return;
+    }
+    pendingSignup.name = cleanName;
+    pendingSignup.email = cleanEmail;
+    toast.success("Account created", { description: `Welcome to bizzGrowth, ${cleanName.split(" ")[0]}.` });
+    navigate("verify-email");
   }
 
   return (
@@ -155,15 +159,20 @@ export default function SignupScreen() {
             </p>
           ) : null}
         </div>
+        {serverError ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700" role="alert">
+            {serverError}{" "}
+            {serverError.includes("Sign in") ? (
+              <button type="button" className="underline" onClick={() => navigate("signin")}>
+                Go to sign in
+              </button>
+            ) : null}
+          </p>
+        ) : null}
         <SubmitButton loading={submitting} disabled={!valid}>
           Create account
         </SubmitButton>
       </form>
-      <div className="mt-4">
-        <DemoHint>
-          This is a clickable prototype — no real account is created and nothing leaves your browser.
-        </DemoHint>
-      </div>
     </AuthShell>
   );
 }

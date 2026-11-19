@@ -118,12 +118,20 @@ interface BizzState {
   createWorkspace: (meta: UserWorkspaceMeta) => void;
   /** Store the signed-up/in person's identity AND persist it (survives reload). */
   setAuthUser: (name: string, email: string) => void;
+  /** Server session (from /api/auth/me): the real User id and Workspace id in Neon. */
+  authUserId: string | null;
+  authWorkspaceId: string | null;
+  /** True once /api/auth/me has answered for this page load. */
+  authChecked: boolean;
+  setSession: (u: { id: string; name: string; email: string; jobRole?: string | null; workspaceId?: string | null } | null) => void;
   addManualEntry: (entry: ManualEntry) => void;
   deleteManualEntry: (id: string) => void;
   setCheckupFacts: (facts: BusinessFacts, transcript: TranscriptTurn[]) => void;
   setCheckupJourney: (journey: string[]) => void;
   /** Owner corrections to the extracted facts — clears the now-stale diagnosis so it regenerates. */
   updateCheckupFacts: (facts: BusinessFacts) => void;
+  /** Add answers to the facts and swap in an updated diagnosis in one step (no regeneration). */
+  patchCheckupFacts: (patch: Partial<BusinessFacts>, diagnosis?: DiagnosisContent) => void;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   setAiInsights: (items: Insight[]) => void;
@@ -329,6 +337,22 @@ export const useBizz = create<BizzState>((set, get) => ({
       localStorage.setItem(SETTINGS_KEY, JSON.stringify({ settings, user }));
     } catch {}
   },
+  authUserId: null,
+  authWorkspaceId: null,
+  authChecked: false,
+  setSession: (u) => {
+    if (!u) {
+      set({ authUserId: null, authWorkspaceId: null, authChecked: true });
+      return;
+    }
+    set({ authUserId: u.id, authWorkspaceId: u.workspaceId ?? null, authChecked: true });
+    // Identity shown in the app comes from the server session, not localStorage.
+    const cur = get().user;
+    if (cur.name !== u.name || cur.email !== u.email || (u.jobRole && cur.jobRole !== u.jobRole)) {
+      get().setAuthUser(u.name, u.email);
+      if (u.jobRole) set({ user: { ...get().user, jobRole: u.jobRole } });
+    }
+  },
   addManualEntry: (entry) => {
     set((s) => {
       // Re-saving a month is a correction — replace the earlier entry for the
@@ -351,9 +375,21 @@ export const useBizz = create<BizzState>((set, get) => ({
     const userWorkspace = s.userWorkspace && s.userWorkspace.type !== facts.businessType
       ? { ...s.userWorkspace, type: facts.businessType }
       : s.userWorkspace;
-    const checkup: CheckupState = { transcript, facts, diagnosis: s.checkup.diagnosis, improved: null };
+    // A new checkup means a new diagnosis — never show the previous one for new answers.
+    const checkup: CheckupState = { transcript, facts, diagnosis: null, improved: null };
     set({ checkup, userWorkspace });
     persistCheckup({ userWorkspace, checkup });
+  },
+  patchCheckupFacts: (patch, diagnosis) => {
+    const s = get();
+    if (!s.checkup.facts) return;
+    const checkup: CheckupState = {
+      ...s.checkup,
+      facts: { ...s.checkup.facts, ...patch },
+      diagnosis: diagnosis ?? s.checkup.diagnosis,
+    };
+    set({ checkup });
+    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
   },
   setCheckupJourney: (journey) => {
     const s = get();
@@ -440,6 +476,11 @@ export const useBizz = create<BizzState>((set, get) => ({
       const raw = localStorage.getItem(CHECKUP_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as { userWorkspace?: UserWorkspaceMeta | null; checkup?: CheckupState };
+        // A workspace created mid-onboarding (no facts yet) must survive a reload
+        // too, so the owner's in-progress chat resumes under the right business.
+        if (parsed.userWorkspace && !(parsed.checkup && parsed.checkup.facts)) {
+          set({ userWorkspace: parsed.userWorkspace, businessId: "user-workspace" });
+        }
         if (parsed.checkup && parsed.checkup.facts) {
           const userWorkspace = parsed.userWorkspace ?? get().userWorkspace;
           set({
