@@ -8,9 +8,15 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Neon Postgres is the real database (SQLite was only the early prototype).
+// NOTE: the Neon database also holds production tables that are NOT modelled
+// here yet — do NOT run `prisma db push` / `migrate` against it from this
+// schema, it would try to drop them. New tables are created additively with
+// the SQL in prisma/sql/ (see prisma/sql/README.md).
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model User {
@@ -94,4 +100,47 @@ model MarketBid {
   inviteSource String     @default("ai-match") // ai-match | manual
   status       String     @default("pending") // pending | accepted | declined
   createdAt    DateTime   @default(now())
+}
+
+// ---------- Chat conversation log ----------
+// Every AI chat (onboarding checkup, Ask, ...) is stored here so the team can
+// review conversation quality, and so an owner can resume where they stopped.
+// No foreign keys: workspaces in the client app are not yet Neon Workspace rows.
+
+model ChatConversation {
+  id            String        @id // client-generated, unguessable
+  chatType      String // "onboarding-checkup" | "ask" | ...
+  screen        String // screen/route the chat ran on, e.g. "onboarding-chat"
+  clientId      String? // anonymous per-browser id (no auth yet)
+  workspaceId   String?
+  workspaceName String?
+  country       String?
+  phase         String? // e.g. "interview" | "done"
+  slots         Json? // facts extracted so far (checkup slots)
+  facts         Json? // final structured facts, when the chat finished
+  meta          Json?
+  messageCount  Int           @default(0)
+  source        String        @default("live") // live | captured (backfilled from an open page)
+  startedAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  messages      ChatMessage[]
+
+  @@index([chatType, updatedAt])
+  @@index([workspaceId])
+  @@index([clientId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  seq            Int // 0-based order within the conversation
+  role           String // "ai" | "user"
+  text           String
+  meta           Json? // learned chips, suggested chips, degraded flag, ...
+  sentAt         DateTime
+  createdAt      DateTime         @default(now())
+
+  @@unique([conversationId, seq])
+  @@index([conversationId])
 }
