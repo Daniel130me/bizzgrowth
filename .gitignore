@@ -55,3 +55,6 @@ server.log
 /skills/
 # Chat log fallback files (written when the database is unreachable)
 /db/chat-logs/
+
+# AI gateway per-key usage stats (runtime data)
+/.ai-gateway/

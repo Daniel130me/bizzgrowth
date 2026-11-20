@@ -41,6 +41,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InfoBanner } from "@/components/shared/layout";
 import { useBizz } from "@/lib/store";
+import { restoreFinishedCheckup } from "@/lib/checkup-restore";
 import {
   DIAGNOSIS_VERSION,
   FOCUS_STAGES,
@@ -515,7 +516,30 @@ export default function FirstDiagnosis(_props: ScreenProps) {
 
   const told = useMemo(() => (facts ? toldUs(facts) : []), [facts]);
 
+  // No facts in this browser: look for a checkup finished earlier (saved chat)
+  // before deciding there is none.
+  const [lookingUp, setLookingUp] = useState(!facts);
+  useEffect(() => {
+    if (facts) return;
+    let live = true;
+    void restoreFinishedCheckup().finally(() => {
+      if (live) setLookingUp(false);
+    });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ---------- No checkup yet ---------- */
+  if (!facts && lookingUp) {
+    return (
+      <div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-2 py-16 text-sm text-muted-foreground" role="status">
+        <span className="size-2 animate-pulse rounded-full bg-violet-600" aria-hidden />
+        Finding your checkup…
+      </div>
+    );
+  }
   if (!facts) {
     return (
       <div className="mx-auto w-full max-w-2xl text-center">

@@ -128,6 +128,8 @@ interface BizzState {
   deleteManualEntry: (id: string) => void;
   setCheckupFacts: (facts: BusinessFacts, transcript: TranscriptTurn[]) => void;
   setCheckupJourney: (journey: string[]) => void;
+  /** Put back a checkup finished earlier (saved chat), keeping its diagnosis. No-op if facts are already here. */
+  restoreCheckup: (facts: BusinessFacts, transcript: TranscriptTurn[], diagnosis?: DiagnosisContent | null) => void;
   /** Owner corrections to the extracted facts — clears the now-stale diagnosis so it regenerates. */
   updateCheckupFacts: (facts: BusinessFacts) => void;
   /** Add answers to the facts and swap in an updated diagnosis in one step (no regeneration). */
@@ -397,6 +399,16 @@ export const useBizz = create<BizzState>((set, get) => ({
     const checkup: CheckupState = { ...s.checkup, facts: { ...s.checkup.facts, journey } };
     set({ checkup });
     persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+  },
+  restoreCheckup: (facts, transcript, diagnosis) => {
+    const s = get();
+    if (s.checkup.facts) return;
+    const userWorkspace = s.userWorkspace && s.userWorkspace.type !== facts.businessType
+      ? { ...s.userWorkspace, type: facts.businessType }
+      : s.userWorkspace;
+    const checkup: CheckupState = { ...EMPTY_CHECKUP, transcript, facts, diagnosis: diagnosis ?? null };
+    set({ checkup, userWorkspace });
+    persistCheckup({ userWorkspace, checkup });
   },
   updateCheckupFacts: (facts) => {
     const s = get();

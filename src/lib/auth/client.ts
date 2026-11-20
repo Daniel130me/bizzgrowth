@@ -4,6 +4,8 @@
 
 import { useBizz } from "@/lib/store";
 import type { UserWorkspaceMeta } from "@/lib/data/businesses";
+import { restoreFinishedCheckup } from "@/lib/checkup-restore";
+import { navigate } from "@/lib/router";
 
 export interface MeUser {
   id: string;
@@ -19,6 +21,9 @@ type Result = { ok: true } | { ok: false; error: string; field?: string; status:
 
 // Which server user the local (per-browser) workspace data belongs to.
 const OWNER_KEY = "bizzgrowth-auth-owner-v1";
+// Set when sign-in had to reload the page: pick the landing page once the
+// reloaded app knows whether this user's checkup is done.
+const LAND_AFTER_RELOAD = "bizzgrowth-land-after-signin";
 
 async function post(path: string, body?: unknown): Promise<Result> {
   try {
@@ -68,17 +73,27 @@ function claimLocalData(userId: string): boolean {
 }
 
 /** Push the server session into the store. Returns the user (or null). */
-export async function syncSession(opts?: { thenGoTo?: string }): Promise<MeUser | null | undefined> {
+export async function syncSession(opts?: { thenGoTo?: string; land?: boolean }): Promise<MeUser | null | undefined> {
   const me = await fetchMe();
   if (me === undefined) return undefined; // unknown: keep whatever we had
   if (me && claimLocalData(me.id)) {
     // Another account's data was in memory; reload so the store starts clean.
     if (opts?.thenGoTo) window.history.replaceState(null, "", `#/${opts.thenGoTo}`);
+    if (opts?.land) {
+      try {
+        sessionStorage.setItem(LAND_AFTER_RELOAD, "1");
+      } catch {}
+    }
     window.location.reload();
     return me;
   }
-  useBizz.getState().setSession(me);
   restoreWorkspace(me);
+  // Onboarding finished earlier but this browser lost it → bring it back, so a
+  // returning owner goes to their workspace instead of through setup again.
+  // Capped so a slow server never holds up sign-in; the restore still lands later.
+  if (me) await Promise.race([restoreFinishedCheckup(), new Promise((r) => setTimeout(r, 4000))]);
+  useBizz.getState().setSession(me);
+  if (me && consumeLandAfterReload()) navigate(landingFor(me));
   return me;
 }
 
@@ -95,17 +110,27 @@ function restoreWorkspace(me: MeUser | null) {
   useBizz.setState({ userWorkspace: meta, businessId: "user-workspace", settings: { ...s.settings, businessName: meta.name } });
 }
 
+function consumeLandAfterReload(): boolean {
+  try {
+    if (!sessionStorage.getItem(LAND_AFTER_RELOAD)) return false;
+    sessionStorage.removeItem(LAND_AFTER_RELOAD);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Where a signed-in user should land: setup if they have no workspace yet, else Home. */
 export function landingFor(_user?: MeUser | null): string {
-  // Finished checkup in this browser → Home; otherwise the setup start page,
-  // which offers "Resume setup" for an unfinished onboarding chat.
+  // Finished checkup (restored from the saved chat if needed) → Home; otherwise
+  // the setup start page, which offers "Resume setup" for an unfinished chat.
   return useBizz.getState().checkup.facts ? "home" : "welcome";
 }
 
 export async function signIn(email: string, password: string, remember: boolean): Promise<Result & { user?: MeUser | null }> {
   const r = await post("/api/auth/login", { email, password, remember });
   if (!r.ok) return r;
-  return { ...r, user: await syncSession({ thenGoTo: "welcome" }) };
+  return { ...r, user: await syncSession({ thenGoTo: "welcome", land: true }) };
 }
 
 export async function signUp(name: string, email: string, password: string): Promise<Result> {

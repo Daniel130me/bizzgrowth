@@ -297,6 +297,9 @@ export default function OnboardingChat(_props: ScreenProps) {
     if (phaseRef.current === "done") {
       // Finished talking but the closing step never completed — finish it now.
       if (!draft.messages.some((m) => m.cta)) finishConversation();
+      // Finished earlier: make sure the facts are in the store too, or
+      // "See my diagnosis" would find nothing and send the owner back here.
+      else if (draft.facts) useBizz.getState().restoreCheckup(draft.facts, draft.transcript ?? []);
     } else if (last.role === "user") {
       // Left while the consultant was still replying — get that reply now.
       void consultantTurn(last.text);

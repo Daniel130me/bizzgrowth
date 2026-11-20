@@ -213,11 +213,36 @@ export function AiGatewaySettings() {
                       ? `${p.model} · ${p.note}`
                       : `Model: ${p.model} · ${p.configured ? `${p.keyCount} key${p.keyCount > 1 ? "s" : ""}` : "no key set"} · set via ${p.envKeys}${p.envModel ? ` / ${p.envModel}` : ""}`}
                   </p>
-                  {providerRoutes.filter((r) => r.lastError).map((r) => (
-                    <p key={r.routeLabel} className="mt-1 truncate pl-7 text-xs text-red-500" title={r.lastError}>
-                      {r.routeLabel}: {r.lastError}
-                    </p>
-                  ))}
+                  {(p.keys ?? []).length > 0 ? (
+                    <ul className="mt-2 space-y-1.5 pl-7" aria-label={`${p.label} keys`}>
+                      {[...(p.keys ?? []), ...(p.retiredKeys ?? [])].map((k) => (
+                        <li key={k.id} className="rounded-lg border bg-white px-3 py-2 text-xs">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <KeyRound className="size-3 shrink-0 text-slate-400" aria-hidden />
+                            <span className="font-medium">{k.label}</span>
+                            <code className="rounded bg-slate-100 px-1 text-[10px] text-slate-600">{k.masked}</code>
+                            {!k.configured ? (
+                              <Badge variant="outline" className="text-[10px] font-normal text-slate-500">removed</Badge>
+                            ) : k.status === "cooling-down" ? (
+                              <Badge className="bg-amber-100 text-[10px] font-medium text-amber-700">
+                                cooling{k.cooldownUntil ? ` until ${formatTime(k.cooldownUntil)}` : ""}
+                              </Badge>
+                            ) : null}
+                            <span className="ml-auto tnum text-muted-foreground">
+                              {k.requests} req · {k.successes} ok · {k.failures} failed · {k.rateLimitHits} 429
+                              {k.totalTokens > 0 ? ` · ${k.totalTokens.toLocaleString()} tok` : ""}
+                              {k.lastUsedAt ? ` · last ${formatTime(k.lastUsedAt)}` : ""}
+                            </span>
+                          </div>
+                          {k.lastError ? (
+                            <p className="mt-0.5 truncate text-red-500" title={k.lastError}>
+                              {k.lastError}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
                 {p.configured && providerRoutes.length > 0 ? (
                   <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
@@ -255,6 +280,8 @@ export function AiGatewaySettings() {
 {`OPENAI_API_KEY=sk-...            # or several: sk-1,sk-2
 OPENAI_MODEL=gpt-4o-mini
 GROQ_API_KEY=gsk_...
+GROQ_API_KEY_2=ada:gsk_...       # numbered + optional "label:" prefix
+GROQ_API_KEYS=gsk_...,gsk_...    # plural var also works
 GROQ_MODEL=llama-3.3-70b-versatile
 OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
@@ -264,9 +291,9 @@ GEMINI_MODEL=gemini-2.0-flash
 AI_GATEWAY_ORDER=z.ai,openai,groq,openrouter,gemini`}
           </pre>
           <p>
-            Multiple keys for the same provider are comma-separated — each key becomes its own failover route, so one
-            expired or rate-limited key falls through to the next. Providers without a key are skipped; the platform
-            route (z.ai) is always present as the baseline.
+            Several keys per provider are rotated least-recently-used first to spread load. A rate-limited key cools
+            down on its own and the next key of the same provider takes over; invalid keys are parked for hours.
+            Providers without a key are skipped. Each key is shown above by its label and last 4 characters only.
           </p>
           {extraConfigured.length === 0 ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
@@ -322,7 +349,9 @@ AI_GATEWAY_ORDER=z.ai,openai,groq,openrouter,gemini`}
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Gateway state (health counters and events) is per server process and resets on restart.
+          {snapshot?.usageFile
+            ? `Per-key usage is saved to ${snapshot.usageFile} and survives restarts; recent events reset on restart.`
+            : "Gateway state (health counters and events) is per server process and resets on restart."}
         </p>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={`mr-1.5 size-4 ${loading ? "animate-spin" : ""}`} aria-hidden /> Refresh status
