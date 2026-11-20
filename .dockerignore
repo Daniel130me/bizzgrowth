@@ -1,0 +1,16 @@
+.git
+.github
+.next
+node_modules
+graphify-out
+.env*
+!.env.example
+*.log
+coverage
+db/chat-logs
+.ai-gateway
+download
+upload
+tool-results
+agent-ctx
+worklog.md

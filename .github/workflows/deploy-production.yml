@@ -1,0 +1,169 @@
+name: Validate and deploy production
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      DATABASE_URL_UNPOOLED: postgresql://ci:ci@127.0.0.1:5432/ci
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Generate Prisma client
+        run: bun run db:generate
+
+      - name: Build with TypeScript validation
+        run: bun run build
+
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Derive immutable image name and tag
+        id: image
+        shell: bash
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tag="sha-${GITHUB_SHA}"
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ steps.image.outputs.tag }}
+            ${{ steps.image.outputs.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Check out deployment configuration
+        uses: actions/checkout@v4
+
+      - name: Configure verified SSH access
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Validate deployment settings
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+        run: |
+          : "${DEPLOY_HOST:?Set the DEPLOY_HOST production variable}"
+          : "${DEPLOY_USER:?Set the DEPLOY_USER production variable}"
+          : "${DEPLOY_PATH:?Set the DEPLOY_PATH production variable}"
+          : "${GHCR_USERNAME:?Set the GHCR_USERNAME production secret}"
+          [[ "${DEPLOY_PORT:-22}" =~ ^[0-9]{1,5}$ ]]
+          (( ${DEPLOY_PORT:-22} >= 1 && ${DEPLOY_PORT:-22} <= 65535 ))
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]
+          [[ "$DEPLOY_PATH" != *".."* ]]
+          [[ "$GHCR_USERNAME" =~ ^[A-Za-z0-9_-]+$ ]]
+
+      - name: Upload deployment configuration
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          port="${DEPLOY_PORT:-22}"
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$port" "$target" "mkdir -p '$DEPLOY_PATH/deploy'"
+          scp -i "$HOME/.ssh/deploy_key" -P "$port" \
+            compose.production.yaml "$target:$DEPLOY_PATH/compose.production.yaml"
+          scp -i "$HOME/.ssh/deploy_key" -P "$port" \
+            deploy/nginx.conf.template deploy/deploy-production.sh deploy/renew-certificates.sh "$target:$DEPLOY_PATH/deploy/"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$port" "$target" \
+            "chmod 750 '$DEPLOY_PATH/deploy/deploy-production.sh' '$DEPLOY_PATH/deploy/renew-certificates.sh'"
+
+      - name: Pull image and restart healthy services
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          APP_IMAGE: ${{ needs.publish.outputs.image }}
+          IMAGE_TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          port="${DEPLOY_PORT:-22}"
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          printf '%s' "$GHCR_TOKEN" | ssh -i "$HOME/.ssh/deploy_key" -p "$port" "$target" \
+            "docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+          ssh -i "$HOME/.ssh/deploy_key" -p "$port" "$target" \
+            "APP_IMAGE='$APP_IMAGE' IMAGE_TAG='$IMAGE_TAG' '$DEPLOY_PATH/deploy/deploy-production.sh' '$DEPLOY_PATH'"

@@ -1,0 +1,101 @@
+name: bizzgrowth
+
+services:
+  app:
+    image: "${APP_IMAGE:?APP_IMAGE must be set}:${IMAGE_TAG:-latest}"
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: "--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE_MB:-192}"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - ai_gateway_data:/app/.ai-gateway
+      - chat_fallback_data:/app/db/chat-logs
+      - next_cache:/app/.next/cache
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    cpus: "${APP_CPU_LIMIT:-0.85}"
+    mem_limit: "${APP_MEMORY_LIMIT:-288m}"
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILES:-5}"
+
+  nginx:
+    image: nginx:1.28.0-alpine
+    env_file:
+      - .env.production
+    environment:
+      NGINX_ENVSUBST_FILTER: DOMAIN|NGINX_CLIENT_MAX_BODY_SIZE
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=1m
+      - /tmp:size=16m
+      - /etc/nginx/conf.d:size=1m
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETGID
+      - SETUID
+    pids_limit: 64
+    cpus: "${NGINX_CPU_LIMIT:-0.15}"
+    mem_limit: "${NGINX_MEMORY_LIMIT:-32m}"
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "${LOG_MAX_SIZE:-10m}"
+        max-file: "${LOG_MAX_FILES:-5}"
+
+  certbot:
+    image: certbot/certbot:v5.1.0
+    profiles:
+      - maintenance
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+
+volumes:
+  ai_gateway_data:
+  chat_fallback_data:
+  next_cache:
+  letsencrypt:
+  certbot_webroot:
