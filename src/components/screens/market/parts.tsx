@@ -6,21 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Star, BadgeCheck, Clock3, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpecialistDTO } from "@/lib/market";
+import { MARKET_CATEGORIES } from "@/lib/market-taxonomy";
 
 // ---------- Categories ----------
 
-export const MARKET_CATEGORIES: { id: string; label: string }[] = [
-  { id: "marketing", label: "Marketing & Ads" },
-  { id: "sales", label: "Sales & Outreach" },
-  { id: "content", label: "Content & Social" },
-  { id: "design", label: "Brand & Design" },
-  { id: "web", label: "Web & Tech" },
-  { id: "ops", label: "Operations" },
-  { id: "finance", label: "Finance & Books" },
-  { id: "data", label: "Data & Analytics" },
-  { id: "people", label: "People & HR" },
-  { id: "legal", label: "Legal" },
-];
+export { MARKET_CATEGORIES };
 
 export function categoryLabel(id: string): string {
   return MARKET_CATEGORIES.find((c) => c.id === id)?.label ?? id;

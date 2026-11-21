@@ -5,9 +5,10 @@
 // Providers: z.ai, OpenAI, Groq, OpenRouter, Google Gemini (all via their
 // OpenAI-compatible endpoints).
 //
-// Credentials NEVER live in the browser or the database — they are read from
-// server environment variables (.env / .env.local). Values are never logged
-// or returned: keys are identified only by label + a masked fingerprint.
+// Credentials NEVER live in the browser. Existing environment keys remain
+// supported; administrator-managed keys are AES-256-GCM encrypted in the
+// database. Values are never logged or returned: keys are identified only by
+// label + a masked fingerprint.
 //
 // ---- Several keys per provider ----
 // Every provider accepts any mix of these (no code change needed to add more):
@@ -38,8 +39,13 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import ZAI from "z-ai-web-dev-sdk";
+import {
+  refreshRuntimeAiProviderConfig,
+  runtimeAiProviderConfig,
+  type ManagedAiProviderId,
+} from "@/lib/ai-provider-config";
 
-export type GatewayProviderId = "z.ai" | "openai" | "groq" | "openrouter" | "gemini";
+export type GatewayProviderId = ManagedAiProviderId;
 
 interface ProviderDef {
   id: GatewayProviderId;
@@ -201,6 +207,8 @@ function keyVarNames(base: string): string[] {
 }
 
 function keysFor(def: ProviderDef): ProviderKey[] {
+  const managed = runtimeAiProviderConfig(def.id);
+  if (!managed.enabled) return [];
   if (!def.envKeys) return [];
   const out: ProviderKey[] = [];
   const seen = new Set<string>();
@@ -220,6 +228,17 @@ function keysFor(def: ProviderDef): ProviderKey[] {
         source,
       });
     }
+  }
+  for (const credential of managed.credentials) {
+    if (seen.has(credential.apiKey)) continue;
+    seen.add(credential.apiKey);
+    out.push({
+      apiKey: credential.apiKey,
+      label: credential.label,
+      fingerprint: fingerprintOf(credential.apiKey),
+      masked: `…${credential.lastFour}`,
+      source: `admin:${credential.id}`,
+    });
   }
   return out;
 }
@@ -413,6 +432,8 @@ function buildRoutes(profile: GatewayProfile = "default", rotate = false): Route
   for (const id of parseOrder(profile)) {
     const def = PROVIDER_DEFS.find((p) => p.id === id);
     if (!def) continue;
+    const managed = runtimeAiProviderConfig(def.id);
+    if (!managed.enabled) continue;
     if (def.kind === "platform") {
       routes.push({
         key: "z.ai:platform",
@@ -421,12 +442,12 @@ function buildRoutes(profile: GatewayProfile = "default", rotate = false): Route
         masked: "—",
         fingerprint: "platform",
         provider: def,
-        model: process.env.ZAI_MODEL || def.defaultModel,
+        model: managed.model || process.env.ZAI_MODEL || def.defaultModel,
       });
       continue;
     }
     const keys = keysFor(def);
-    const model = (process.env[def.envModel!] || def.defaultModel).trim();
+    const model = (managed.model || process.env[def.envModel!] || def.defaultModel).trim();
     const group: Route[] = keys.map((k) => ({
       key: `${def.id}:${k.fingerprint}`,
       routeLabel: keys.length > 1 ? `${def.label} · ${k.label}` : def.label,
@@ -604,6 +625,7 @@ export async function gatewayChatComplete(
     return { text: null, attempts: [] };
   }
 
+  await refreshRuntimeAiProviderConfig();
   const profile: GatewayProfile = opts?.profile ?? "default";
   const routes = buildRoutes(profile, true);
   const maxTokens = opts?.maxTokens ?? 2000;
@@ -798,6 +820,7 @@ export interface GatewaySnapshot {
     id: GatewayProviderId;
     label: string;
     kind: string;
+    enabled: boolean;
     configured: boolean;
     keyCount: number;
     activeKeyCount: number;
@@ -879,12 +902,14 @@ function totals(keys: GatewayKeySnapshot[]): GatewayUsageTotals {
   return t;
 }
 
-export function getGatewaySnapshot(): GatewaySnapshot {
+export async function getGatewaySnapshot(): Promise<GatewaySnapshot> {
+  await refreshRuntimeAiProviderConfig();
   loadUsage();
   const routes = buildRoutes();
   const file = usageFilePath();
   const providers = PROVIDER_DEFS.map((def) => {
-    const model = (def.envModel ? process.env[def.envModel] || def.defaultModel : process.env.ZAI_MODEL || def.defaultModel).trim();
+    const managed = runtimeAiProviderConfig(def.id);
+    const model = (managed.model || (def.envModel ? process.env[def.envModel] : process.env.ZAI_MODEL) || def.defaultModel).trim();
     const providerRoutes = routes.filter((r) => r.provider.id === def.id);
     const configuredIds = new Set(providerRoutes.map((r) => r.key));
     const sources = new Map(keysFor(def).map((k) => [k.fingerprint, k.source]));
@@ -896,6 +921,7 @@ export function getGatewaySnapshot(): GatewaySnapshot {
       id: def.id,
       label: def.label,
       kind: def.kind,
+      enabled: managed.enabled,
       model,
       usage: totals([...keys, ...retiredKeys]),
       keys,

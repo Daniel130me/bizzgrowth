@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toSpecialistDTO } from "@/lib/market";
 import { marketErrorResponse, requireMarketSession } from "@/lib/market-auth";
+import { isMarketCategory } from "@/lib/market-taxonomy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const CATEGORIES = ["marketing", "sales", "content", "design", "web", "ops", "finance", "data", "people", "legal"];
 
 function text(value: unknown, max: number): string {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -14,7 +13,14 @@ function text(value: unknown, max: number): string {
 
 function stringList(value: unknown, maxItems: number, maxLength: number): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((item): item is string => typeof item === "string").map((item) => item.trim().slice(0, maxLength)).filter(Boolean))].slice(0, maxItems);
+  const uniqueValues = new Map<string, string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const normalized = item.trim().replace(/\s+/g, " ").slice(0, maxLength);
+    const key = normalized.toLocaleLowerCase();
+    if (normalized && !uniqueValues.has(key)) uniqueValues.set(key, normalized);
+  }
+  return [...uniqueValues.values()].slice(0, maxItems);
 }
 
 function portfolio(value: unknown): { title: string; blurb: string }[] {
@@ -60,7 +66,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const category = text(body.category, 30);
-    if (category && !CATEGORIES.includes(category)) {
+    if (category && !isMarketCategory(category)) {
       return NextResponse.json({ ok: false, error: "Choose a valid specialist category." }, { status: 400 });
     }
     const hourlyRate = Math.round(Number(body.hourlyRate));

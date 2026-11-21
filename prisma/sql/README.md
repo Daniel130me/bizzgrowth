@@ -7,3 +7,7 @@ Apply the numbered SQL files in ascending order through the controlled database 
 For the specialist marketplace journey, apply `006_marketplace_v2.sql` before deploying the application code. It adds specialist-account linkage, onboarding and review state, invitations, engagements, messages, reviews, notifications, constraints, and query indexes. Take a database backup and run the file in a staging environment first.
 
 After applying a file, record it in the deployment log used by the hosting environment. Do not place database credentials or query output in this directory.
+
+`008_ai_provider_config.sql` adds encrypted, administrator-managed AI provider
+keys, provider switches, model overrides, and a non-secret audit trail. Configure
+`AI_CREDENTIALS_ENCRYPTION_KEY` before adding keys.

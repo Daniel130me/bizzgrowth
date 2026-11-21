@@ -343,3 +343,45 @@ model IntegrationInterest {
   @@unique([userId, platform])
   @@index([platform])
 }
+
+// ---------- Administrator-managed AI provider credentials ----------
+// Applied additively by prisma/sql/008_ai_provider_config.sql. Secret values
+// are AES-256-GCM encrypted before storage and never returned to the browser.
+
+model AiProviderConfig {
+  provider    String                 @id
+  enabled     Boolean                @default(true)
+  model       String?
+  updatedBy   String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @default(now())
+  credentials AiProviderCredential[]
+}
+
+model AiProviderCredential {
+  id        String           @id
+  provider  String
+  config    AiProviderConfig @relation(fields: [provider], references: [provider], onDelete: Cascade)
+  label     String
+  secretEnc String
+  lastFour  String
+  enabled   Boolean          @default(true)
+  createdBy String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now())
+
+  @@unique([provider, label])
+  @@index([provider, enabled])
+}
+
+model AiProviderAuditEvent {
+  id            String   @id
+  adminUserId   String
+  action        String
+  provider      String
+  credentialId String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([provider, createdAt])
+}

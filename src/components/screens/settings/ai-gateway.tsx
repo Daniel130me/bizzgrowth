@@ -201,7 +201,9 @@ export function AiGatewaySettings() {
                       {i + 1}
                     </span>
                     {p.label}
-                    {statusBadge(snapshot!, p.configured)}
+                    {!p.enabled ? (
+                      <Badge className="bg-slate-200 text-[10px] font-medium text-slate-700">Disabled by administrator</Badge>
+                    ) : statusBadge(snapshot!, p.configured)}
                     {cooling ? (
                       <Badge className="bg-amber-100 text-[10px] font-medium text-amber-700">
                         <AlertTriangle className="mr-1 size-3" aria-hidden /> cooling down

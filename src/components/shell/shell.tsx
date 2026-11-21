@@ -32,6 +32,7 @@ import {
   X,
   Menu,
   Zap,
+  KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -403,6 +404,7 @@ const ADMIN_NAV = [
   { id: "admin/sync-health", label: "Sync health", icon: ShieldCheck },
   { id: "admin/jobs", label: "Jobs &amp; imports", icon: Database },
   { id: "admin/ai-audit", label: "AI audit", icon: Sparkles },
+  { id: "admin/ai-providers", label: "AI providers", icon: KeyRound },
   { id: "admin/support", label: "Support inbox", icon: LifeBuoy },
 ];
 

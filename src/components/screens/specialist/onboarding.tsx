@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState, LoadingState } from "@/components/shared/states";
 import { InfoBanner, PageHeader, SectionCard } from "@/components/shared/layout";
+import { MultiValueSelector } from "@/components/shared/multi-value-selector";
 import { navigate } from "@/lib/router";
+import { MARKET_LANGUAGES, skillsForCategory } from "@/lib/market-taxonomy";
 import { MARKET_CATEGORIES } from "../market/parts";
 import type { ScreenProps } from "../view-types";
 
@@ -90,9 +92,6 @@ export function SpecialistOnboarding({ params }: ScreenProps) {
     if (!profile.category || profile.skills.length < 3 || profile.bio.trim().length < 80) {
       errors[2] = "Choose a category, add at least 3 skills and write an 80-character bio.";
     }
-    if (!profile.portfolio.some((item) => item.title.trim() && item.blurb.trim())) {
-      errors[3] = "Add at least one complete portfolio example.";
-    }
     if (profile.hourlyRate < 1 || profile.languages.length < 1 || !profile.available) {
       errors[4] = "Add a rate, language and availability.";
     }
@@ -132,7 +131,7 @@ export function SpecialistOnboarding({ params }: ScreenProps) {
   }
 
   async function submit() {
-    const firstInvalid = [1, 2, 3, 4].find((candidate) => validation[candidate]);
+    const firstInvalid = [1, 2, 4].find((candidate) => validation[candidate]);
     if (firstInvalid) {
       setStep(firstInvalid);
       toast.error("Application incomplete", { description: validation[firstInvalid] });
@@ -190,7 +189,10 @@ export function SpecialistOnboarding({ params }: ScreenProps) {
         <div className="flex gap-2">
           <Button variant="outline" disabled={saving} onClick={() => void save(step)}>{saving ? "Saving…" : "Save draft"}</Button>
           {step < 5 ? (
-            <Button disabled={saving} onClick={() => void continueTo(step + 1)}>Continue <ChevronRight className="ml-1.5 size-4" /></Button>
+            <Button disabled={saving} onClick={() => void continueTo(step + 1)}>
+              {step === 3 && !profile.portfolio.some((item) => item.title.trim() || item.blurb.trim()) ? "Skip for now" : "Continue"}
+              <ChevronRight className="ml-1.5 size-4" />
+            </Button>
           ) : (
             <Button disabled={saving || profile.status === "submitted"} onClick={() => void submit()}>
               {saving ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 size-4" />}
@@ -214,9 +216,24 @@ function IdentityStep({ profile, patch }: StepProps) {
 }
 
 function ExpertiseStep({ profile, patch }: StepProps) {
+  const suggestions = skillsForCategory(profile.category);
+
   return <SectionCard title="Expertise" description="Specific skills and evidence make matching more accurate."><div className="space-y-4">
     <Field label="Primary category"><Select value={profile.category} onValueChange={(value) => patch("category", value)}><SelectTrigger><SelectValue placeholder="Choose a category" /></SelectTrigger><SelectContent>{MARKET_CATEGORIES.map((item) => <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>)}</SelectContent></Select></Field>
-    <Field label="Skills" hint="Comma-separated; add at least three."><Input value={profile.skills.join(", ")} onChange={(event) => patch("skills", event.target.value.split(",").map((value) => value.trim()).filter(Boolean).slice(0, 20))} placeholder="Meta Ads, campaign strategy, conversion tracking" /></Field>
+    <Field label="Skills" hint={`${profile.skills.length}/20 selected · choose at least three`}>
+      <MultiValueSelector
+        values={profile.skills}
+        suggestions={suggestions}
+        onChange={(skills) => patch("skills", skills)}
+        ariaLabel="Search or add a skill"
+        placeholder="Search skills or type your own"
+        suggestionLabel="Suggested skills — select every skill that applies"
+        maxItems={20}
+        maxValueLength={60}
+        disabled={!profile.category}
+        disabledMessage="Choose a primary category to see its skill catalogue."
+      />
+    </Field>
     <Field label="Professional bio" hint={`${profile.bio.length}/2500`}><Textarea value={profile.bio} maxLength={2500} rows={7} onChange={(event) => patch("bio", event.target.value)} placeholder="Describe the work you do, who you help, and how you work…" /></Field>
   </div></SectionCard>;
 }
@@ -225,7 +242,7 @@ function PortfolioStep({ profile, patch }: StepProps) {
   function update(index: number, key: keyof PortfolioItem, value: string) {
     patch("portfolio", profile.portfolio.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
   }
-  return <SectionCard title="Portfolio evidence" description="Add concrete work and outcomes. Do not include confidential client information."><div className="space-y-4">
+  return <SectionCard title="Portfolio evidence (optional)" description="Add examples if you have work you can share, or skip this step. Do not include confidential client information."><div className="space-y-4">
     {profile.portfolio.map((item, index) => <div key={index} className="rounded-xl border p-4"><div className="mb-3 flex items-center justify-between"><p className="text-sm font-semibold">Example {index + 1}</p>{profile.portfolio.length > 1 ? <Button size="icon" variant="ghost" onClick={() => patch("portfolio", profile.portfolio.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove example ${index + 1}`}><Trash2 className="size-4" /></Button> : null}</div><div className="space-y-3"><Field label="Project title"><Input value={item.title} maxLength={120} onChange={(event) => update(index, "title", event.target.value)} /></Field><Field label="What you did and the outcome"><Textarea value={item.blurb} maxLength={600} rows={4} onChange={(event) => update(index, "blurb", event.target.value)} /></Field></div></div>)}
     {profile.portfolio.length < 8 ? <Button variant="outline" onClick={() => patch("portfolio", [...profile.portfolio, { title: "", blurb: "" }])}><Plus className="mr-1.5 size-4" /> Add another example</Button> : null}
   </div></SectionCard>;
@@ -236,7 +253,18 @@ function AvailabilityStep({ profile, patch }: StepProps) {
     <Field label="Indicative hourly rate (NGN)"><Input type="number" min={0} max={10_000_000} value={profile.hourlyRate || ""} onChange={(event) => patch("hourlyRate", Number(event.target.value))} /></Field>
     <Field label="Typical response time"><Input value={profile.responseTime} maxLength={80} onChange={(event) => patch("responseTime", event.target.value)} /></Field>
     <Field label="Availability"><Select value={profile.available} onValueChange={(value) => patch("available", value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Available now">Available now</SelectItem><SelectItem value="Limited availability">Limited availability</SelectItem><SelectItem value="Unavailable">Unavailable</SelectItem></SelectContent></Select></Field>
-    <Field label="Languages" hint="Comma-separated"><Input value={profile.languages.join(", ")} onChange={(event) => patch("languages", event.target.value.split(",").map((value) => value.trim()).filter(Boolean).slice(0, 10))} /></Field>
+    <Field label="Languages" hint={`${profile.languages.length}/10 selected`}>
+      <MultiValueSelector
+        values={profile.languages}
+        suggestions={MARKET_LANGUAGES}
+        onChange={(languages) => patch("languages", languages)}
+        ariaLabel="Search or add a language"
+        placeholder="Search languages or type your own"
+        suggestionLabel="Common languages"
+        maxItems={10}
+        maxValueLength={40}
+      />
+    </Field>
   </div></SectionCard>;
 }
 

@@ -30,8 +30,6 @@ export async function POST(request: NextRequest) {
     if (specialist.location.trim().length < 2) missing.push("location");
     if (parsedList(specialist.languages).length < 1) missing.push("language");
     if (specialist.bio.trim().length < 80) missing.push("bio of at least 80 characters");
-    if (parsedList(specialist.portfolio).length < 1) missing.push("at least 1 portfolio item");
-
     if (missing.length) {
       return NextResponse.json(
         { ok: false, error: `Complete your ${missing.join(", ")} before submitting.`, missing },

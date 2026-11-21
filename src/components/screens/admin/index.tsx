@@ -13,6 +13,7 @@ import { JobsView } from "./jobs";
 import { AiAudit } from "./ai-audit";
 import { SupportInbox } from "./support";
 import { SpecialistApplications } from "./specialists";
+import { AiProviderManagement } from "./ai-providers";
 
 export const views: ViewMap = {
   admin: AdminDashboard,
@@ -26,4 +27,5 @@ export const views: ViewMap = {
   "admin/ai-audit": AiAudit,
   "admin/support": SupportInbox,
   "admin/specialists": SpecialistApplications,
+  "admin/ai-providers": AiProviderManagement,
 };

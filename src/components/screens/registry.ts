@@ -191,6 +191,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 113, id: "admin/ai-audit", route: "admin/ai-audit", name: "AI Diagnosis & Recommendation Audit", category: "Admin", group: "admin" },
   { num: 114, id: "admin/support", route: "admin/support", name: "Support / Feedback Inbox", category: "Admin", group: "admin" },
   { num: 124, id: "admin/specialists", route: "admin/specialists", name: "Specialist Application Review", category: "Admin", group: "admin" },
+  { num: 125, id: "admin/ai-providers", route: "admin/ai-providers", name: "AI Provider Management", category: "Admin", group: "admin" },
 ];
 
 export const SCREENS_WITH_MAP = SCREENS;
