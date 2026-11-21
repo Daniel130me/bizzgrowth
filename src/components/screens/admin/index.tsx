@@ -14,6 +14,7 @@ import { AiAudit } from "./ai-audit";
 import { SupportInbox } from "./support";
 import { SpecialistApplications } from "./specialists";
 import { AiProviderManagement } from "./ai-providers";
+import { AiGatewaySettings } from "../settings/ai-gateway";
 
 export const views: ViewMap = {
   admin: AdminDashboard,
@@ -25,6 +26,7 @@ export const views: ViewMap = {
   "admin/sync-health": SyncHealth,
   "admin/jobs": JobsView,
   "admin/ai-audit": AiAudit,
+  "admin/ai-gateway": AiGatewaySettings,
   "admin/support": SupportInbox,
   "admin/specialists": SpecialistApplications,
   "admin/ai-providers": AiProviderManagement,

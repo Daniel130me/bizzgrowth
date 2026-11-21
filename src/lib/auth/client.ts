@@ -104,7 +104,7 @@ export async function syncSession(opts?: { thenGoTo?: string; land?: boolean; ke
   if (me && (await claimLocalData(me.id))) {
     // Another account's data was in memory; reload so the store starts clean
     // (the reloaded page brings in this account's own data).
-    reloadForSignIn(opts);
+    reloadForSignIn(me.isPlatformAdmin ? { ...opts, thenGoTo: "admin" } : opts);
     return me;
   }
   // This owner's data saved on their account, merged with what this browser
@@ -115,7 +115,7 @@ export async function syncSession(opts?: { thenGoTo?: string; land?: boolean; ke
     new Promise<"slow">((r) => setTimeout(() => r("slow"), 6000)),
   ]);
   if (synced === "reload") {
-    reloadForSignIn(opts);
+    reloadForSignIn(me?.isPlatformAdmin ? { ...opts, thenGoTo: "admin" } : opts);
     return me;
   }
   restoreWorkspace(me);
@@ -155,6 +155,7 @@ function consumeLandAfterReload(): boolean {
 
 /** Where a signed-in user should land: setup if they have no workspace yet, else Home. */
 export function landingFor(_user?: MeUser | null): string {
+  if (_user?.isPlatformAdmin) return "admin";
   if (_user?.accountType === "specialist") {
     return _user.specialistStatus === "approved" ? "specialist/dashboard" : "specialist/onboarding";
   }

@@ -192,6 +192,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 114, id: "admin/support", route: "admin/support", name: "Support / Feedback Inbox", category: "Admin", group: "admin" },
   { num: 124, id: "admin/specialists", route: "admin/specialists", name: "Specialist Application Review", category: "Admin", group: "admin" },
   { num: 125, id: "admin/ai-providers", route: "admin/ai-providers", name: "AI Provider Management", category: "Admin", group: "admin" },
+  { num: 126, id: "admin/ai-gateway", route: "admin/ai-gateway", name: "AI Gateway Status", category: "Admin", group: "admin" },
 ];
 
 export const SCREENS_WITH_MAP = SCREENS;

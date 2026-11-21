@@ -1,7 +1,7 @@
 "use client";
 // Settings — AI Gateway: live view of the multi-provider failover chain.
-// Keys are configured server-side via environment variables; this screen
-// shows the chain, its health, and runs a live failover test on demand.
+// Administrators can add encrypted database-backed keys from the platform
+// console; environment keys remain supported for deployment compatibility.
 
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -267,16 +267,17 @@ export function AiGatewaySettings() {
         </ul>
       </SectionCard>
 
-      {/* Setup instructions — honest about where keys live */}
+      {/* Configuration guidance */}
       <SectionCard
-        title="Adding your own keys"
-        description="Credentials live only on the server (.env.local) — they are never sent to the browser or stored in the workspace."
+        title="Managing provider keys"
+        description="Platform administrators can add encrypted keys and disable providers from Platform administration → AI providers."
         action={<KeyRound className="size-4 text-slate-400" aria-hidden />}
       >
         <div className="space-y-2.5 text-sm leading-relaxed text-muted-foreground">
           <p>
-            Add keys to <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-800">.env.local</code> in
-            the project root, then restart the server (in production) or let the dev server reload the env file:
+            Environment keys remain supported as a deployment fallback. Add them to{" "}
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-800">.env.local</code>, then restart
+            the production server or let the development server reload:
           </p>
           <pre className="overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100" aria-label="Environment variable example">
 {`OPENAI_API_KEY=sk-...            # or several: sk-1,sk-2

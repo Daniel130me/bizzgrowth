@@ -164,9 +164,19 @@ export default function AppRoot() {
     if (resolved) noteRouteForDiagnosis(resolved.route, resolved.layout);
   }, [resolved]);
 
+  useEffect(() => {
+    if (authChecked && authIsPlatformAdmin && resolved && !resolved.route.startsWith("admin")) {
+      navigate("admin");
+    }
+  }, [authChecked, authIsPlatformAdmin, resolved]);
+
   if (!resolved) return <FullPageStatus label="Loading Nellovia…" />;
 
   const { screen, params, route, layout } = resolved;
+  if (authChecked && authIsPlatformAdmin && !route.startsWith("admin")) {
+    return <FullPageStatus label="Opening platform administration…" />;
+  }
+
   const needsAuth = layout === "app" || layout === "admin" || layout === "onboarding" || layout === "specialist";
   if (needsAuth && !authUnknown && !authUserId) {
     if (authChecked) return <RedirectToSignin />;

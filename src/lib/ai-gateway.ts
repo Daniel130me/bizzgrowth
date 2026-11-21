@@ -39,6 +39,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import ZAI from "z-ai-web-dev-sdk";
+import { providerRequestOptions, type GatewayReasoningEffort } from "@/lib/ai-gateway-request";
 import {
   refreshRuntimeAiProviderConfig,
   runtimeAiProviderConfig,
@@ -489,7 +490,7 @@ async function callOpenAiCompatible(
   user: string,
   maxTokens: number,
   timeoutMs: number,
-  reasoningEffort: "low" | "medium" = "low",
+  reasoningEffort: GatewayReasoningEffort = "low",
 ): Promise<{ text: string; usage?: CompletionUsage }> {
   if (!route.apiKey) throw new Error("missing key");
   if (!route.provider.baseUrl) throw new Error("missing base URL");
@@ -512,12 +513,7 @@ async function callOpenAiCompatible(
       body: JSON.stringify({
         model: route.model,
         stream: false,
-        max_tokens: maxTokens,
-        // Reasoning models (gpt-oss) spend max_tokens on hidden reasoning and
-        // return empty content on short budgets — keep reasoning minimal.
-        ...(/gpt-oss/i.test(route.model) ? { reasoning_effort: reasoningEffort } : {}),
-        // GLM models think by default; disable it for fast, non-empty replies.
-        ...(route.provider.id === "z.ai" ? { thinking: { type: "disabled" } } : {}),
+        ...providerRequestOptions(route.provider.id, route.model, maxTokens, reasoningEffort),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },

@@ -404,6 +404,7 @@ const ADMIN_NAV = [
   { id: "admin/sync-health", label: "Sync health", icon: ShieldCheck },
   { id: "admin/jobs", label: "Jobs &amp; imports", icon: Database },
   { id: "admin/ai-audit", label: "AI audit", icon: Sparkles },
+  { id: "admin/ai-gateway", label: "AI gateway", icon: Zap },
   { id: "admin/ai-providers", label: "AI providers", icon: KeyRound },
   { id: "admin/support", label: "Support inbox", icon: LifeBuoy },
 ];

@@ -7,10 +7,10 @@ import { MarketHttpError, marketErrorResponse, requireMarketSession } from "@/li
 export const runtime = "nodejs";
 
 /** GET — configuration + health snapshot for the AI gateway settings screen. */
-async function requireAdmin(request: NextRequest, mutation = false) {
+async function requireGatewayAccess(request: NextRequest, mutation = false) {
   const session = await requireMarketSession(request, {
     mutation,
-    action: mutation ? "admin:ai-gateway:test" : "admin:ai-gateway:status",
+    action: mutation ? "ai-gateway:test" : "ai-gateway:status",
     limit: mutation ? 15 : 120,
   });
   if (!isPlatformAdmin(session)) throw new MarketHttpError(403, "Platform administrator access required.");
@@ -18,10 +18,10 @@ async function requireAdmin(request: NextRequest, mutation = false) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin(request);
+    await requireGatewayAccess(request);
     return NextResponse.json({ ok: true, snapshot: await getGatewaySnapshot() });
   } catch (error) {
-    return marketErrorResponse(error, "admin:ai-gateway:status");
+    return marketErrorResponse(error, "ai-gateway:status");
   }
 }
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
  *  report exactly which route served it (or how each route failed). */
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin(request, true);
+    await requireGatewayAccess(request, true);
     const started = Date.now();
     const result = await completeTextDetailed(
       "You are a connectivity probe. Reply with exactly one word: OK",
@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
       attempts: result.attempts,
     });
   } catch (error) {
-    console.error("[api/ai-gateway] test error:", error);
-    return NextResponse.json({ ok: false, error: "Gateway test crashed" }, { status: 500 });
+    return marketErrorResponse(error, "ai-gateway:test");
   }
 }
