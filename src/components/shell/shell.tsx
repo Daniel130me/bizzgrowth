@@ -101,7 +101,7 @@ function NavLink({ item, active, onClick }: { item: { id: string; label: string;
   );
 }
 
-function SidebarContent({ route, onNavigate }: { route: string; onNavigate?: () => void }) {
+function SidebarContent({ route, onNavigate, hideHeader = false }: { route: string; onNavigate?: () => void; hideHeader?: boolean }) {
   const businessId = useBizz((s) => s.businessId);
   const own = businessId === "user-workspace";
   const nav = APP_NAV.filter((item) => ("ownOnly" in item ? own : "demoOnly" in item ? !own : true));
@@ -121,9 +121,11 @@ function SidebarContent({ route, onNavigate }: { route: string; onNavigate?: () 
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center border-b px-4">
-        <Logo />
-      </div>
+      {!hideHeader && (
+        <div className="flex h-14 items-center border-b px-4">
+          <Logo />
+        </div>
+      )}
       <nav aria-label="Primary" className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {nav.map((item) => (
           <NavLink key={item.id} item={item} active={navActive(item.id)} onClick={() => go(item.id)} />
@@ -375,7 +377,7 @@ export function AppShell({ children, route }: { children: React.ReactNode; route
                 </Button>
               </div>
               <div className="h-[calc(100%-3.5rem)]">
-                <SidebarContent route={route} onNavigate={() => setMobileOpen(false)} />
+                <SidebarContent route={route} onNavigate={() => setMobileOpen(false)} hideHeader />
               </div>
             </div>
           </div>

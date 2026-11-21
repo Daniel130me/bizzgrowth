@@ -65,8 +65,8 @@ export function ProvenanceBadge({ provenance, source, className }: { provenance:
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64 text-xs">
           <p className="font-medium">{s.label}</p>
-          <p className="text-muted-foreground">{s.tip}</p>
-          {source ? <p className="mt-1 text-muted-foreground">Source: {source}</p> : null}
+          <p className="text-slate-200">{s.tip}</p>
+          {source ? <p className="mt-1 text-slate-200">Source: {source}</p> : null}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

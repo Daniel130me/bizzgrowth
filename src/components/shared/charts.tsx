@@ -29,6 +29,8 @@ const GRID = "#e2e8f0";
 const tooltipStyle = {
   borderRadius: 8,
   border: "1px solid #e2e8f0",
+  backgroundColor: "#ffffff",
+  color: "#0f172a",
   fontSize: 12,
   boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
 };

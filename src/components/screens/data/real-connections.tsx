@@ -133,7 +133,7 @@ export function RealIntegrationsLibrary() {
                         {entry.availability === "live" && connection?.status === "connected" ? <Button size="sm" variant="outline" className="w-full" onClick={() => navigate(`source-settings/${entry.id}`)}>Manage</Button> : null}
                         {entry.availability === "live" && connection?.status === "syncing" ? <Button size="sm" variant="outline" className="w-full" onClick={() => navigate("syncing")}><RefreshCw className="mr-1.5 size-4 animate-spin" /> View sync</Button> : null}
                         {entry.availability === "live" && connection?.status === "error" ? <Button size="sm" variant="destructive" className="w-full" onClick={() => navigate(`connection-error/${connection.id}`)}><CircleAlert className="mr-1.5 size-4" /> Fix connection</Button> : null}
-                        {entry.availability === "live" && !connection ? <Button size="sm" className="w-full" disabled={!connectorReady} onClick={() => navigate(`connect/${entry.id}`)}><Plug className="mr-1.5 size-4" /> {connectorReady ? "Connect" : "Not set up yet"}</Button> : null}
+                        {entry.availability === "live" && !connection ? <Button size="sm" className="w-full" disabled={!connectorReady} onClick={() => navigate(`connect/${entry.id}`)}><Plug className="mr-1.5 size-4" /> {connectorReady ? "Connect" : "Not connected"}</Button> : null}
                       </div>
                     </Card>
                   );
