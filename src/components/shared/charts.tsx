@@ -1,6 +1,6 @@
 "use client";
 // Chart wrappers with consistent semantic colours:
-// blue = measured/current · slate = comparison · violet dashed = forecast/estimate.
+// blue = measured/current · slate = comparison · navy dashed = target/forecast.
 
 import React from "react";
 import {
@@ -156,7 +156,7 @@ export function DonutChart({
   height?: number;
   valueFormatter?: (v: number) => string;
 }) {
-  const palette = [CHART_COLORS.blue, CHART_COLORS.violet, CHART_COLORS.amber, CHART_COLORS.slate, CHART_COLORS.green];
+  const palette = [CHART_COLORS.blue, CHART_COLORS.navy, CHART_COLORS.amber, CHART_COLORS.slate, CHART_COLORS.green];
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
@@ -180,6 +180,7 @@ export function ExperimentProgressChart({
   label,
   height = 180,
   formatter = (v: number) => `${v}%`,
+  axisFormatter,
 }: {
   baseline: number;
   current: number;
@@ -187,11 +188,13 @@ export function ExperimentProgressChart({
   label: string;
   height?: number;
   formatter?: (v: number) => string;
+  /** Shorter labels for the axis (defaults to `formatter`). */
+  axisFormatter?: (v: number) => string;
 }) {
   const data = [
     { name: "Baseline", value: baseline, fill: CHART_COLORS.slate },
     { name: "Current", value: current, fill: CHART_COLORS.blue },
-    { name: "Target", value: target, fill: CHART_COLORS.violet },
+    { name: "Target", value: target, fill: CHART_COLORS.navy },
   ];
   return (
     <div>
@@ -199,9 +202,9 @@ export function ExperimentProgressChart({
         <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={GRID} strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="name" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} />
-          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} tickFormatter={(v: number) => formatter(v)} />
+          <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} tickFormatter={(v: number) => (axisFormatter ?? formatter)(v)} />
           <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(148,163,184,0.08)" }} formatter={(value) => [formatter(Number(value)), label]} />
-          <ReferenceLine y={target} stroke={CHART_COLORS.violet} strokeDasharray="6 4" />
+          <ReferenceLine y={target} stroke={CHART_COLORS.navy} strokeDasharray="6 4" />
           <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={64}>
             {data.map((d, i) => (
               <Cell key={i} fill={d.fill} />

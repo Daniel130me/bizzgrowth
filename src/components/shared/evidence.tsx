@@ -23,24 +23,24 @@ export function KnowThinkUnknown({
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-blue-800">
+      <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
           <CheckCircle2 className="size-4" aria-hidden /> What we know
         </h4>
         <ul className="mt-2 space-y-1.5">
           {known.map((k, i) => (
-            <li key={i} className="text-sm text-blue-900/80">
+            <li key={i} className="text-sm text-brand-900/80">
               · {k}
             </li>
           ))}
         </ul>
       </div>
-      <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-violet-800">
+      <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+        <h4 className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
           <HelpCircle className="size-4" aria-hidden /> What we think
         </h4>
-        <p className="mt-2 text-sm text-violet-900/80">{think}</p>
-        <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-violet-600">AI interpretation</p>
+        <p className="mt-2 text-sm text-brand-900/80">{think}</p>
+        <p className="mt-2 text-[11px] font-medium uppercase tracking-wide text-brand-600">AI interpretation</p>
       </div>
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <h4 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
@@ -83,7 +83,7 @@ export function EvidencePanel({ items, onOpenFact }: { items: EvidenceItem[]; on
               <td className="px-4 py-2.5 tnum">{e.value}</td>
               <td className="px-4 py-2.5 text-muted-foreground">
                 {e.factId ? (
-                  <button className="text-blue-700 hover:underline" onClick={() => onOpenFact?.(e.factId)}>
+                  <button className="text-brand-700 hover:underline" onClick={() => onOpenFact?.(e.factId)}>
                     {e.source}
                   </button>
                 ) : (
@@ -172,14 +172,14 @@ export function RootCauseTree({ steps, onSelectStep }: { steps: { step: string; 
             onClick={() => onSelectStep?.(i)}
             className={cn(
               "w-full rounded-xl border p-3.5 text-left transition-colors",
-              i === steps.length - 1 ? "border-violet-200 bg-violet-50/60" : "bg-white hover:border-blue-300 hover:bg-blue-50/40"
+              i === steps.length - 1 ? "border-brand-200 bg-brand-50/60" : "bg-white hover:border-brand-300 hover:bg-brand-50/40"
             )}
           >
             <div className="flex items-start gap-3">
               <span
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tnum",
-                  i === steps.length - 1 ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"
+                  i === steps.length - 1 ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
                 )}
               >
                 {i + 1}

@@ -237,7 +237,7 @@ export function computeStake(
     const per = { low: v.low * share, high: v.high * share };
     const working = [
       `You said about ${ratioText(r)} people who ask go on to pay you.`,
-      `A typical job is about ${formatMoneyRange(v, cur)}.`,
+      `One customer usually pays about ${formatMoneyRange(v, cur)}.`,
       `So, on average, every new person who asks is worth about ${formatMoneyRange(per, cur)} to you.`,
     ];
     const five = { low: per.low * 5, high: per.high * 5 };
@@ -254,9 +254,9 @@ export function computeStake(
   if (stage === "return" && v) {
     return {
       figure: formatMoneyRange(v, cur),
-      label: "is what every extra job from a past customer is worth",
+      label: "is what each extra purchase from a past customer is worth",
       detail: "Past customers already trust you — no marketing cost to win them again.",
-      working: [`A typical job is about ${formatMoneyRange(v, cur)}.`, "Each past customer who comes back once more adds about that much, without any marketing."],
+      working: [`One customer usually pays about ${formatMoneyRange(v, cur)}.`, "Each past customer who comes back once more adds about that much, without any marketing."],
       isMoney: true,
     };
   }
@@ -286,7 +286,7 @@ export function computeStake(
       detail = `That is ${extra.text} more ${who} ${extra.period}.`;
       if (v) {
         const money = { low: (n.low / r10.of) * v.low * extra.scale, high: (n.high / r10.of) * v.high * extra.scale };
-        working.push(`At about ${formatMoneyRange(v, cur)} a job, that is about ${formatMoneyRange(money, cur)} more ${extra.period}.`);
+        working.push(`At about ${formatMoneyRange(v, cur)} each, that is about ${formatMoneyRange(money, cur)} more ${extra.period}.`);
         figure = formatMoneyRange(money, cur);
         label = extra.period === "a month" ? "more coming in every month" : "more coming in every year";
         detail = `If you win just one more of every ${fmtNum(r10.of)} people who ask — ${pct}% more paying customers ${from}.`;
@@ -303,7 +303,7 @@ export function computeStake(
     return {
       figure: formatMoneyRange(v, cur),
       label: "is what each extra customer is worth to you",
-      working: [`A typical job is about ${formatMoneyRange(v, cur)}.`],
+      working: [`One customer usually pays about ${formatMoneyRange(v, cur)}.`],
       isMoney: true,
     };
   }

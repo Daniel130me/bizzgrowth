@@ -44,13 +44,13 @@ export default function SigninScreen() {
   return (
     <AuthShell
       title="Welcome back"
-      description="Sign in to your bizzGrowth workspace."
+      description="Sign in to your Nellovia workspace."
       footer={
         <>
-          New to bizzGrowth?{" "}
+          New to Nellovia?{" "}
           <button
             onClick={() => navigate("signup")}
-            className="font-medium text-blue-700 underline-offset-2 hover:underline"
+            className="font-medium text-brand-700 underline-offset-2 hover:underline"
           >
             Create an account
           </button>
@@ -94,7 +94,7 @@ export default function SigninScreen() {
           <button
             type="button"
             onClick={() => navigate("forgot-password")}
-            className="text-sm font-medium text-blue-700 hover:underline"
+            className="text-sm font-medium text-brand-700 hover:underline"
           >
             Forgot password?
           </button>

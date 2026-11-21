@@ -112,9 +112,9 @@ function DataQualityScreen() {
                             <DialogTitle>{issue.title}</DialogTitle>
                             <DialogDescription>{issue.detail}</DialogDescription>
                           </DialogHeader>
-                          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">How to resolve</p>
-                            <p className="mt-1 text-sm text-blue-900">{issue.resolution}</p>
+                          <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">How to resolve</p>
+                            <p className="mt-1 text-sm text-brand-900">{issue.resolution}</p>
                           </div>
                           <div className="flex justify-end gap-2">
                             <Button variant="ghost" onClick={() => setResolveId(null)}>

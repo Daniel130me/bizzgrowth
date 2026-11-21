@@ -120,10 +120,10 @@ export default function PricingScreen() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Pricing</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Pricing</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Plans and capabilities</h1>
         <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
-          bizzGrowth is in private beta. Start free, invite your team when you need them, and upgrade only when the
+          Nellovia is in private beta. Start free, invite your team when you need them, and upgrade only when the
           product earns it.
         </p>
       </div>
@@ -140,7 +140,7 @@ export default function PricingScreen() {
             key={plan.id}
             className={cn(
               "flex h-full flex-col p-6 shadow-sm",
-              plan.featured && "border-blue-600 shadow-md ring-1 ring-blue-600",
+              plan.featured && "border-brand-600 shadow-md ring-1 ring-brand-600",
             )}
           >
             <div className="flex items-center justify-between gap-2">
@@ -149,7 +149,7 @@ export default function PricingScreen() {
                 variant="outline"
                 className={cn(
                   "text-[11px] font-normal",
-                  plan.featured ? "border-blue-200 bg-blue-50 text-blue-700" : "bg-slate-50 text-slate-500",
+                  plan.featured ? "border-brand-200 bg-brand-50 text-brand-700" : "bg-slate-50 text-slate-500",
                 )}
               >
                 {plan.badge}
@@ -160,7 +160,7 @@ export default function PricingScreen() {
             <ul className="mt-5 flex-1 space-y-2.5">
               {plan.features.map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
-                  <Check className={cn("mt-0.5 size-4 shrink-0", plan.featured ? "text-blue-600" : "text-emerald-500")} aria-hidden />
+                  <Check className={cn("mt-0.5 size-4 shrink-0", plan.featured ? "text-brand-600" : "text-emerald-500")} aria-hidden />
                   {f}
                 </li>
               ))}
@@ -192,7 +192,7 @@ export default function PricingScreen() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-44">Capability</TableHead>
                   <TableHead>Private Beta</TableHead>
-                  <TableHead className="bg-blue-50/60 font-semibold text-blue-900">Growth</TableHead>
+                  <TableHead className="bg-brand-50/60 font-semibold text-brand-900">Growth</TableHead>
                   <TableHead>Team</TableHead>
                 </TableRow>
               </TableHeader>
@@ -201,7 +201,7 @@ export default function PricingScreen() {
                   <TableRow key={row.capability}>
                     <TableCell className="font-medium text-slate-700">{row.capability}</TableCell>
                     <TableCell className="text-slate-600">{row.beta}</TableCell>
-                    <TableCell className="bg-blue-50/40 text-slate-700">{row.growth}</TableCell>
+                    <TableCell className="bg-brand-50/40 text-slate-700">{row.growth}</TableCell>
                     <TableCell className="text-slate-600">{row.team}</TableCell>
                   </TableRow>
                 ))}

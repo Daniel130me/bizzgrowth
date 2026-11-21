@@ -364,6 +364,8 @@ async function main() {
         badges: JSON.stringify(s.badges),
         available: s.available,
         verified: true,
+        status: "approved",
+        reviewedAt: new Date(),
       },
     });
   }

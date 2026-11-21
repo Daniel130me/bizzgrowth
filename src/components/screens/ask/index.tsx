@@ -1,11 +1,11 @@
 "use client";
 // Screens 48–49 — Ask Your Business + Conversation History.
-// Questions go to the real AI analyst (POST /api/ask) with a snapshot of the
-// workspace data; every answer is generated for the exact question asked.
-// There are NO canned answers here: if the analyst cannot be reached, we say
+// Questions go to Nellovia, the AI consultant (POST /api/ask), with a snapshot
+// of the workspace data; every answer is generated for the exact question asked.
+// There are NO canned answers here: if Nellovia cannot be reached, we say
 // so honestly and offer a retry instead of showing a scripted reply.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   AlertTriangle,
   BarChart3,
@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,17 +31,21 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/states";
 import { PageHeader } from "@/components/shared/layout";
 import { ProvenanceBadge } from "@/components/shared/badges";
-import { useBizz } from "@/lib/store";
+import { useActiveCoachStep, useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import { ownerMonthsFromEntries } from "@/lib/data/user-business";
-import type { AskWorkspaceContext } from "@/lib/checkup";
-import { buildBusinessContext } from "@/lib/ai-context";
-import { TryThisBox } from "@/components/shared/try-this";
+import type { AskWorkspaceContext, NoticedChallenge } from "@/lib/checkup";
+import { buildBusinessContext, coachingContext } from "@/lib/ai-context";
+import { DraftButton, TryThisBox } from "@/components/shared/try-this";
+import { StepKindPill } from "@/components/shared/coach";
+import { NoticedChallengeCard } from "@/components/shared/challenges";
+import { challengesContext } from "@/lib/challenges";
+import { daysSince, nextCheckIn, type DraftHint } from "@/lib/coach";
 import { chatDraftKey, getClientId, loadDraft, newChatId, saveDraft, syncChat, type ChatLogMessage } from "@/lib/chat-log";
 import type { Provenance } from "@/lib/types";
 import type { ViewMap } from "../view-types";
 
-// ---------- Answer model (produced by the AI analyst, never hardcoded) ----------
+// ---------- Answer model (produced by Nellovia, the AI consultant; never hardcoded) ----------
 
 interface AskEvidence {
   label: string;
@@ -57,8 +62,12 @@ interface AnswerContent {
   evidence: AskEvidence[];
   referencedPeriod: string;
   tryThis?: { title: string; body: string } | null;
+  /** Words the app can write for this answer, on request. */
+  draft?: DraftHint | null;
   followUps?: string[];
   verified?: boolean;
+  /** A new problem the question described — offered as a challenge, one tap to add. */
+  newChallenge?: NoticedChallenge | null;
 }
 
 /** Questions worth asking, written from this owner's own checkup and diagnosis. */
@@ -76,7 +85,7 @@ function suggestionsFor(
   } else if (stage === "return" || /steady|season|some months/.test(b)) {
     out.push("How do I get past customers to come back?", "How can I make the quiet months less quiet?", "What should I send past customers?");
   } else if (stage === "deliver" || /busy|time|capacity/.test(b)) {
-    out.push("Should I raise my prices?", "How do I say no to work without losing customers?", "What can I stop doing myself?");
+    out.push("Should I raise my prices?", "How do I turn down work or orders without losing customers?", "What can I stop doing myself?");
   } else {
     out.push("What's holding my business back?", "How do I get more paying customers?", "What should I track each week?");
   }
@@ -86,10 +95,22 @@ function suggestionsFor(
 
 // ---------- Screen 48 — Ask Your Business ----------
 
+/** An earlier answer the owner is following up on — sent to Nellovia so it
+ *  knows exactly what "this" refers to, even when it's older than the recent turns. */
+type ReplyContext = { question: string; summary: string };
+
 type ThreadItem =
-  | { kind: "question"; text: string }
+  | { kind: "question"; text: string; /** The earlier question this follows up on (shown as a quote). */ replyTo?: string }
   | { kind: "answer"; question: string; content: AnswerContent }
-  | { kind: "failed"; question: string };
+  | { kind: "failed"; question: string; reply?: ReplyContext };
+
+function replyFrom(question: string, answer: AnswerContent): ReplyContext {
+  return { question, summary: [...answer.grounded, answer.interpretation ?? ""].join(" ").trim().slice(0, 900) };
+}
+
+/** Hand-off from Conversation history: the past answer picked to follow up on.
+ *  Read once by the Ask screen when it opens. */
+const followUpHandoff: { current: ReplyContext | null } = { current: null };
 
 function AskScreen() {
   const businessId = useBizz((s) => s.businessId);
@@ -99,6 +120,9 @@ function AskScreen() {
   const checkupImproved = useBizz((s) => s.checkup.improved);
   const manualEntries = useBizz((s) => s.manualEntries);
   const recordAsk = useBizz((s) => s.recordAsk);
+  const coach = useBizz((s) => s.coach);
+  const challenges = useBizz((s) => s.challenges);
+  const activeStep = useActiveCoachStep();
   const navigate = useBizz((s) => s.navigate);
   const business = getBusiness(businessId, userWorkspace, checkupFacts, manualEntries);
 
@@ -115,6 +139,23 @@ function AskScreen() {
   const startedAtRef = useRef("");
   const logRef = useRef<ChatLogMessage[]>([]);
   const draftKeyRef = useRef("");
+  // The newest question bubble — scrolled into view when the owner asks, because
+  // the thread sits below the hero and an answer appearing off-screen looks like nothing happened.
+  const lastQuestionRef = useRef<HTMLDivElement>(null);
+  const [scrollTick, setScrollTick] = useState(0);
+  // A past answer picked in Conversation history — the next typed question follows up on it.
+  const [replyTarget, setReplyTarget] = useState<ReplyContext | null>(null);
+  useEffect(() => {
+    if (!followUpHandoff.current) return;
+    setReplyTarget(followUpHandoff.current);
+    followUpHandoff.current = null;
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+  useEffect(() => {
+    if (!scrollTick) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    lastQuestionRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [scrollTick]);
 
   useEffect(() => {
     return () => {
@@ -164,10 +205,10 @@ function AskScreen() {
     });
   }
 
-  /** Snapshot of the workspace the server-side analyst reasons over. */
+  /** Snapshot of the workspace Nellovia reasons over on the server. */
   function buildContext(): AskWorkspaceContext {
     if (businessId === "user-workspace") {
-      // The owner's own workspace: ground the analyst in their entered totals
+      // The owner's own workspace: ground Nellovia in their entered totals
       // when they exist, otherwise be honest that nothing is measured yet.
       const months = ownerMonthsFromEntries(manualEntries);
       const last = months.length ? months[months.length - 1] : undefined;
@@ -179,6 +220,10 @@ function AskScreen() {
           facts: checkupFacts,
           diagnosis: checkupDiagnosis,
           months: months.map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+          // The step they're trying right now, so answers can connect to it.
+          coaching: coachingContext(coach, businessId),
+          // Their list of challenges — so a new problem can be noticed, and an old one isn't added twice.
+          challenges: challengesContext(challenges.filter((c) => c.workspaceId === "user-workspace")),
         }),
         name: business.name,
         type: business.type,
@@ -286,26 +331,28 @@ function AskScreen() {
     });
   }
 
-  function removeFailedAndRetry(question: string) {
+  function removeFailedAndRetry(question: string, reply?: ReplyContext) {
     setThread((t) => {
       // Drop the failed marker, keep everything else (question bubbles stay).
       const next: ThreadItem[] = t.filter((item) => !(item.kind === "failed" && item.question === question));
       threadRef.current = next;
       return next;
     });
-    ask(question);
+    ask(question, reply);
   }
 
-  function ask(raw: string) {
+  /** Ask Nellovia. `reply` = the earlier answer this question follows up on. Returns true when sent. */
+  function ask(raw: string, reply?: ReplyContext): boolean {
     const q = raw.trim();
     if (!q) {
       toast.error("Type a question first", { description: "Ask in your own words, or pick a suggestion." });
-      return;
+      return false;
     }
-    if (typing) return;
+    if (typing) return false;
     setInput("");
-    pushItem({ kind: "question", text: q });
-    logMessage("user", q);
+    pushItem({ kind: "question", text: q, ...(reply ? { replyTo: reply.question } : {}) });
+    setScrollTick((n) => n + 1);
+    logMessage("user", q, reply ? { replyTo: reply.question } : undefined);
     setTyping(true);
     setSlow(false);
     // A considered answer can take a little while — say so instead of leaving dots.
@@ -324,6 +371,7 @@ function AskScreen() {
                 question: item.question,
                 summary: item.content.grounded.join(" ").slice(0, 420),
               })),
+            ...(reply ? { replyTo: reply } : {}),
             workspace: buildContext(),
           }),
         });
@@ -336,38 +384,73 @@ function AskScreen() {
           recordAsk({
             workspaceId: businessId,
             question: q,
-            summary: data.answer.grounded.join(" ").slice(0, 220),
+            // Long enough to follow up on later from Conversation history (the list clamps it).
+            summary: [...data.answer.grounded, data.answer.interpretation ?? ""].join(" ").trim().slice(0, 700),
             period: data.answer.referencedPeriod ?? "",
           });
           return;
         }
         throw new Error(data?.error ?? "no answer");
       } catch {
-        // Honest failure — no canned answer can stand in for the analyst.
-        pushItem({ kind: "failed", question: q });
-        logMessage("ai", "(The analyst could not answer — the owner was shown a retry option.)", { failed: true });
+        // Honest failure — no canned answer can stand in for Nellovia.
+        pushItem({ kind: "failed", question: q, ...(reply ? { reply } : {}) });
+        logMessage("ai", "(Nellovia could not answer — the owner was shown a retry option.)", { failed: true });
         setTyping(false);
       } finally {
         clearTimeout(slowTimer);
         setSlow(false);
       }
     })();
+    return true;
   }
+
+  const activeNext = activeStep ? nextCheckIn(activeStep.checkIns) : null;
+  const lastQuestionIndex = thread.reduce((last, item, idx) => (item.kind === "question" ? idx : last), -1);
+  // Only the newest answer carries the follow-up box, so the conversation always continues at the bottom.
+  const lastAnswerIndex = thread.reduce((last, item, idx) => (item.kind === "answer" ? idx : last), -1);
 
   return (
     <div className="mx-auto w-full max-w-4xl">
+      {/* The step they're trying — a light reminder, never a nag */}
+      {activeStep ? (
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-brand-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">You’re trying</span>
+              <StepKindPill step={activeStep.step} />
+            </div>
+            <p className="mt-0.5 truncate text-sm font-medium text-slate-900">
+              {activeStep.step.title}
+              <span className="font-normal text-slate-500"> · day {Math.min(activeStep.step.days, daysSince(activeStep.acceptedAt) + 1)} of {activeStep.step.days}</span>
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" variant="outline" onClick={() => ask(`How's my step going — "${activeStep.step.title}"? What should I watch for?`)} disabled={typing}>
+              Ask about it
+            </Button>
+            <Button
+              size="sm"
+              className={activeNext?.due ? "bg-amber-600 hover:bg-amber-700" : "bg-brand-600 hover:bg-brand-700"}
+              onClick={() => navigate(`check-in/${activeStep.id}`)}
+            >
+              {activeNext?.due ? "Check in now" : "Share how it’s going"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Hero — expressive but serious */}
-      <Card className="overflow-hidden border-violet-200 bg-gradient-to-br from-violet-50 via-white to-white p-0">
-        <div className="border-b border-violet-100 px-6 pt-6 pb-5">
+      <Card className="overflow-hidden border-brand-200 bg-gradient-to-br from-brand-50 via-white to-white p-0">
+        <div className="border-b border-brand-100 px-6 pt-6 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
                 <Sparkles className="size-5" aria-hidden />
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Ask anything about your business…</h1>
+                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Ask Nellovia anything about your business</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  An AI analyst reads {business.name}&apos;s workspace data and answers your exact question.
+                  Nellovia, your AI business consultant, reads {business.name}&apos;s workspace data and answers your exact question.
                 </p>
               </div>
             </div>
@@ -375,26 +458,42 @@ function AskScreen() {
               <History className="mr-1.5 size-4" aria-hidden /> Conversation history
             </Button>
           </div>
+          {replyTarget ? (
+            <div className="mt-4 flex items-start justify-between gap-3 rounded-xl border-l-4 border-brand-400 bg-brand-50 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-600">Following up on</p>
+                <p className="mt-0.5 line-clamp-2 text-sm text-brand-950">{replyTarget.question}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyTarget(null)}
+                className="-mr-1 shrink-0 rounded-md p-1 text-brand-600 hover:bg-brand-100 hover:text-brand-800"
+                aria-label="Don't follow up on this — ask a new question instead"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
+          ) : null}
           <form
-            className="mt-4 flex flex-col gap-2 sm:flex-row"
+            className={replyTarget ? "mt-2 flex flex-col gap-2 sm:flex-row" : "mt-4 flex flex-col gap-2 sm:flex-row"}
             onSubmit={(e) => {
               e.preventDefault();
-              ask(input);
+              if (ask(input, replyTarget ?? undefined)) setReplyTarget(null);
             }}
           >
             <label htmlFor="ask-input" className="sr-only">
-              Ask a question about your business
+              {replyTarget ? "Ask your follow-up question" : "Ask a question about your business"}
             </label>
             <Input
               id="ask-input"
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask in your own words — follow-ups are welcome"
-              className="h-12 flex-1 border-violet-200 bg-white text-base"
+              placeholder={replyTarget ? "Ask your follow-up…" : "Ask in your own words — follow-ups are welcome"}
+              className="h-12 flex-1 border-brand-200 bg-white text-base"
               autoComplete="off"
             />
-            <Button type="submit" className="h-12 bg-violet-600 px-6 text-base hover:bg-violet-700" disabled={typing}>
+            <Button type="submit" className="h-12 bg-brand-600 px-6 text-base hover:bg-brand-700" disabled={typing}>
               <Send className="mr-2 size-4" aria-hidden /> Ask
             </Button>
           </form>
@@ -404,7 +503,7 @@ function AskScreen() {
                 key={s}
                 onClick={() => ask(s)}
                 disabled={typing}
-                className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100 disabled:opacity-50"
+                className="rounded-full border border-brand-200 bg-white px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 disabled:opacity-50"
               >
                 {s}
               </button>
@@ -423,14 +522,21 @@ function AskScreen() {
           <EmptyState
             icon={<MessageCircleQuestion className="size-5" />}
             title="Start with a question"
-            description="Try a suggestion above, or ask in your own words. Answers reference the actual data recorded in this workspace and show where each fact came from."
+            description="Try a suggestion above, or ask Nellovia in your own words. Answers reference the actual data recorded in this workspace and show where each fact came from."
           />
         ) : null}
 
         {thread.map((item, i) =>
           item.kind === "question" ? (
-            <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-600 px-4 py-2.5 text-sm leading-relaxed text-white sm:max-w-[70%]">
+            <div key={i} ref={i === lastQuestionIndex ? lastQuestionRef : undefined} className="flex scroll-mt-24 justify-end">
+              <p className="max-w-[85%] rounded-2xl rounded-br-md bg-brand-600 px-4 py-2.5 text-sm leading-relaxed text-white sm:max-w-[70%]">
+                {item.replyTo ? (
+                  // WhatsApp-style quote: which earlier answer this question is about.
+                  <span className="mb-1.5 block rounded-lg border-l-2 border-white/70 bg-black/10 px-2.5 py-1 text-xs leading-snug text-white/90">
+                    <span className="block font-semibold">Following up on</span>
+                    <span className="line-clamp-2">{item.replyTo}</span>
+                  </span>
+                ) : null}
                 {item.text}
               </p>
             </div>
@@ -439,27 +545,27 @@ function AskScreen() {
               key={i}
               answer={item.content}
               question={item.question}
-              onFollowUp={() => inputRef.current?.focus()}
-              onAsk={(q) => ask(q)}
+              latest={i === lastAnswerIndex}
+              onAsk={(q, reply) => ask(q, reply)}
               canAsk={!typing}
             />
           ) : (
-            <FailedCard key={i} question={item.question} onRetry={() => removeFailedAndRetry(item.question)} />
+            <FailedCard key={i} question={item.question} onRetry={() => removeFailedAndRetry(item.question, item.reply)} />
           )
         )}
 
         {typing ? (
-          <Card className="flex items-center gap-3 p-4" role="status" aria-label="Preparing answer">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-white">
+          <Card className="flex items-center gap-3 p-4" role="status" aria-label="Nellovia is writing your answer">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white">
               <Sparkles className="size-4" aria-hidden />
             </div>
             <div className="flex items-center gap-1.5" aria-hidden>
-              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
-              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
-              <span className="size-2 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+              <span className="size-2 animate-bounce rounded-full bg-brand-400 [animation-delay:0ms]" />
+              <span className="size-2 animate-bounce rounded-full bg-brand-400 [animation-delay:150ms]" />
+              <span className="size-2 animate-bounce rounded-full bg-brand-400 [animation-delay:300ms]" />
             </div>
             <span className="text-sm text-muted-foreground">
-              {slow ? "Working through your answers and your diagnosis — a good answer is worth a few more seconds…" : "Thinking through your business…"}
+              {slow ? "Nellovia is working through your answers and your diagnosis — a good answer is worth a few more seconds…" : "Nellovia is thinking through your business…"}
             </span>
           </Card>
         ) : null}
@@ -468,7 +574,7 @@ function AskScreen() {
   );
 }
 
-/** Honest failure state — shown when the AI analyst cannot be reached.
+/** Honest failure state — shown when Nellovia cannot be reached.
  *  Deliberately NOT a canned answer: pretending would break trust. */
 function FailedCard({ question, onRetry }: { question: string; onRetry: () => void }) {
   return (
@@ -479,7 +585,7 @@ function FailedCard({ question, onRetry }: { question: string; onRetry: () => vo
             <AlertTriangle className="size-4" aria-hidden />
           </div>
           <div>
-            <p className="text-sm font-semibold text-amber-900">The analyst couldn&apos;t be reached just now</p>
+            <p className="text-sm font-semibold text-amber-900">Nellovia couldn&apos;t be reached just now</p>
             <p className="mt-1 max-w-xl text-sm leading-relaxed text-amber-800">
               Rather than show you a canned reply, we stopped here. Nothing about your question or data was changed —
               please try again.
@@ -498,22 +604,38 @@ function FailedCard({ question, onRetry }: { question: string; onRetry: () => vo
 function AnswerCard({
   answer,
   question,
-  onFollowUp,
+  latest,
   onAsk,
   canAsk,
 }: {
   answer: AnswerContent;
   question: string;
-  onFollowUp: () => void;
-  onAsk: (q: string) => void;
+  /** The newest answer shows a follow-up box right under it. */
+  latest: boolean;
+  onAsk: (q: string, reply?: ReplyContext) => void;
   canAsk: boolean;
 }) {
   const navigate = useBizz((s) => s.navigate);
+  const followUpId = useId();
+  const [followUp, setFollowUp] = useState("");
+  // Older answers keep a quiet "Follow up on this" that opens the box right here.
+  const [replyOpen, setReplyOpen] = useState(false);
+  const showBox = latest || replyOpen;
+  // Questions about an older answer carry it along, so Nellovia knows what "this" means.
+  const replyContext = latest ? undefined : replyFrom(question, answer);
+
+  function sendFollowUp() {
+    const q = followUp.trim();
+    if (!q || !canAsk) return;
+    onAsk(q, replyContext);
+    setFollowUp("");
+    setReplyOpen(false);
+  }
   return (
-    <Card className="border-violet-200 p-5">
+    <Card className="border-brand-200 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-violet-600 text-white">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-brand-600 text-white">
             <Sparkles className="size-3.5" aria-hidden />
           </div>
           <span className="text-sm font-semibold">Answer</span>
@@ -545,16 +667,23 @@ function AnswerCard({
           </p>
         ))}
         {answer.interpretation ? (
-          <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-600">What we think is going on</p>
-            <p className="mt-1 text-sm leading-relaxed text-violet-900">{answer.interpretation}</p>
+          <div className="rounded-xl border border-brand-200 bg-brand-50/70 p-3.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-600">What I think is going on</p>
+            <p className="mt-1 text-sm leading-relaxed text-brand-900">{answer.interpretation}</p>
           </div>
         ) : null}
-        {answer.tryThis ? <TryThisBox title={answer.tryThis.title} body={answer.tryThis.body} /> : null}
+        {answer.draft ? (
+          <div className="flex pt-1">
+            <DraftButton hint={answer.draft} />
+          </div>
+        ) : answer.tryThis ? (
+          <TryThisBox title={answer.tryThis.title} body={answer.tryThis.body} />
+        ) : null}
+        {answer.newChallenge ? <NoticedChallengeCard noticed={answer.newChallenge} source="ask" ownerText={question} /> : null}
         {answer.limitations && answer.limitations.length > 0 ? (
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
-              <CircleDashed className="size-3.5" aria-hidden /> What we don&apos;t know yet
+              <CircleDashed className="size-3.5" aria-hidden /> What I don&apos;t know yet
             </p>
             <ul className="mt-1.5 space-y-1">
               {answer.limitations.map((l, i) => (
@@ -578,7 +707,7 @@ function AnswerCard({
                   if (e.factId) navigate(`provenance/${e.factId}`);
                   else navigate("data");
                 }}
-                className="rounded-xl border bg-white p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40"
+                className="rounded-xl border bg-white p-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/40"
                 aria-label={`${e.label}: ${e.value}. ${e.factId ? "Open fact detail" : "Open data centre"}`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -602,8 +731,8 @@ function AnswerCard({
                 key={q}
                 type="button"
                 disabled={!canAsk}
-                onClick={() => onAsk(q)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-violet-700 transition-colors hover:bg-violet-50 disabled:opacity-50"
+                onClick={() => onAsk(q, replyContext)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:opacity-50"
               >
                 <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
                 {q}
@@ -613,15 +742,58 @@ function AnswerCard({
         </div>
       ) : null}
 
+      {showBox ? (
+        <form
+          className="mt-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendFollowUp();
+          }}
+        >
+          <label htmlFor={followUpId} className="sr-only">
+            Ask a follow-up question about this answer
+          </label>
+          <Input
+            id={followUpId}
+            value={followUp}
+            onChange={(e) => setFollowUp(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && !latest) setReplyOpen(false);
+            }}
+            placeholder="Ask a follow-up about this answer…"
+            className="h-11 flex-1 border-brand-200 bg-white text-base sm:text-sm"
+            autoComplete="off"
+            // Only when the owner just opened it on an older answer — never on page load.
+            autoFocus={!latest}
+          />
+          <Button
+            type="submit"
+            className="h-11 bg-brand-600 px-4 hover:bg-brand-700"
+            disabled={!canAsk || !followUp.trim()}
+            aria-label="Send follow-up question"
+          >
+            <Send className="size-4" aria-hidden />
+            <span className="hidden sm:inline">Ask</span>
+          </Button>
+          {!latest ? (
+            <Button type="button" variant="ghost" className="h-11 px-3 text-slate-500" onClick={() => setReplyOpen(false)} aria-label="Close the follow-up box">
+              <X className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+        </form>
+      ) : null}
+
       <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+        {!showBox ? (
+          <Button variant="outline" size="sm" className="border-brand-200 text-brand-700 hover:bg-brand-50" onClick={() => setReplyOpen(true)}>
+            <CornerDownRight className="mr-1.5 size-4" aria-hidden /> Follow up on this
+          </Button>
+        ) : null}
         <Button variant="outline" size="sm" onClick={() => navigate("data")}>
           <Database className="mr-1.5 size-4" aria-hidden /> View supporting data
         </Button>
         <Button variant="outline" size="sm" onClick={() => navigate("actions")}>
           <BarChart3 className="mr-1.5 size-4" aria-hidden /> Create action
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onFollowUp}>
-          <MessageCircleQuestion className="mr-1.5 size-4" aria-hidden /> Ask follow-up
         </Button>
       </div>
     </Card>
@@ -659,7 +831,7 @@ function AskHistoryScreen() {
     <div className="mx-auto w-full max-w-4xl">
       <PageHeader
         title="Conversation history"
-        description="Questions you asked the analyst in this workspace, with a short summary of each answer."
+        description="Questions you asked Nellovia in this workspace, with a short summary of each answer."
         back={
           <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("ask")}>
             Back to Ask
@@ -699,17 +871,18 @@ function AskHistoryScreen() {
           />
         ) : (
           entries.map((h) => (
-            <Card key={h.id} className="p-0 transition-colors hover:border-violet-300">
+            <Card key={h.id} className="p-0 transition-colors hover:border-brand-300">
               <button
                 onClick={() => {
-                  toast("Continue the conversation in Ask", { description: "Ask a follow-up and the analyst will pick up where you left off." });
+                  // Open Ask with this past answer attached — the next question follows up on it.
+                  followUpHandoff.current = { question: h.question, summary: h.summary };
                   navigate("ask");
                 }}
                 className="w-full p-4 text-left"
-                aria-label={`Open conversation: ${h.question}`}
+                aria-label={`Follow up on: ${h.question}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Badge variant="outline" className="bg-violet-50 font-normal text-violet-700">
+                  <Badge variant="outline" className="bg-brand-50 font-normal text-brand-700">
                     Question
                   </Badge>
                   <span className="text-xs text-muted-foreground">
@@ -718,7 +891,10 @@ function AskHistoryScreen() {
                   </span>
                 </div>
                 <h3 className="mt-1.5 text-sm font-semibold leading-snug">{h.question}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{h.summary}</p>
+                <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{h.summary}</p>
+                <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-brand-700">
+                  <CornerDownRight className="size-3.5" aria-hidden /> Follow up on this
+                </span>
               </button>
             </Card>
           ))

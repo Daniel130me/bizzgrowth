@@ -49,7 +49,7 @@ export default function ForgotPasswordScreen() {
             Remembered it after all?{" "}
             <button
               onClick={() => navigate("signin")}
-              className="font-medium text-blue-700 underline-offset-2 hover:underline"
+              className="font-medium text-brand-700 underline-offset-2 hover:underline"
             >
               Back to sign in
             </button>
@@ -57,8 +57,8 @@ export default function ForgotPasswordScreen() {
         }
       >
         <div className="flex flex-col items-center text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-blue-50">
-            <MailCheck className="size-6 text-blue-600" aria-hidden />
+          <span className="flex size-12 items-center justify-center rounded-full bg-brand-50">
+            <MailCheck className="size-6 text-brand-600" aria-hidden />
           </span>
           <p className="mt-4 text-sm text-slate-600">
             A reset link is on its way to <span className="font-semibold text-slate-900">{email.trim().toLowerCase()}</span>.
@@ -100,7 +100,7 @@ export default function ForgotPasswordScreen() {
         <>
           <button
             onClick={() => navigate("signin")}
-            className="inline-flex items-center gap-1 font-medium text-blue-700 underline-offset-2 hover:underline"
+            className="inline-flex items-center gap-1 font-medium text-brand-700 underline-offset-2 hover:underline"
           >
             <ArrowLeft className="size-3.5" aria-hidden />
             Back to sign in

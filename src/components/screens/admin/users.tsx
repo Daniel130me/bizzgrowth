@@ -69,7 +69,7 @@ export function UsersManagement(_props: ScreenProps) {
                     setQuery("");
                     setStatusFilter("all");
                   }}
-                  className="text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline"
                 >
                   Reset filters
                 </button>
@@ -105,7 +105,7 @@ export function UsersManagement(_props: ScreenProps) {
                         navigate(`admin/users/${u.id}`);
                       }
                     }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
                   >
                     <TableCell>
                       <span className="flex items-center gap-2.5">

@@ -82,7 +82,7 @@ export function BusinessesManagement(_props: ScreenProps) {
                     setTypeFilter("all");
                     setStatusFilter("all");
                   }}
-                  className="text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline"
                 >
                   Reset filters
                 </button>
@@ -118,7 +118,7 @@ export function BusinessesManagement(_props: ScreenProps) {
                         navigate(`admin/businesses/${b.id}`);
                       }
                     }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
                   >
                     <TableCell className="font-medium">{b.name}</TableCell>
                     <TableCell className="capitalize text-muted-foreground">{b.type}</TableCell>

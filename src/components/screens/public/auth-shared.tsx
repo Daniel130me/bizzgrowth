@@ -3,7 +3,8 @@
 // Owned by the public screen group only.
 
 import React, { useState } from "react";
-import { Eye, EyeOff, Loader2, TrendingUp } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { NelloviaLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,15 +23,10 @@ export function PublicLogo({ center = false }: { center?: boolean }) {
   return (
     <button
       onClick={() => navigate("landing")}
-      aria-label="bizzGrowth home"
-      className={cn("inline-flex items-center gap-2", center && "justify-center")}
+      aria-label="Nellovia home"
+      className={cn("inline-flex items-center rounded-lg", center && "justify-center")}
     >
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white">
-        <TrendingUp className="size-4.5" aria-hidden />
-      </span>
-      <span className="text-[15px] font-bold tracking-tight text-slate-900">
-        bizz<span className="text-blue-600">Growth</span>
-      </span>
+      <NelloviaLogo />
     </button>
   );
 }

@@ -24,7 +24,7 @@ export default function CheckupIntro(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Private business checkup</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Private business checkup</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">
         Get your first diagnosis without connecting any accounts.
       </h1>

@@ -11,7 +11,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          bizzGrowth collects the minimum information needed to understand your business and operate your workspace.
+          Nellovia collects the minimum information needed to understand your business and operate your workspace.
           We collect three kinds of information:
         </p>
         <ul>
@@ -25,7 +25,7 @@ const SECTIONS: LegalSection[] = [
           </li>
           <li>
             <strong>Connected source data.</strong> If you connect ad platforms, store accounts or analytics tools, we
-            read performance data through their official APIs. Connections are read-only; bizzGrowth never changes
+            read performance data through their official APIs. Connections are read-only; Nellovia never changes
             anything in your accounts.
           </li>
         </ul>
@@ -87,7 +87,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          Every important figure in bizzGrowth carries a provenance label so you can always tell what is known from
+          Every important figure in Nellovia carries a provenance label so you can always tell what is known from
           what is interpreted:
         </p>
         <ul>
@@ -170,7 +170,7 @@ const SECTIONS: LegalSection[] = [
           Questions, requests or complaints about this policy or your data: <strong>privacy@bizzgrowth.ng</strong>. We
           respond within five working days.
         </p>
-        <p>bizzGrowth · Victoria Island, Lagos, Nigeria.</p>
+        <p>Nellovia · Victoria Island, Lagos, Nigeria.</p>
       </>
     ),
   },
@@ -182,7 +182,7 @@ export default function PrivacyPolicyScreen() {
       kicker="Legal"
       title="Privacy Policy"
       updated="30 September 2026"
-      intro="This policy explains what information bizzGrowth collects, how it is used and the controls you have. It is written for the private beta; a full data protection agreement will accompany general availability. The plain language below is the version that governs this prototype."
+      intro="This policy explains what information Nellovia collects, how it is used and the controls you have. It is written for the private beta; a full data protection agreement will accompany general availability. The plain language below is the version that governs this prototype."
       sections={SECTIONS}
     />
   );

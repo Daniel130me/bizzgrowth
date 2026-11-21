@@ -4,7 +4,9 @@
 import { useMemo } from "react";
 import { useBizz } from "@/lib/store";
 import { actionsFor, experimentsFor } from "@/lib/data/intelligence";
-import type { ActionRecord, ExperimentRecord } from "@/lib/types";
+import { timelineFor } from "@/lib/data/operations";
+import { daysSince, formatCount, stepProgress } from "@/lib/coach";
+import type { ActionRecord, ExperimentRecord, TimelineEvent } from "@/lib/types";
 
 // ---------- Categories (screen 38) ----------
 
@@ -27,9 +29,9 @@ export function categoryForRecId(recId?: string): ActionCategory {
 export const CATEGORY_CHIP_CLS: Record<ActionCategory, string> = {
   "High priority": "bg-amber-50 text-amber-700 border-amber-200",
   Growth: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Performance: "bg-blue-50 text-blue-700 border-blue-200",
+  Performance: "bg-teal-50 text-teal-700 border-teal-200",
   Data: "bg-slate-100 text-slate-600 border-slate-200",
-  Experiment: "bg-violet-50 text-violet-700 border-violet-200",
+  Experiment: "bg-brand-50 text-brand-700 border-brand-200",
 };
 
 // ---------- Combined records (user-created store records + static demo data) ----------
@@ -44,9 +46,30 @@ export function useCombinedActions(businessId: string): ActionRecord[] {
 
 export function useCombinedExperiments(businessId: string): ExperimentRecord[] {
   const storeExperiments = useBizz((s) => s.experiments);
+  const steps = useBizz((s) => s.coach.steps);
   return useMemo(
-    () => [...storeExperiments.filter((e) => e.businessId === businessId), ...experimentsFor(businessId)],
-    [storeExperiments, businessId],
+    () => [
+      // Real experiments count down from the day they started. One from an accepted
+      // step counts only the days it ran, as its card does (a pause doesn't use any up).
+      ...storeExperiments
+        .filter((e) => e.businessId === businessId)
+        .map((e) => {
+          if (e.status === "complete") return { ...e, daysRemaining: 0 };
+          const st = e.coachStepId ? steps.find((x) => x.id === e.coachStepId) : undefined;
+          return { ...e, daysRemaining: st ? stepProgress(st).daysLeft : Math.max(0, e.windowDays - daysSince(e.startedAt)) };
+        }),
+      ...experimentsFor(businessId),
+    ],
+    [storeExperiments, steps, businessId],
+  );
+}
+
+/** Sample timeline events plus the ones the owner recorded (changes, check-ins), newest first. */
+export function useCombinedTimeline(businessId: string): TimelineEvent[] {
+  const storeEvents = useBizz((s) => s.timelineEvents);
+  return useMemo(
+    () => [...storeEvents.filter((e) => e.businessId === businessId), ...timelineFor(businessId)].sort((a, b) => b.date.localeCompare(a.date)),
+    [storeEvents, businessId],
   );
 }
 
@@ -59,10 +82,15 @@ const EXP_METRIC_LABEL: Record<string, string> = {
 };
 
 export function metricLabelFor(exp: ExperimentRecord): string {
+  if (exp.unit) return exp.watchMetrics[0] ?? "What you counted";
   return EXP_METRIC_LABEL[exp.id] ?? "Metric value";
 }
 
 export function metricFormatterFor(exp: ExperimentRecord): (v: number) => string {
+  if (exp.unit) {
+    const unit = exp.unit;
+    return (v: number) => formatCount(v, unit);
+  }
   if (exp.baselineValue >= 1000) return (v: number) => `₦${Math.round(v).toLocaleString("en-NG")}`;
   return (v: number) => `${v}%`;
 }

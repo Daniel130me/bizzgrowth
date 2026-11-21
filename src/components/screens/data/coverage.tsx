@@ -112,7 +112,7 @@ function DataCoverageScreen() {
                   <p className="mt-1 leading-relaxed text-muted-foreground">{area.missing}</p>
                 </div>
                 <div>
-                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
                     <Sparkles className="size-3.5" aria-hidden /> What additional data would unlock
                   </p>
                   <p className="mt-1 leading-relaxed text-muted-foreground">{area.unlocks}</p>
@@ -124,11 +124,11 @@ function DataCoverageScreen() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-4 text-sm">
-        <button onClick={() => navigate("data-quality")} className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline">
+        <button onClick={() => navigate("data-quality")} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
           <CircleAlert className="size-4" aria-hidden /> Data quality issues
           <ArrowUpRight className="size-3.5" aria-hidden />
         </button>
-        <button onClick={() => navigate("provenance/all")} className="inline-flex items-center gap-1 font-medium text-blue-700 hover:underline">
+        <button onClick={() => navigate("provenance/all")} className="inline-flex items-center gap-1 font-medium text-brand-700 hover:underline">
           <Database className="size-4" aria-hidden /> How facts are sourced
           <ArrowUpRight className="size-3.5" aria-hidden />
         </button>
@@ -142,7 +142,7 @@ function MiniStat({ label, value, onClick, alert }: { label: string; value: stri
     <button
       onClick={onClick}
       className={cn(
-        "rounded-xl border bg-white p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40",
+        "rounded-xl border bg-white p-4 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/40",
         alert && "border-amber-200 bg-amber-50/50"
       )}
     >

@@ -159,7 +159,7 @@ export function SupportInbox(_props: ScreenProps) {
                         setSelectedId(t.id);
                       }
                     }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
                   >
                     <TableCell>
                       <AdminBadge status={t.type} />
@@ -211,10 +211,10 @@ export function SupportInbox(_props: ScreenProps) {
                   <p className="mt-2 text-sm leading-relaxed">{selected.message}</p>
                 </div>
 
-                <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Workspace context</p>
-                  <p className="mt-1.5 text-sm text-blue-950">{selected.workspaceContext}</p>
-                  <p className="mt-2 text-xs text-blue-800">
+                <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Workspace context</p>
+                  <p className="mt-1.5 text-sm text-brand-950">{selected.workspaceContext}</p>
+                  <p className="mt-2 text-xs text-brand-800">
                     Pulled automatically when the case was submitted, so support can see the state of the workspace without asking.
                   </p>
                 </div>
@@ -230,9 +230,9 @@ export function SupportInbox(_props: ScreenProps) {
                           onClick={() => setStatus(selected, s)}
                           aria-pressed={current}
                           className={cn(
-                            "inline-flex h-9 items-center rounded-lg border px-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
+                            "inline-flex h-9 items-center rounded-lg border px-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600",
                             current
-                              ? "border-blue-600 bg-blue-600 text-white"
+                              ? "border-brand-600 bg-brand-600 text-white"
                               : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                           )}
                         >
@@ -267,7 +267,7 @@ export function SupportInbox(_props: ScreenProps) {
                     />
                     <button
                       onClick={() => addNote(selected)}
-                      className="inline-flex h-9 shrink-0 items-center justify-center self-end rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 sm:w-28"
+                      className="inline-flex h-9 shrink-0 items-center justify-center self-end rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:w-28"
                     >
                       Add note
                     </button>
@@ -281,7 +281,7 @@ export function SupportInbox(_props: ScreenProps) {
                     setSelectedId(null);
                     navigate("admin/businesses");
                   }}
-                  className="text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline"
                 >
                   Open business admin detail
                 </button>

@@ -56,7 +56,7 @@ export const URGENCY_LABEL: Record<string, string> = {
 export function MarketStatusBadge({ status }: { status: string }) {
   if (status === "awarded") return <Badge className="border-transparent bg-emerald-100 text-emerald-800">Awarded</Badge>;
   if (status === "closed") return <Badge variant="outline" className="text-slate-500">Closed</Badge>;
-  return <Badge className="border-transparent bg-violet-100 text-violet-800">Open for bids</Badge>;
+  return <Badge className="border-transparent bg-brand-100 text-brand-800">Open for bids</Badge>;
 }
 
 export function RatingInline({ rating, reviews, className }: { rating: number; reviews?: number; className?: string }) {
@@ -82,12 +82,12 @@ export function AvailableDot({ available }: { available: string }) {
 // ---------- Specialist visuals ----------
 
 const GRADIENTS = [
-  "from-violet-500 to-purple-600",
+  "from-brand-600 to-brand-800",
   "from-emerald-500 to-teal-600",
   "from-rose-500 to-pink-600",
   "from-amber-500 to-orange-600",
   "from-cyan-500 to-sky-600",
-  "from-fuchsia-500 to-pink-600",
+  "from-slate-600 to-slate-800",
 ];
 
 function gradientFor(id: string): string {

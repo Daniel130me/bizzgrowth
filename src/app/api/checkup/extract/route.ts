@@ -12,7 +12,7 @@ import { plainify, shorten, tidyOwnerText } from "@/lib/checkup-math";
 
 export const runtime = "nodejs";
 
-const SYSTEM = `You are the bizzGrowth Business Context Engine. You read a short conversation between a business owner (the "user" turns) and the checkup assistant (the "ai" turns), and you extract a structured model of their business.
+const SYSTEM = `You are Nellovia's Business Context Engine. You read a short conversation between a business owner (the "user" turns) and the checkup assistant (the "ai" turns), and you extract a structured model of their business.
 
 Return ONLY valid JSON, no markdown, matching exactly this shape:
 {
@@ -77,7 +77,7 @@ type SlotInput = Partial<
     | "revenue",
     unknown
   >
-> & { channels?: unknown; changes?: unknown };
+> & { channels?: unknown; changes?: unknown; otherChallenges?: unknown };
 
 const slotText = (v: unknown, cap: number) =>
   typeof v === "string" && v.trim().length > 0 && v !== "Don't know" ? v.trim().slice(0, cap) : undefined;
@@ -151,6 +151,8 @@ function factsFromSlots(body: { workspaceName: string; country: string; transcri
       revenue: slotTrend(s.revenue) ?? "Don't know",
     },
     recentChanges: slotList(s.changes, 80, 5),
+    // Other challenges come straight from their answer — recorded, never diagnosed here.
+    otherChallenges: Array.isArray(s.otherChallenges) ? slotList(s.otherChallenges, 80, 3).map(tidyOwnerText) : undefined,
     chips: [],
     facts,
     confidence: 58,
@@ -247,6 +249,7 @@ export async function POST(request: NextRequest) {
       proof: plain(parsed.proof, 160) ?? base.proof,
       repeat: plain(parsed.repeat, 160) ?? base.repeat,
       ownerTheory: plain(parsed.ownerTheory, 220) ?? base.ownerTheory,
+      otherChallenges: base.otherChallenges,
       recentChanges: Array.isArray(parsed.recentChanges)
         ? parsed.recentChanges.filter((c) => typeof c === "string").map((c) => plainify(String(c), ownerText).slice(0, 80)).slice(0, 5)
         : base.recentChanges,

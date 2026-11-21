@@ -92,15 +92,15 @@ export function ExecMetricChip({ metric }: { metric: ParsedMetric }) {
 
 // ---------- Accent sections with CTA links ----------
 
-type CtaRoute = "goals" | "experiments/exp-sh-1" | "experiments/exp-kh-1" | "performance/marketing" | "performance/website" | "first-diagnosis" | "ask";
+type CtaRoute = "goals" | "experiments/exp-sh-1" | "experiments/exp-kh-1" | "performance/marketing" | "performance/website" | "diagnosis" | "diagnosis/what-to-do" | "ask";
 
 function ctaFor(heading: string, businessId: string): { label: string; route: CtaRoute } | null {
   const h = heading.toLowerCase();
-  // The owner's own brief links to THEIR diagnosis, plan and analyst — never to a sample business.
+  // The owner's own brief links to THEIR diagnosis, plan and Ask page — never to a sample business.
   if (businessId === "user-workspace") {
-    if (h.startsWith("pay attention")) return { label: "Open my diagnosis", route: "first-diagnosis" };
+    if (h.startsWith("pay attention")) return { label: "Open my diagnosis", route: "diagnosis" };
     if (h.startsWith("opportunity")) return { label: "Ask about this opportunity", route: "ask" };
-    if (h.startsWith("recommended action")) return { label: "Open my plan", route: "first-diagnosis" };
+    if (h.startsWith("recommended action")) return { label: "Open my plan", route: "diagnosis/what-to-do" };
     if (h.startsWith("goal progress")) return { label: "View goals", route: "goals" };
     return null;
   }
@@ -115,7 +115,7 @@ function ctaFor(heading: string, businessId: string): { label: string; route: Ct
 const ACCENTS: Record<string, { border: string; bg: string; text: string; icon: React.ReactNode }> = {
   attention: { border: "border-l-amber-500", bg: "bg-amber-50/60", text: "text-amber-700", icon: <Info className="size-4" aria-hidden /> },
   opportunity: { border: "border-l-amber-500", bg: "bg-amber-50/60", text: "text-amber-700", icon: <Lightbulb className="size-4" aria-hidden /> },
-  action: { border: "border-l-blue-600", bg: "bg-blue-50/50", text: "text-blue-700", icon: <CheckCircle2 className="size-4" aria-hidden /> },
+  action: { border: "border-l-brand-600", bg: "bg-brand-50/50", text: "text-brand-700", icon: <CheckCircle2 className="size-4" aria-hidden /> },
   goal: { border: "border-l-emerald-500", bg: "bg-emerald-50/50", text: "text-emerald-700", icon: <ArrowRight className="size-4" aria-hidden /> },
 };
 
@@ -205,7 +205,7 @@ export function BriefDocShell({
         <header className="border-b-2 border-slate-900 pb-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-violet-600">{brief.kind === "weekly" ? "Weekly brief" : "Monthly review"}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">{brief.kind === "weekly" ? "Weekly brief" : "Monthly review"}</p>
               <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">{businessName}</h1>
               <p className="mt-1 text-sm text-muted-foreground tnum">
                 {brief.title} · {brief.period}
@@ -231,7 +231,7 @@ export function BriefDocShell({
             </div>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            Generated {generated} · Prepared by bizzGrowth from connected and manually entered data.
+            Generated {generated} · Prepared by Nellovia from connected and manually entered data.
           </p>
         </header>
         <div className="space-y-6 pt-6">{children}</div>
@@ -270,12 +270,12 @@ export function RiskCard({ children }: { children: React.ReactNode }) {
 
 export function ExplanationsCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5">
-      <h2 className="flex items-center gap-1.5 text-base font-semibold text-violet-800">
+    <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-5">
+      <h2 className="flex items-center gap-1.5 text-base font-semibold text-brand-800">
         <Sparkles className="size-4" aria-hidden /> Likely explanations
       </h2>
       <p className="mt-3 text-[15px] leading-7 text-slate-700">{children}</p>
-      <p className="mt-3 text-xs text-violet-700">AI interpretation — hypotheses to verify, not measured conclusions.</p>
+      <p className="mt-3 text-xs text-brand-700">AI interpretation — hypotheses to verify, not measured conclusions.</p>
     </div>
   );
 }

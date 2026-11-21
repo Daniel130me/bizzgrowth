@@ -3,10 +3,11 @@
 // For a real owner's workspace, the FIRST insights are AI-generated from their
 // checkup facts (POST /api/insights/generate) — every conclusion still shows
 // evidence + confidence, and says plainly what measured data would settle.
+// In the owner's workspace they live on the diagnosis page ("More worth
+// knowing"), so this page sends them there; sample businesses keep the feed.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,8 @@ import { EmptyState } from "@/components/shared/states";
 import { insightsFor } from "@/lib/data/intelligence";
 import { REPORTING_MONTH } from "@/lib/data/businesses";
 import { useBizz } from "@/lib/store";
-import { ownerMonthsFromEntries } from "@/lib/data/user-business";
-import { buildBusinessContext } from "@/lib/ai-context";
+import { generateOwnerInsights } from "@/lib/insights-client";
+import { replaceRoute } from "@/lib/router";
 import type { Insight } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
 import { sortInsights } from "./parts";
@@ -36,51 +37,24 @@ const TABS: { id: TabId; label: string }[] = [
 export function InsightsFeed(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
-  const userWorkspace = useBizz((s) => s.userWorkspace);
   const facts = useBizz((s) => s.checkup.facts);
-  const diagnosis = useBizz((s) => s.checkup.diagnosis);
-  const manualEntries = useBizz((s) => s.manualEntries);
   const aiInsights = useBizz((s) => s.aiInsights);
-  const setAiInsights = useBizz((s) => s.setAiInsights);
   const [tab, setTab] = useState<TabId>("all");
   const [importance, setImportance] = useState<ImportanceFilter>("all");
   const [generating, setGenerating] = useState(false);
 
   const isOwnerWorkspace = businessId === "user-workspace";
 
+  // The owner's insights sit with their diagnosis now — old links and bookmarks land there.
+  useEffect(() => {
+    if (isOwnerWorkspace) replaceRoute("diagnosis/more");
+  }, [isOwnerWorkspace]);
+
   async function generateInsights() {
     if (!facts) return;
     setGenerating(true);
-    try {
-      const res = await fetch("/api/insights/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          workspaceName: userWorkspace?.name,
-          country: userWorkspace?.country,
-          facts,
-          // Everything the owner told the checkup + their diagnosis and plan — insights build on it.
-          context: buildBusinessContext({
-            workspace: userWorkspace,
-            facts,
-            diagnosis,
-            months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
-          }),
-          months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
-        }),
-      });
-      const data = (await res.json()) as { ok?: boolean; insights?: Insight[]; error?: string };
-      if (data?.ok && data.insights?.length) {
-        setAiInsights(data.insights);
-        toast.success("Your insights are ready", { description: "Built on your checkup and diagnosis — every figure checked against your answers." });
-      } else {
-        toast.error("Could not generate insights", { description: "Nothing was invented in the attempt. Please try again in a moment." });
-      }
-    } catch {
-      toast.error("Could not reach the intelligence engine", { description: "Check your connection and try again — nothing was fabricated meanwhile." });
-    } finally {
-      setGenerating(false);
-    }
+    await generateOwnerInsights();
+    setGenerating(false);
   }
 
   // Sample workspaces read the curated dataset; the owner's workspace shows
@@ -115,6 +89,9 @@ export function InsightsFeed(_props: ScreenProps) {
     setImportance("all");
   };
 
+  // On its way to the diagnosis page (see above).
+  if (isOwnerWorkspace) return null;
+
   return (
     <div>
       <PageHeader
@@ -137,7 +114,7 @@ export function InsightsFeed(_props: ScreenProps) {
               description="Built on your checkup and your diagnosis: an opportunity you may be missing, something to watch, and a quick win for this week — with the exact words to use where it helps. Every figure is checked against your answers; nothing is made up."
               actions={
                 <>
-                  <Button size="sm" className="bg-violet-600 hover:bg-violet-700" disabled={generating} onClick={() => void generateInsights()}>
+                  <Button size="sm" className="bg-brand-600 hover:bg-brand-700" disabled={generating} onClick={() => void generateInsights()}>
                     {generating ? (
                       <>
                         <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />

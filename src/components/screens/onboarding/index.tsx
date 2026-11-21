@@ -22,6 +22,8 @@ export const views: ViewMap = {
   "journey-confirm": JourneyConfirm,
   "business-understanding": BusinessUnderstanding,
   "first-diagnosis": FirstDiagnosis,
+  // Its tabs (Summary needs none) — the same component, so a tab change keeps it mounted.
+  "first-diagnosis/:tab": FirstDiagnosis,
   "first-diagnosis-evidence": FirstDiagnosisEvidence,
   "improve-diagnosis": ImproveDiagnosis,
   "setup-complete": SetupComplete,

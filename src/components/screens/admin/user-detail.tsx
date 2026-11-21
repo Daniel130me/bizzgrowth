@@ -220,14 +220,14 @@ export function UserAdminDetail({ params }: ScreenProps) {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setPending("reset-password")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
           >
             <KeyRound className="size-3.5" aria-hidden /> Reset password
           </button>
           {invitePending ? (
             <button
               onClick={() => setPending("resend-invite")}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
             >
               <MailPlus className="size-3.5" aria-hidden /> Resend invite
             </button>

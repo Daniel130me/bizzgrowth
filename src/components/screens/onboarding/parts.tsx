@@ -28,7 +28,7 @@ export function ScreenIntro({
 }) {
   return (
     <div className={cn("mb-6", className)}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{eyebrow}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">{eyebrow}</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
       {sub ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">{sub}</p> : null}
     </div>
@@ -63,7 +63,7 @@ export function TrustRow({ className }: { className?: string }) {
 export function DemoBusinessButton({ className, label = "Use sample business" }: { className?: string; label?: string }) {
   return (
     <Button type="button" variant="outline" className={className} onClick={openSampleBusiness}>
-      <Sparkles className="size-4 text-violet-600" aria-hidden />
+      <Sparkles className="size-4 text-brand-600" aria-hidden />
       {label}
     </Button>
   );

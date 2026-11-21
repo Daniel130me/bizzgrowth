@@ -104,7 +104,7 @@ export function AiGatewaySettings() {
     <div className="mx-auto w-full max-w-3xl">
       <PageHeader
         title="AI gateway"
-        description="How bizzGrowth's AI stays online. Every completion goes through a failover chain: if a provider or key fails, the next one takes up the request automatically."
+        description="How Nellovia's AI stays online. Every completion goes through a failover chain: if a provider or key fails, the next one takes up the request automatically."
         back={null}
       />
 
@@ -359,7 +359,7 @@ AI_GATEWAY_ORDER=z.ai,openai,groq,openrouter,gemini`}
       </div>
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Zap className="size-3.5 text-violet-500" aria-hidden />
+        <Zap className="size-3.5 text-brand-600" aria-hidden />
         Every AI surface — consultation, diagnosis, Ask, insights, briefs — routes through this chain automatically.
         {activeRoutes.length > 1 ? ` ${activeRoutes.length} routes are standing by.` : ""}
       </p>

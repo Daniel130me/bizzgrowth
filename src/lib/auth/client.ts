@@ -6,6 +6,7 @@ import { useBizz } from "@/lib/store";
 import type { UserWorkspaceMeta } from "@/lib/data/businesses";
 import { restoreFinishedCheckup } from "@/lib/checkup-restore";
 import { navigate } from "@/lib/router";
+import { flushWorkspaceSync, isParkedKey, parkOwnerData, stopWorkspaceSync, syncWorkspaceData } from "@/lib/workspace-sync";
 
 export interface MeUser {
   id: string;
@@ -15,11 +16,16 @@ export interface MeUser {
   workspaceId: string | null;
   workspaceName: string | null;
   workspace: { type: string; country: string | null; currency: string } | null;
+  accountType: "business" | "specialist";
+  specialistStatus: string | null;
+  isPlatformAdmin: boolean;
 }
 
-type Result = { ok: true } | { ok: false; error: string; field?: string; status: number };
+type Result = { ok: true; accountType?: "business" | "specialist" } | { ok: false; error: string; field?: string; status: number };
 
 // Which server user the local (per-browser) workspace data belongs to.
+// Storage keys keep the old "bizzgrowth-" prefix on purpose: renaming one would hide
+// the owner's saved data and break the check for who owns it.
 const OWNER_KEY = "bizzgrowth-auth-owner-v1";
 // Set when sign-in had to reload the page: pick the landing page once the
 // reloaded app knows whether this user's checkup is done.
@@ -33,8 +39,8 @@ async function post(path: string, body?: unknown): Promise<Result> {
       body: body === undefined ? undefined : JSON.stringify(body),
       credentials: "same-origin",
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string; field?: string };
-    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as { error?: string; field?: string; accountType?: "business" | "specialist" };
+    if (res.ok) return { ok: true, accountType: data.accountType };
     return { ok: false, status: res.status, error: data.error || "Something went wrong. Please try again.", field: data.field };
   } catch {
     return { ok: false, status: 0, error: "You appear to be offline. Check your connection and try again." };
@@ -55,43 +61,70 @@ export async function fetchMe(): Promise<MeUser | null | undefined> {
 
 /**
  * Local workspace data (localStorage) is per browser, not per account. If a
- * different account signs in on this browser, drop the previous owner's local
- * copy so nobody sees another person's business. Their data stays on the server.
+ * different account signs in on this browser, the previous owner's local copy
+ * is cleared so nobody sees another person's business. Their data is on their
+ * account already: it's saved there as it changes and before signing out
+ * (src/lib/workspace-sync.ts). Anything that hadn't got there yet is kept aside
+ * for them and sent the next time they sign in here.
  */
-function claimLocalData(userId: string): boolean {
+async function claimLocalData(userId: string): Promise<boolean> {
   try {
     const prev = localStorage.getItem(OWNER_KEY);
-    localStorage.setItem(OWNER_KEY, userId);
     if (prev && prev !== userId) {
+      await parkOwnerData(prev);
       for (const k of Object.keys(localStorage)) {
-        if (k.startsWith("bizzgrowth-") && k !== OWNER_KEY) localStorage.removeItem(k);
+        if (k.startsWith("bizzgrowth-") && k !== OWNER_KEY && !isParkedKey(k)) localStorage.removeItem(k);
       }
+      localStorage.setItem(OWNER_KEY, userId);
       return true;
     }
+    localStorage.setItem(OWNER_KEY, userId);
   } catch {}
   return false;
 }
 
-/** Push the server session into the store. Returns the user (or null). */
-export async function syncSession(opts?: { thenGoTo?: string; land?: boolean }): Promise<MeUser | null | undefined> {
+function reloadForSignIn(opts?: { thenGoTo?: string; land?: boolean }) {
+  if (opts?.thenGoTo) window.history.replaceState(null, "", `#/${opts.thenGoTo}`);
+  if (opts?.land) {
+    try {
+      sessionStorage.setItem(LAND_AFTER_RELOAD, "1");
+    } catch {}
+  }
+  window.location.reload();
+}
+
+/**
+ * Push the server session into the store. Returns the user (or null).
+ * `keepPage`: in the middle of a flow (creating a workspace), never reload to
+ * show the account's data; it shows on the next load instead.
+ */
+export async function syncSession(opts?: { thenGoTo?: string; land?: boolean; keepPage?: boolean }): Promise<MeUser | null | undefined> {
   const me = await fetchMe();
   if (me === undefined) return undefined; // unknown: keep whatever we had
-  if (me && claimLocalData(me.id)) {
-    // Another account's data was in memory; reload so the store starts clean.
-    if (opts?.thenGoTo) window.history.replaceState(null, "", `#/${opts.thenGoTo}`);
-    if (opts?.land) {
-      try {
-        sessionStorage.setItem(LAND_AFTER_RELOAD, "1");
-      } catch {}
-    }
-    window.location.reload();
+  if (me && (await claimLocalData(me.id))) {
+    // Another account's data was in memory; reload so the store starts clean
+    // (the reloaded page brings in this account's own data).
+    reloadForSignIn(opts);
+    return me;
+  }
+  // This owner's data saved on their account, merged with what this browser
+  // holds. If the account had something this browser lacked (new device,
+  // cleared storage, another browser), the page reloads to show it.
+  const synced = await Promise.race([
+    syncWorkspaceData(me, { applyBy: opts?.keepPage ? 0 : Date.now() + 5000 }),
+    new Promise<"slow">((r) => setTimeout(() => r("slow"), 6000)),
+  ]);
+  if (synced === "reload") {
+    reloadForSignIn(opts);
     return me;
   }
   restoreWorkspace(me);
   // Onboarding finished earlier but this browser lost it → bring it back, so a
   // returning owner goes to their workspace instead of through setup again.
   // Capped so a slow server never holds up sign-in; the restore still lands later.
-  if (me) await Promise.race([restoreFinishedCheckup(), new Promise((r) => setTimeout(r, 4000))]);
+  if (me?.accountType === "business") {
+    await Promise.race([restoreFinishedCheckup(), new Promise((r) => setTimeout(r, 4000))]);
+  }
   useBizz.getState().setSession(me);
   if (me && consumeLandAfterReload()) navigate(landingFor(me));
   return me;
@@ -122,24 +155,33 @@ function consumeLandAfterReload(): boolean {
 
 /** Where a signed-in user should land: setup if they have no workspace yet, else Home. */
 export function landingFor(_user?: MeUser | null): string {
+  if (_user?.accountType === "specialist") {
+    return _user.specialistStatus === "approved" ? "specialist/dashboard" : "specialist/onboarding";
+  }
   // Finished checkup (restored from the saved chat if needed) → Home; otherwise
   // the setup start page, which offers "Resume setup" for an unfinished chat.
   return useBizz.getState().checkup.facts ? "home" : "welcome";
 }
 
 export async function signIn(email: string, password: string, remember: boolean): Promise<Result & { user?: MeUser | null }> {
+  // Anything not yet on the account signed in now goes there before the session changes.
+  await flushWorkspaceSync();
   const r = await post("/api/auth/login", { email, password, remember });
   if (!r.ok) return r;
   return { ...r, user: await syncSession({ thenGoTo: "welcome", land: true }) };
 }
 
-export async function signUp(name: string, email: string, password: string): Promise<Result> {
-  const r = await post("/api/auth/signup", { name, email, password });
-  if (r.ok) await syncSession({ thenGoTo: "verify-email" });
+export async function signUp(name: string, email: string, password: string, accountType: "business" | "specialist"): Promise<Result> {
+  await flushWorkspaceSync();
+  const r = await post("/api/auth/signup", { name, email, password, accountType });
+  if (r.ok) await syncSession({ thenGoTo: accountType === "specialist" ? "specialist/onboarding" : "verify-email" });
   return r;
 }
 
 export async function signOut(): Promise<void> {
+  // Save what's still only in this browser to the account before the session ends.
+  await flushWorkspaceSync();
+  stopWorkspaceSync();
   await post("/api/auth/logout");
   useBizz.getState().setSession(null);
 }
@@ -152,6 +194,6 @@ export async function saveWorkspace(input: {
   website?: string;
 }): Promise<Result> {
   const r = await post("/api/auth/workspace", input);
-  if (r.ok) await syncSession();
+  if (r.ok) await syncSession({ keepPage: true });
   return r;
 }

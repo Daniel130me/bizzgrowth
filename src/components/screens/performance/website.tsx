@@ -157,7 +157,7 @@ export default function WebsitePerformance(_props: ScreenProps) {
         tone="ai"
         title="AI interpretation"
         action={
-          <Button size="sm" variant="outline" className="shrink-0 border-violet-300 bg-white text-violet-700 hover:bg-violet-100" onClick={() => navigate("insights/ins-kh-1")}>
+          <Button size="sm" variant="outline" className="shrink-0 border-brand-300 bg-white text-brand-700 hover:bg-brand-100" onClick={() => navigate("insights/ins-kh-1")}>
             View diagnosis <ArrowRight className="ml-1 size-3.5" aria-hidden />
           </Button>
         }
@@ -195,7 +195,7 @@ export default function WebsitePerformance(_props: ScreenProps) {
       {/* CTA interactions note */}
       <SectionCard title="CTA interactions">
         <div className="flex items-start gap-3">
-          <MousePointerClick className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+          <MousePointerClick className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
           <div className="text-sm text-muted-foreground">
             <p>
               Add-to-cart interactions: {fmtNum(carts)} carts from {fmtNum(productViews)} product views ({fmtPct(cartRate)}) —

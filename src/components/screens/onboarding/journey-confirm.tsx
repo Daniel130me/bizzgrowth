@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useBizz } from "@/lib/store";
+import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import { cn } from "@/lib/utils";
 import { ProvenanceBadge } from "@/components/shared/badges";
 import type { ScreenProps } from "../view-types";
@@ -41,6 +42,7 @@ type Model = "service" | "ecommerce" | "both";
 export default function JourneyConfirm(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const checkupFacts = useBizz((s) => s.checkup.facts);
+  const hasDiagnosis = useBizz((s) => Boolean(s.checkup.diagnosis));
   const setCheckupJourney = useBizz((s) => s.setCheckupJourney);
 
   const aiJourney: Step[] | null =
@@ -97,7 +99,7 @@ export default function JourneyConfirm(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">From your checkup conversation</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">From your checkup conversation</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">Here&apos;s how customers find and pay you</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         From your answers, we drafted the steps a customer takes — from first hearing about you to paying you.
@@ -106,9 +108,9 @@ export default function JourneyConfirm(_props: ScreenProps) {
       </p>
 
       {/* What to do — explicit instruction, so nobody has to guess */}
-      <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/60 p-4" aria-label="What to do on this page">
-        <p className="text-sm font-semibold text-violet-900">What to do here</p>
-        <ol className="mt-1.5 list-inside list-decimal space-y-0.5 text-sm text-violet-900/85">
+      <div className="mt-4 rounded-xl border border-brand-100 bg-brand-50/60 p-4" aria-label="What to do on this page">
+        <p className="text-sm font-semibold text-brand-900">What to do here</p>
+        <ol className="mt-1.5 list-inside list-decimal space-y-0.5 text-sm text-brand-900/85">
           <li>Read the steps below, top to bottom.</li>
           <li>If that is really how it happens, press “Yes, that&apos;s how it happens”.</li>
           <li>If anything is wrong or missing, press “Edit journey” — you can rename, reorder, remove or add steps.</li>
@@ -175,22 +177,22 @@ export default function JourneyConfirm(_props: ScreenProps) {
             <li key={s.id} className="relative flex gap-4 pb-6 last:pb-0">
               {/* Rail: line runs from this marker down to the next one */}
               {!last ? (
-                <span className="absolute left-[13px] top-8 bottom-0 w-0.5 bg-gradient-to-b from-violet-300 to-violet-200" aria-hidden />
+                <span className="absolute left-[13px] top-8 bottom-0 w-0.5 bg-gradient-to-b from-brand-300 to-brand-200" aria-hidden />
               ) : null}
               <span
                 className={cn(
                   "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tnum ring-4 ring-white",
-                  last ? "bg-violet-600 text-white" : "border-2 border-violet-300 bg-white text-violet-700",
+                  last ? "bg-brand-600 text-white" : "border-2 border-brand-300 bg-white text-brand-700",
                 )}
               >
                 {last ? <Check className="size-3.5" aria-hidden /> : i + 1}
               </span>
               <div className="flex min-w-0 flex-1 items-start gap-3 pt-0.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-500">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-600">
                     {i === 0 ? "Start" : last ? "Goal" : `Step ${i + 1}`}
                   </p>
-                  <p className={cn("text-sm leading-snug", last ? "font-semibold text-violet-800" : "font-medium")}>{s.label}</p>
+                  <p className={cn("text-sm leading-snug", last ? "font-semibold text-brand-800" : "font-medium")}>{s.label}</p>
                   {s.note ? <p className="mt-0.5 text-xs text-muted-foreground">{s.note}</p> : null}
                 </div>
                 {editing ? (
@@ -239,7 +241,7 @@ export default function JourneyConfirm(_props: ScreenProps) {
           onClick={() => {
             saveJourney(steps);
             // Reached from the diagnosis ("check the details") — go back to it.
-            navigate(checkupFacts ? "first-diagnosis" : "business-understanding");
+            navigate(checkupFacts ? diagnosisReturnRoute(hasDiagnosis ? "diagnosis" : "first-diagnosis") : "business-understanding");
           }}
           className="w-full sm:w-auto"
         >

@@ -1,6 +1,8 @@
-# bizzGrowth — Build Worklog
+# Nellovia — Build Worklog
 
-Product: **bizzGrowth** — AI Business Growth Operating System (complete clickable MVP prototype, 114 screens).
+Product: **Nellovia** — AI Business Growth Operating System (complete clickable MVP prototype, 114 screens).
+
+> Renamed on 2026-11-21: the product was called bizzGrowth until then, and entries below use the new name. Its AI is also called Nellovia, an AI business consultant. Storage keys (`bizzgrowth-*`), cookies (`bizz_*`), the `BIZZ_AI_DISABLED` switch, the `bizzgrowth/` folder and deployment names keep the old name on purpose: renaming them would wipe saved data or sign people out.
 Source spec: `/home/z/my-project/upload/Pasted Content_1791189560358.txt`
 
 ## Architecture (agreed foundation — read before working)
@@ -33,7 +35,7 @@ Source spec: `/home/z/my-project/upload/Pasted Content_1791189560358.txt`
 ---
 Task ID: 1
 Agent: orchestrator (Z.ai Code)
-Task: Build the full foundation for the bizzGrowth prototype.
+Task: Build the full foundation for the Nellovia prototype.
 
 Work Log:
 - Wrote design tokens (globals.css: blue/violet/emerald/amber/red semantics, Inter font, 8px radius base, custom scrollbars).
@@ -194,7 +196,7 @@ Task: Screens 95-104 + prototype-index
 
 Work Log:
 - `src/components/screens/states/index.tsx` — all 10 system states registered as `views` (routes `state/*`). Shared local helpers: `SystemStateChip` (PageHeader badge), `BareShell` + `BareLogo` (self-contained top bar + centered card for the three bare pages), `useGoBack(fallback)` (history.back() with in-app fallback).
-  - 95 `state/no-data` (in shell): hero "Let's get your first signal." + "You haven't added enough information yet to understand performance…" personalised with workspace name; "What bizzGrowth can tell you at each level of data" (totals → what happened; +funnel/channels → where it happened; connected history → why it happened); four option cards: Start checkup → welcome (primary), Enter data → manual-entry, Connect source → integrations, Explore demo → setBusiness("swifthaul") + home.
+  - 95 `state/no-data` (in shell): hero "Let's get your first signal." + "You haven't added enough information yet to understand performance…" personalised with workspace name; "What Nellovia can tell you at each level of data" (totals → what happened; +funnel/channels → where it happened; connected history → why it happened); four option cards: Start checkup → welcome (primary), Enter data → manual-entry, Connect source → integrations, Explore demo → setBusiness("swifthaul") + home.
   - 96 `state/insufficient` (in shell, SIGNATURE): headline "We can see the problem, but not yet the cause."; three panels — What we know (Customers declined / Revenue declined / Marketing spend known, each with ProvenanceBadge measured), What we don't know (lead source, website conversion + what each blocks; Low-confidence explainer), What would unlock the answer (violet AI panel); two unlock cards: Connect Google Analytics → connect/google-analytics, Add funnel data → manual-entry; ghost Back to insights; caption "We never invent a diagnosis when evidence is missing."; prototype note framing the example as KoraHome Store.
   - 97 `state/syncing` (in shell): overall Progress % driven by ~550ms interval, per-source rows (Shopify · Orders & checkout analytics, Paystack · payments) with spinner→check transitions, InfoBanner "You can leave this screen — we'll notify you when it's ready."; Continue in background → home; simulated completion at 10s → toast.success("Sync complete") guarded by mountedRef (cleared on unmount); completed state swaps banner to success + "View performance" CTA.
   - 98 `state/stale` (in shell): amber InfoBanner "Data is older than usual"; Sync status card (Last successful update Today 11:02, 3 failed attempts 14:00/15:03/16:00, Delayed chip); Affected analyses (Checkout diagnosis · funnel charts · revenue frozen at 11:02) + note that AI interpretations on stale data are flagged, never silent; Possible reason (Shopify token expired during 14:00 attempt) + numbered recommended response; Sync now (2.2s spinner → toast.success "Data refreshed" + success banner) / Review connection → connection-error.
@@ -204,7 +206,7 @@ Work Log:
   - 102 `state/session-expired` (BARE): amber KeyRound card, "Your session expired for security" + reassurance nothing was lost; Sign in again → signin; caption "Your intended destination will be restored after signing in."; top bar logo → landing + "Return to landing page".
   - 103 `state/404` (BARE): large gradient 404 + "Page not found" + explanation; Go Home → home / Back to previous page (history.back fallback); "Were you looking for" quick links Home · Performance · Insights · Data.
   - 104 `state/error` (BARE): calm "Service unavailable" (ServerOff), description clarifying it's our side + data safe; clickable mono reference chip REF-2026-0930-4172 (clipboard copy → toast); Retry (window.location.reload) / Go Home / Contact support → feedback.
-- `src/components/screens/prototype/index.tsx` — `prototype-index` (BARE standalone, default export registered by group map): sticky white top bar (logo → landing, Reviewer index badge, "Open the app" → home); hero "bizzGrowth Prototype Map" + "114 screens/views/states · reviewer index — not a production feature" + stat chips (114/114 Implemented, 19 categories, demo-data note); two demo shortcut cards — SwiftHaul (service) and KoraHome (ecommerce) — each setBusiness(id) + navigate("home"); search input filtering by name/category/route/id/number with category jump chips (scrollIntoView — no raw #anchors, hash routing is in use); body grouped by category in registry order: each row = number (mono), name, resolved example route in mono (→ /metric/revenue etc.), category chip (lg+), emerald "Implemented" badge, Open button navigating via EXAMPLE_ROUTES map exactly per contract (metric→metric/revenue, performance/channel→performance/marketing/instagram, insights→insights/ins-sh-1, alerts→al-sh-1, recommendations/action-start→rec-sh-1, actions→act-sh-1, experiment-setup→rec-sh-1, experiments→exp-sh-1, outcome→exp-sh-0, integrations/source-settings→meta-ads, connect→google-analytics, provenance→prov-sh-revenue, goals→goal-sh-1, team→mem-2, admin/businesses→swifthaul, admin/users→au-1, change-confirm→timeline; everything else its own route); no-match empty state with clear button; sticky-free footer coverage note "All 114 required screens implemented and reachable via natural navigation or this map." + prototype-only disclaimer.
+- `src/components/screens/prototype/index.tsx` — `prototype-index` (BARE standalone, default export registered by group map): sticky white top bar (logo → landing, Reviewer index badge, "Open the app" → home); hero "Nellovia Prototype Map" + "114 screens/views/states · reviewer index — not a production feature" + stat chips (114/114 Implemented, 19 categories, demo-data note); two demo shortcut cards — SwiftHaul (service) and KoraHome (ecommerce) — each setBusiness(id) + navigate("home"); search input filtering by name/category/route/id/number with category jump chips (scrollIntoView — no raw #anchors, hash routing is in use); body grouped by category in registry order: each row = number (mono), name, resolved example route in mono (→ /metric/revenue etc.), category chip (lg+), emerald "Implemented" badge, Open button navigating via EXAMPLE_ROUTES map exactly per contract (metric→metric/revenue, performance/channel→performance/marketing/instagram, insights→insights/ins-sh-1, alerts→al-sh-1, recommendations/action-start→rec-sh-1, actions→act-sh-1, experiment-setup→rec-sh-1, experiments→exp-sh-1, outcome→exp-sh-0, integrations/source-settings→meta-ads, connect→google-analytics, provenance→prov-sh-revenue, goals→goal-sh-1, team→mem-2, admin/businesses→swifthaul, admin/users→au-1, change-confirm→timeline; everything else its own route); no-match empty state with clear button; sticky-free footer coverage note "All 114 required screens implemented and reachable via natural navigation or this map." + prototype-only disclaimer.
 - Layout contract honoured: only `state/404`, `state/session-expired`, `prototype-index` are self-contained; all other state screens assume AppShell and use PageHeader + SectionCard + InfoBanner + KeyValue consistently.
 
 Verification:
@@ -284,14 +286,14 @@ Work Log:
 - Final `bun run lint`: clean. `tsc --noEmit`: clean for all src/. Dev log: zero runtime errors.
 
 Stage Summary:
-- bizzGrowth prototype COMPLETE: all 114 screens/states implemented and reachable (natural navigation + #/prototype-index reviewer map).
+- Nellovia prototype COMPLETE: all 114 screens/states implemented and reachable (natural navigation + #/prototype-index reviewer map).
 - Single Next route (/) with hash-based SPA navigation; two coherent demo workspaces (SwiftHaul service / KoraHome ecommerce) sharing one dataset.
 - Product loop demonstrable end-to-end: Understand → Measure → Diagnose → Recommend → Act → Measure again.
 
 ---
 Task ID: fix-hydration-1
 Agent: Z.ai Code (main)
-Task: Fix React hydration mismatch error on bizzGrowth landing page
+Task: Fix React hydration mismatch error on Nellovia landing page
 
 Work Log:
 - Diagnosed hydration error: attributes data-gr-ext-installed, data-new-gr-c-s-check-loaded, data-new-gr-c-s-loaded injected into <body> by the Grammarly browser extension before React hydration
@@ -303,7 +305,7 @@ Work Log:
 
 Stage Summary:
 - src/app/layout.tsx <body> now has suppressHydrationWarning; Grammarly-induced hydration mismatch resolved
-- bizzGrowth landing page verified working end-to-end in browser
+- Nellovia landing page verified working end-to-end in browser
 
 ---
 Task ID: ai-intelligence-1
@@ -389,7 +391,7 @@ Root cause (trust):
 Fix (numbers):
 - DiagnosisDelta type: delta is now number|null (null = no measured figure) + direction ("up"|"down"|"flat"|"unknown") + optional customValue. A number is ONLY ever present for real measured data.
 - /api/checkup/diagnosis rewritten: the LLM now writes ONLY the narrative (headline/story/meaning/whyItMatters/nextInvestigation/confidence) under a hard "NUMBERS ARE SACRED — never output a percentage" rule; the metric tiles are computed deterministically from facts.trends (direction words) and facts.recentChanges (spend mention). templateDiagnosis degraded path uses the same builder.
-- first-diagnosis.tsx rendering: directional tiles render arrow icon + word (Up / Down / About the same / Not reported) with icon+label badges (Increasing/Decreasing/Steady/No data yet) — never colour alone; footnote states plainly "bizzGrowth never invents figures you did not give". Improved variant now shows REAL numbers from owner-entered counts: total enquiries entered + per-channel conversion % (caption "3 of 40 enquiries became customers") with "Measured from your counts" badge. Demo template deltas relabelled "Sample story".
+- first-diagnosis.tsx rendering: directional tiles render arrow icon + word (Up / Down / About the same / Not reported) with icon+label badges (Increasing/Decreasing/Steady/No data yet) — never colour alone; footnote states plainly "Nellovia never invents figures you did not give". Improved variant now shows REAL numbers from owner-entered counts: total enquiries entered + per-channel conversion % (caption "3 of 40 enquiries became customers") with "Measured from your counts" badge. Demo template deltas relabelled "Sample story".
 Fix (journey UX):
 - journey-confirm.tsx: heading now says what the page IS ("Here's how customers find and pay you"); explicit "What to do here" 3-step instruction box; business model card retitled "What kind of business is this?" with "only changes the words used across the product"; journey card retitled "Draft — your customer journey" with "a draft built from what you told us — nothing is measured yet"; shows "Built from what you told us:" chips of the owner's actual channels; primary CTA renamed "Yes, that's how it happens"; secondary toggles edit (redundant labels unified).
 
@@ -420,7 +422,7 @@ Fixes:
 - NEW src/lib/data/user-business.ts — buildUserBusiness(): an honest Business for the owner's workspace. Channels/funnel/monthly/health start EMPTY; goal/journey/model come from checkup facts; dataCoverage computed from what actually exists (context / entered totals / connected sources); lastSyncNote states plainly "No data sources connected yet — your checkup answers are the only data so far".
 - getBusiness() now delegates "user-workspace" to buildUserBusiness and falls back to the live store (facts + manualEntries) when callers don't pass them — ~25 screens fixed centrally without sample-shaped output. getPeriod() safe for empty months ("No measured period yet"), and uses real month labels ("October 2026 vs September 2026") via MonthlyPoint.fullLabel for owner data.
 - Identity: store.setAuthUser() persists to SETTINGS_KEY; signup uses it; signin keeps the registered name or derives one from the email (never a sample identity). createWorkspace() and hydrate() keep settings.businessName in sync with the owner's workspace name. Welcome offers "Open my business overview" for returning diagnosed users.
-- NEW OwnerHome (screens/home/owner-home.tsx): Home for a real owner is a different surface — their diagnosis card, "What your checkup established" (facts + trend words, provenance badges), "Your numbers" from their manual entries with real deltas vs their previous entered month, honest empty state ("No measured numbers yet — and that is stated plainly here. bizzGrowth will not fill this space with sample figures."), and three data paths (Type your totals / Upload a file / Connect a service). Demo home untouched for sample workspaces.
+- NEW OwnerHome (screens/home/owner-home.tsx): Home for a real owner is a different surface — their diagnosis card, "What your checkup established" (facts + trend words, provenance badges), "Your numbers" from their manual entries with real deltas vs their previous entered month, honest empty state ("No measured numbers yet — and that is stated plainly here. Nellovia will not fill this space with sample figures."), and three data paths (Type your totals / Upload a file / Connect a service). Demo home untouched for sample workspaces.
 - Financial-data paths: checkup-intro advertises "Happy to share numbers or files? enter figures, upload CSV, or connect a service" + "Connect data instead" button; setup-complete summary is fully facts-driven (no more hardcoded "42%" / "1 investigation found") with an "Add data your way" 3-path panel; manual-entry now PERSISTS owner totals to the store (localStorage), uses real recent months, starts blank for owners, re-saving a month corrects it; manual history reads store records for owners; Ask grounds answers in entered months when present; performance overview shows an honest early-state until 2 owner months unlock comparisons; briefs/reports show workspace-scoped empty states ("No briefs yet for Node71 Digital Services"); team shows just the owner; brain-overview section cards show the owner's own facts (no "B2B SMEs 60% / B2C 40%").
 - Anti-leak guards: useBizzNotifications never falls back to demo items for user-workspace; insights/recommendations/timeline/goals fallbacks return [] for user-workspace (metric-defs + performance biz); useConnectionsFor() serves sample presets only to sample workspaces (ownConnections starts empty; setConnection writes per active workspace); workspace switcher groups "Your workspace" vs "Sample businesses — demo data" with Sample badges.
 
@@ -448,7 +450,7 @@ Verification (agent-browser E2E, fresh signup as "Chidi Eze / FreshLink Media"):
 1. Onboarding data channels — checkup-intro offers "Connect data instead"; it lands in the Data Centre sources library with all three paths present (Google Analytics etc. connect, CSV/Excel upload, Manual data entry); setup-complete advertises "three ways to add real numbers — all optional"; Home empty-state offers Type your totals / Upload a file / Connect a service.
 2. Consultation quality — one comprehensive owner message covered all required slots; phase=done automatically; extract + journey + diagnosis all in the owner's own words ("social media ad campaign management for small ecommerce brands…", goal "double monthly revenue").
 3. Journey-confirm UX — heading "Here's how customers find and pay you", explicit "What to do here" 3-step box, "Draft — your customer journey", CTA "Yes, that's how it happens"; no "believed journey" wording anywhere.
-4. No invented figures — first-diagnosis tiles render direction words only ("Up / Increasing / Direction you described", "Not reported / No data yet / Not mentioned in your checkup") with the trust line "bizzGrowth never invents figures you did not give"; API prompt enforces NUMBERS ARE SACRED (no percentage, money amount, count, or ratio in LLM text).
+4. No invented figures — first-diagnosis tiles render direction words only ("Up / Increasing / Direction you described", "Not reported / No data yet / Not mentioned in your checkup") with the trust line "Nellovia never invents figures you did not give"; API prompt enforces NUMBERS ARE SACRED (no percentage, money amount, count, or ratio in LLM text).
 5. Seeded data purge — Home greets "Good morning, Chidi" with FreshLink Media workspace; full leak audit across performance / insights / actions / ask / data / goals / reports / brain / team / timeline / metric pages: 0 hits for Amara/SwiftHaul/KoraHome; honest empty states everywhere ("Nothing measured yet — and nothing is made up to fill the page."); reload persistence confirmed; sample businesses in the switcher are explicitly labelled "Sample" and the SwiftHaul demo home is unchanged for demo use.
 
 Fix (found during this verification):
@@ -583,3 +585,17 @@ Verification:
 - API lifecycle via curl: match (aiInterpreted:true, grounded reasons) → post → ai-invite (4 bids, budget-clamped amounts) → award (accepted + 3 declined, 409 on re-award) → manual single-specialist invite → close. All 200/201/409 as designed.
 - Browser E2E: #/market grid (14 cards) → Tunde Bakare profile (stats/showcase/rates) → Action Centre "Human action" recommendation → "Find a specialist" → prefilled brief (title/description/category/banner) → budget+skills → post → task page shows "Recommended by your intelligence" banner → AI matchmaker panel (grounded reason + candid note + skills chips) → Invite matched → 4 bids with cover notes → Accept bid dialog → "Awarded to Tunde Bakare — ₦102,000, about 8 days", others Declined → Your tasks tab shows "Awarded / 4 bids / From ₦150k". Second full run from an Insight → post (category validation honestly blocks missing category; picked manually) → provenance persisted.
 - Mobile 390px: market home + task detail render cleanly, no horizontal scroll. Console clean; dev.log shows all market calls 200/201 (match ~2.6-3.3s through the gateway); lint + tsc clean. Invisible ws-test tasks removed; sample-workspace tasks kept as demo activity; a real owner workspace starts honestly empty.
+
+## chore/rename-nellovia — the product and its AI are now called Nellovia (2026-11-21)
+
+The product, and its AI business consultant, are both **Nellovia**: one voice that says "I", and is honest that it is an AI.
+
+Renamed (everything a person sees): the logo and wordmark, every screen, the page title and description (`src/app/layout.tsx`), the specialist shell, auth, onboarding, public and legal pages, the log prefix (`[Nellovia AI]`), the OpenRouter `X-Title`, `docs/`, this worklog and `src/lib/API-GUIDE.md` (new rule 11 on name and voice).
+
+AI persona: `I_VOICE` in `src/lib/ai-voice.ts` now defines Nellovia (never "we/our/us", honest it is an AI, name used only where natural). Every system prompt (Ask, insights, brief, checkup chat, diagnosis and improve, coach check-in, challenges chat) opens "You are Nellovia…"; `checkup/extract` and market matching take the name only; the draft writer stays in the owner's voice and never signs as Nellovia. UI: "AI analyst" / "the analyst" became Nellovia (Ask heading, typing indicators, empty states), onboarding's first message introduces Nellovia as an AI consultant, and the provenance badge stays "AI interpretation".
+
+Kept on purpose (renaming would wipe saved data, sign people out or break deployments): the `bizzgrowth-*` and `bizz-*` storage keys, the `bizz_*` cookies, `BIZZ_AI_DISABLED`, the `bizzgrowth/` folder, deployment names (`compose.production.yaml`, `docs/deployment.md`) and the `useBizz` / `BizzUser` / `__bizz*` code identifiers. A short comment sits next to each key and cookie constant.
+
+Left for the owner to decide: the contact emails (`privacy@`, `security@`, `legal@bizzgrowth.ng`), the company line ("Nellovia, Victoria Island, Lagos"), the OpenRouter referer domain, the favicon and the logo artwork.
+
+Verification: `tsc --noEmit` shows only the existing `bun:test` error in `market-rules.test.ts`; ESLint is clean on the changed files; `/api/ask` "Who are you?" answers as Nellovia, an AI business consultant, in "I".

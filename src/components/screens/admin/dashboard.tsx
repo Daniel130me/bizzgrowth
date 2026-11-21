@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import type { ScreenProps } from "../view-types";
 
 const EVENT_DOT: Record<string, string> = {
-  info: "bg-blue-500",
+  info: "bg-brand-500",
   warning: "bg-amber-500",
   error: "bg-red-500",
 };
@@ -23,7 +23,7 @@ const EVENT_LABEL: Record<string, string> = {
 };
 
 const EVENT_CLS: Record<string, string> = {
-  info: "border-blue-200 bg-blue-50 text-blue-700",
+  info: "border-brand-200 bg-brand-50 text-brand-700",
   warning: "border-amber-200 bg-amber-50 text-amber-700",
   error: "border-red-200 bg-red-50 text-red-700",
 };
@@ -59,7 +59,7 @@ export function AdminDashboard(_props: ScreenProps) {
     <div>
       <PageHeader
         title="Admin dashboard"
-        description="Platform-wide state of the bizzGrowth MVP: workspaces, data connections, AI output quality and support load."
+        description="Platform-wide state of the Nellovia MVP: workspaces, data connections, AI output quality and support load."
       />
 
       <div className="mb-6">
@@ -122,7 +122,7 @@ export function AdminDashboard(_props: ScreenProps) {
                 <button
                   key={q.id}
                   onClick={() => navigate(q.id)}
-                  className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                  className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition-colors hover:border-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                     <Icon className="size-4" aria-hidden />
@@ -183,7 +183,7 @@ function MetricTileWrap({ label, value, subnote, tone, onClick }: { label: strin
       onClick={onClick}
       aria-label={`${label}: ${value}. Open detail.`}
       className={cn(
-        "flex w-full flex-col rounded-xl border bg-white p-4 text-left shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+        "flex w-full flex-col rounded-xl border bg-white p-4 text-left shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
       )}
     >
       <span className="text-xs font-medium text-muted-foreground">{label}</span>

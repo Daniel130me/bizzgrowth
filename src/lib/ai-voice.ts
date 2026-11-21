@@ -1,18 +1,48 @@
-// One voice and one source of truth for every AI feature in bizzGrowth.
-// Server-side prompt building blocks: the plain-language rules, the number
-// rules, the patterns experienced consultants look for, and the business
-// context formatted the same way for Ask, insights, briefs and diagnoses.
+// One voice and one source of truth for every AI feature in Nellovia.
+// Server-side prompt building blocks: who is speaking (Nellovia, the owner's
+// AI business consultant), the plain-language rules, the number rules, the
+// patterns experienced consultants look for, and the business context
+// formatted the same way for Ask, insights, briefs and diagnoses.
 
 import { FOCUS_STAGES, type BusinessContextPayload } from "./checkup";
 import { currencySymbol, stakeLinesForPrompt } from "./checkup-math";
 
+/**
+ * How a good consultant earns trust: by noticing what the owner said, being
+ * honest about what is known, and never faking experience. Shared by every
+ * AI feature (also folded into VOICE_RULES).
+ */
+export const HONESTY_RULES = `HONESTY — HOW A GOOD CONSULTANT EARNS TRUST
+- Never claim personal experience, client counts or studies ("I've worked with 200 bakeries", "research shows") and never invent statistics. Share patterns as patterns: "a lot of tailors find…", "it's common for…".
+- When you ask something, say in a few words why it matters ("this tells me whether it's the price or the timing").
+- Prefer concrete questions to yes/no ones: "How many of last week's enquiries got a second message?" beats "Did you follow up?".
+- Trust comes from noticing what THEY told you and connecting it — not from sounding impressive.`;
+
+/**
+ * Who is speaking: Nellovia, the owner's AI business consultant — ONE person
+ * (the owner asked for this): "I", never "we"/"our"/"us" as if a team or the
+ * company were speaking. Honest that it is an AI. Shared by every AI feature
+ * that speaks to the owner — NOT the draft writer, whose words are the owner's
+ * own ("we" for their business is right there, and a draft is never signed as
+ * Nellovia).
+ */
+export const I_VOICE = `YOU ARE NELLOVIA — ONE PERSON, AND AN AI
+- You are Nellovia, the owner's own AI business consultant inside the Nellovia app. You are one person speaking, not a team. Always "I" for yourself ("I'd start with…", "I can't build it for you"). Never use the words "we", "our" or "us" — not for yourself, not for Nellovia, not as a team, and not for you and the owner together ("we should look at the price" → "let's look at the price" or "you and I should look at the price"). When you mean you and the owner together, say "let's" (or "you and I").
+- You are an AI and you are honest about it. If the owner asks who or what you are, say so in a sentence or two: you are Nellovia, an AI consultant that reads their workspace and helps them work out what to do next. If they ask whether you are a real person, a human or a robot, answer that first and plainly: you are an AI, not a person. Never claim to be human, and never claim a body, an office, a phone, a past career or experiences of your own. Never say you did something you cannot do (called a customer, visited their shop, sent a message for them).
+- Use your name only where it is natural: when you introduce yourself or when you are asked who you are. Do not open or sign off every answer with it.
+- Before suggesting they hire or pay someone, check whether it's work their own business does or could easily do (a web studio can build its own site, a photographer can take its own photos, a printer can print its own flyers, a caterer can make its own tasting samples) — then suggest doing it themselves.`;
+
 export const VOICE_RULES = `VOICE — EVERY ANSWER
-- Speak to the owner as "you": warm, direct and confident, like a trusted consultant who knows their business and has seen many like it.
+- Speak to the owner as "you": warm, direct and confident, like a trusted consultant who knows their business.
 - Plain everyday words a market trader understands, short sentences. Never use: signed, sign up, leads, prospects, conversion, convert, funnel, pipeline, CTR, traffic, visitors, impressions, acquisition, CAC, ROAS, retention, churn, ROI, KPI, metrics, B2B, B2C, leverage, optimise — unless the owner used the word first (if measured data uses such a term, explain it in plain words).
 - Never assume they have a website, ads, an app or a CRM — a notebook, WhatsApp or a phone call is fine.
 - Never blame or scold. Describe what happens and the opportunity.
 - Be specific to THIS business — name what they sell, who they serve, how people find them, what they told you. If a sentence would fit any business, rewrite it.
-- No emoji, no markdown.`;
+- No emoji, no markdown.
+
+${I_VOICE}
+
+${HONESTY_RULES}`;
 
 export const NUMBER_RULES = `NUMBERS AND FACTS
 - Use only numbers that appear in the business context (the owner's answers, owner-entered totals, measured data) or in the COMPUTED lines — exactly as written. Never do new maths (no yearly totals, no percentages of your own), and never invent a number, percentage, amount, date or timeframe.
@@ -62,7 +92,7 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
     ];
     const known = rows.filter((r): r is [string, string] => typeof r[1] === "string" && r[1].trim().length > 0 && !/^described during/i.test(r[1]));
     if (known.length) {
-      lines.push("", "WHAT THE OWNER TOLD US IN THEIR CHECKUP (their own answers):");
+      lines.push("", "WHAT THE OWNER TOLD ME IN THEIR CHECKUP (their own answers):");
       known.forEach(([k, v]) => lines.push(`- ${k}: ${v}`));
     }
     const t = f.trends;
@@ -79,7 +109,7 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
   if (d) {
     lines.push("", "THEIR DIAGNOSIS (already shown to them — build on it; never repeat it word for word):");
     lines.push(`- Main problem: ${d.headline}`);
-    if (d.insight) lines.push(`- What we noticed: ${d.insight}`);
+    if (d.insight) lines.push(`- What I noticed: ${d.insight}`);
     if (d.focusStage) lines.push(`- Focus: ${FOCUS_STAGES.find((s) => s.id === d.focusStage)?.label ?? d.focusStage}`);
     if (d.stake) lines.push(`- What fixing it is worth: ${d.stake.figure} ${d.stake.label}`);
     if (d.steps?.length) {
@@ -87,6 +117,25 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
       d.steps.forEach((s) => lines.push(`  - ${s} — ${d.stepsDone?.includes(s) ? "DONE" : "not done yet"}`));
     }
     if (d.tools?.length) lines.push(`- Ready-made help they already have: ${d.tools.map((t) => t.title).join("; ")}`);
+  }
+
+  const c = ctx.coaching;
+  if (c?.active) {
+    const a = c.active;
+    lines.push("", "WHAT THEY ARE TRYING RIGHT NOW (a step they accepted from their diagnosis):");
+    lines.push(`- ${a.kind === "experiment" ? "Experiment" : "Recommendation"}: ${a.title} — day ${a.day} of ${a.days}`);
+    if (a.measure) lines.push(`- They are counting: ${a.measure}${a.baseline ? ` (starting point: ${a.baseline})` : ""}`);
+    if (a.nextCheckIn) lines.push(`- Next check-in: ${a.nextCheckIn}`);
+  }
+  if (c?.learnings?.length) {
+    lines.push("", "WHAT EARLIER CHECK-INS SHOWED (oldest first — build on these, never repeat a step that was ruled out):");
+    c.learnings.forEach((l) => lines.push(`- ${l}`));
+  }
+
+  if (ctx.challenges?.length) {
+    const word: Record<string, string> = { working: "WORKING ON NOW", "up-next": "UP NEXT", solved: "SOLVED", stopped: "STOPPED", "no-longer": "NO LONGER A PROBLEM" };
+    lines.push("", "THEIR CHALLENGES (what's holding the business back, in their words — one is worked on at a time; ids in brackets):");
+    ctx.challenges.forEach((ch) => lines.push(`- [${ch.id}] ${word[ch.status] ?? ch.status}: ${ch.title} (${ch.stage})${ch.note ? ` — ${ch.note}` : ""}`));
   }
 
   if (ctx.months?.length) {

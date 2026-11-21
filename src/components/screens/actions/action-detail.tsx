@@ -13,12 +13,13 @@ import { EvidencePanel } from "@/components/shared/evidence";
 import { ConfidenceBadge, ImpactBadge, StatusBadge } from "@/components/shared/badges";
 import { ErrorState } from "@/components/shared/states";
 import { recommendationById } from "@/lib/data/intelligence";
-import { useBizz } from "@/lib/store";
+import { useBizz, useCoachStep } from "@/lib/store";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ActionRecord } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
 import { STATUS_LABEL, useCombinedActions, useCombinedExperiments } from "./helpers";
+import { OWN_WORKSPACE, StepStatusPill } from "./your-actions";
 
 const STATUS_OPTIONS = ["in-progress", "measuring", "completed"] as const;
 
@@ -33,6 +34,8 @@ export function ActionDetail({ params }: ScreenProps) {
   const [note, setNote] = useState("");
 
   const action = actions.find((a) => a.id === params.id);
+  // An action from an accepted step: where it stands comes from the step, as on every other screen.
+  const coachStep = useCoachStep(action?.coachStepId);
 
   if (!action) {
     return (
@@ -80,13 +83,27 @@ export function ActionDetail({ params }: ScreenProps) {
   return (
     <div>
       <Breadcrumbs
-        items={[{ label: "Action Centre", onClick: () => navigate("actions") }, { label: action.title }]}
+        items={[{ label: businessId === OWN_WORKSPACE ? "Actions" : "Action Centre", onClick: () => navigate("actions") }, { label: action.title }]}
       />
       <PageHeader
         title={action.title}
-        badge={<StatusBadge status={action.status} />}
-        description={rec ? `From recommendation: ${rec.title}` : "Created manually in the Action Centre."}
+        badge={coachStep ? <StepStatusPill status={coachStep.status} /> : <StatusBadge status={action.status} />}
+        description={coachStep ? "A step you started from your diagnosis." : rec ? `From recommendation: ${rec.title}` : "Created manually in the Action Centre."}
         actions={
+          coachStep ? (
+            <>
+              {coachStep.status === "active" ? (
+                <Button variant="outline" onClick={() => navigate(`check-in/${coachStep.id}`)}>
+                  Share how it’s going
+                </Button>
+              ) : null}
+              {linkedExp ? (
+                <Button variant="outline" onClick={() => navigate(`experiments/${linkedExp.id}`)}>
+                  View experiment
+                </Button>
+              ) : null}
+            </>
+          ) : (
           <>
             <Select value={action.status} onValueChange={setStatus}>
               <SelectTrigger className="w-[170px]" aria-label="Update status">
@@ -113,6 +130,7 @@ export function ActionDetail({ params }: ScreenProps) {
               </Button>
             )}
           </>
+          )
         }
       />
 

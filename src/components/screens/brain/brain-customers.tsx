@@ -143,7 +143,7 @@ export function BrainCustomers({ params: _params }: ScreenProps) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-[15px] font-semibold">{seg.name}</h3>
-                  <Badge variant="outline" className="mt-1 border-blue-200 bg-blue-50 font-normal text-blue-700 tnum">
+                  <Badge variant="outline" className="mt-1 border-brand-200 bg-brand-50 font-normal text-brand-700 tnum">
                     {seg.share}
                   </Badge>
                 </div>
@@ -167,7 +167,7 @@ export function BrainCustomers({ params: _params }: ScreenProps) {
             <DonutChart data={mixData} height={200} />
           ) : (
             <div className="flex flex-wrap items-center gap-2 py-8">
-              <Badge variant="outline" className="border-blue-200 bg-blue-50 px-3 py-1 text-sm font-normal text-blue-700">
+              <Badge variant="outline" className="border-brand-200 bg-brand-50 px-3 py-1 text-sm font-normal text-brand-700">
                 B2C — 100% of revenue
               </Badge>
               <span className="text-xs text-muted-foreground">No recorded business buyers yet.</span>

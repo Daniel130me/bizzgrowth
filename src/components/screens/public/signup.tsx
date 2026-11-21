@@ -2,7 +2,7 @@
 // Screen 3 — Create Account.
 
 import React, { useState } from "react";
-import { Check } from "lucide-react";
+import { BriefcaseBusiness, Check, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useBizz } from "@/lib/store";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,6 +18,7 @@ export default function SignupScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accountType, setAccountType] = useState<"business" | "specialist">("business");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
@@ -47,7 +48,7 @@ export default function SignupScreen() {
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
     // Creates the real account (password hashed on the server) and signs in.
-    const r = await signUp(cleanName, cleanEmail, password);
+    const r = await signUp(cleanName, cleanEmail, password, accountType);
     setSubmitting(false);
     if (!r.ok) {
       setServerError(r.error);
@@ -56,8 +57,8 @@ export default function SignupScreen() {
     }
     pendingSignup.name = cleanName;
     pendingSignup.email = cleanEmail;
-    toast.success("Account created", { description: `Welcome to bizzGrowth, ${cleanName.split(" ")[0]}.` });
-    navigate("verify-email");
+    toast.success("Account created", { description: `Welcome to Nellovia, ${cleanName.split(" ")[0]}.` });
+    navigate(accountType === "specialist" ? "specialist/onboarding" : "verify-email");
   }
 
   return (
@@ -69,7 +70,7 @@ export default function SignupScreen() {
           Already have an account?{" "}
           <button
             onClick={() => navigate("signin")}
-            className="font-medium text-blue-700 underline-offset-2 hover:underline"
+            className="font-medium text-brand-700 underline-offset-2 hover:underline"
           >
             Sign in
           </button>
@@ -77,6 +78,31 @@ export default function SignupScreen() {
       }
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">How will you use Nellovia?</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              aria-pressed={accountType === "business"}
+              onClick={() => setAccountType("business")}
+              className={`rounded-xl border p-3 text-left transition ${accountType === "business" ? "border-brand-600 bg-brand-50" : "hover:bg-slate-50"}`}
+            >
+              <BriefcaseBusiness className="mb-2 size-5 text-brand-700" aria-hidden />
+              <span className="block text-sm font-semibold">Grow my business</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">Get intelligence and hire specialists.</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={accountType === "specialist"}
+              onClick={() => setAccountType("specialist")}
+              className={`rounded-xl border p-3 text-left transition ${accountType === "specialist" ? "border-brand-600 bg-brand-50" : "hover:bg-slate-50"}`}
+            >
+              <UserRound className="mb-2 size-5 text-brand-700" aria-hidden />
+              <span className="block text-sm font-semibold">Offer my expertise</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">Build a profile, receive invitations and bid.</span>
+            </button>
+          </div>
+        </fieldset>
         <Field id="name" label="Full name" error={showErr("name")}>
           <Input
             id="name"
@@ -137,7 +163,7 @@ export default function SignupScreen() {
               </label>{" "}
               <button
                 type="button"
-                className="font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800"
+                className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
                 onClick={() => navigate("terms")}
               >
                 Terms of Service
@@ -145,7 +171,7 @@ export default function SignupScreen() {
               and{" "}
               <button
                 type="button"
-                className="font-medium text-blue-700 underline underline-offset-2 hover:text-blue-800"
+                className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-800"
                 onClick={() => navigate("privacy-policy")}
               >
                 Privacy Policy

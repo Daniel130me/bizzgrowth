@@ -97,7 +97,7 @@ export default function RevenuePerformance(_props: ScreenProps) {
 
       {/* AI interpretation */}
       <InfoBanner tone="ai" title="AI interpretation" action={
-        <Button size="sm" variant="outline" className="shrink-0 border-violet-300 bg-white text-violet-700 hover:bg-violet-100" onClick={() => navigate(`insights/${revenueInsight}`)}>
+        <Button size="sm" variant="outline" className="shrink-0 border-brand-300 bg-white text-brand-700 hover:bg-brand-100" onClick={() => navigate(`insights/${revenueInsight}`)}>
           View diagnosis <ArrowRight className="ml-1 size-3.5" aria-hidden />
         </Button>
       }>
@@ -163,12 +163,12 @@ export default function RevenuePerformance(_props: ScreenProps) {
         </div>
         <div className="mt-4 space-y-2 border-t pt-3">
           <KeyValue label="Full breakdown">
-            <Button variant="ghost" size="sm" className="h-7 text-blue-700" onClick={() => navigate("performance/marketing")}>
+            <Button variant="ghost" size="sm" className="h-7 text-brand-700" onClick={() => navigate("performance/marketing")}>
               Marketing performance <ArrowRight className="ml-1 size-3.5" aria-hidden />
             </Button>
           </KeyValue>
           <KeyValue label={ecom ? "Product revenue" : "Service revenue"}>
-            <Button variant="ghost" size="sm" className="h-7 text-blue-700" onClick={() => navigate("performance/products")}>
+            <Button variant="ghost" size="sm" className="h-7 text-brand-700" onClick={() => navigate("performance/products")}>
               {ecom ? "Products" : "Services"} performance <ArrowRight className="ml-1 size-3.5" aria-hidden />
             </Button>
           </KeyValue>

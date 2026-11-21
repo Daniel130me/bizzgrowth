@@ -23,16 +23,16 @@ import { ProvenanceBadge } from "@/components/shared/badges";
 import { ProvenanceLegend } from "@/components/shared/evidence";
 import { InfoBanner, PageHeader, SectionCard } from "@/components/shared/layout";
 import { EmptyState } from "@/components/shared/states";
-import { timelineFor } from "@/lib/data/operations";
+import { useCombinedTimeline } from "./helpers";
 import { useBizz } from "@/lib/store";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TimelineEvent } from "@/lib/types";
 
 const TYPE_META: Record<TimelineEvent["type"], { label: string; cls: string; dot: string }> = {
-  action: { label: "Action", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  action: { label: "Action", cls: "bg-teal-50 text-teal-700 border-teal-200", dot: "bg-teal-500" },
   external: { label: "External change", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  recommendation: { label: "Recommendation", cls: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
+  recommendation: { label: "Recommendation", cls: "bg-brand-50 text-brand-700 border-brand-200", dot: "bg-brand-500" },
   experiment: { label: "Experiment", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
   outcome: { label: "Outcome", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-600" },
   data: { label: "Data event", cls: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" },
@@ -70,7 +70,8 @@ export function Timeline() {
   const [answer, setAnswer] = useState("");
   const [note, setNote] = useState("");
 
-  const events = useMemo(() => timelineFor(businessId), [businessId]);
+  const events = useCombinedTimeline(businessId);
+  const ownWorkspace = businessId === "user-workspace";
   const filtered = events.filter((e) => matchesFilter(e.type, filter));
   const question =
     DETECTED_CHANGE[businessId] ??
@@ -94,10 +95,13 @@ export function Timeline() {
               <Plus className="mr-2 size-4" aria-hidden />
               Add business change
             </Button>
-            <Button onClick={() => setConfirmOpen(true)}>
-              <ScanSearch className="mr-2 size-4" aria-hidden />
-              Review detected change
-            </Button>
+            {/* Change detection needs connected data — never shown with a made-up change. */}
+            {!ownWorkspace ? (
+              <Button onClick={() => setConfirmOpen(true)}>
+                <ScanSearch className="mr-2 size-4" aria-hidden />
+                Review detected change
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -173,7 +177,7 @@ export function Timeline() {
                 htmlFor={`answer-${opt}`}
                 className={cn(
                   "flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm font-normal transition-colors",
-                  answer === opt ? "border-blue-300 bg-blue-50 text-blue-800" : "hover:border-slate-300",
+                  answer === opt ? "border-brand-300 bg-brand-50 text-brand-800" : "hover:border-slate-300",
                 )}
               >
                 <RadioGroupItem value={opt} id={`answer-${opt}`} />

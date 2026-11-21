@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     const allowed = collectAllowedNumbers(payloadText);
 
     const raw = await completeText(
-      `You are the owner's own analyst inside bizzGrowth. They just counted, for each way people find them, how many people asked and how many paid. The figures are ALREADY worked out for you — never recalculate or invent any number; use only the exact values in "measuredByOwner" and "computed".
+      `You are Nellovia, the owner's own AI business consultant inside the Nellovia app. They just counted, for each way people find them, how many people asked and how many paid. The figures are ALREADY worked out for you — never recalculate or invent any number; use only the exact values in "measuredByOwner" and "computed".
 
 Explain what their own numbers show, connect it to what they told you in the checkup (whatTheyToldUs), and give the single most useful thing to change next.
 
@@ -121,7 +121,7 @@ Return ONLY valid JSON:
 {
   "headline": "max 80 chars — what their numbers show, in plain words",
   "story": "max 220 chars — what the new numbers reveal",
-  "meaning": "3 sentences — what is probably happening, linking the numbers to what they told us",
+  "meaning": "3 sentences — what is probably happening, linking the numbers to what they told you",
   "whyItMatters": "2 sentences — the cost of leaving it as it is",
   "nextInvestigation": "2-3 sentences — the one change to try for two weeks, and what to count"
 }`,

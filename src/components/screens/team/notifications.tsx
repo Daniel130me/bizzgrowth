@@ -106,13 +106,13 @@ export function NotificationsCentre() {
                   onKeyDown={(e) => e.key === "Enter" && openNotification(n)}
                   className={cn(
                     "group flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                    !n.read && "bg-blue-50/40",
+                    !n.read && "bg-brand-50/40",
                   )}
                 >
                   <span
                     className={cn(
                       "mt-1.5 size-2 shrink-0 rounded-full",
-                      n.read ? "bg-transparent ring-1 ring-slate-200" : "bg-blue-600",
+                      n.read ? "bg-transparent ring-1 ring-slate-200" : "bg-brand-600",
                     )}
                     aria-label={n.read ? undefined : "Unread"}
                   />

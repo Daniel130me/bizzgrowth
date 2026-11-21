@@ -5,12 +5,40 @@
 
 import type { BusinessContextPayload, BusinessFacts, DiagnosisContent } from "./checkup";
 import { loadPlanProgress, planIdFor } from "./plan-progress";
+import { daysSince, friendlyDate, nextCheckIn } from "./coach";
+import type { CoachState } from "./store";
+
+/** The step being tried right now and what check-ins taught us, for the AI context. */
+export function coachingContext(coach: CoachState | null | undefined, workspaceId: string): BusinessContextPayload["coaching"] {
+  if (!coach) return null;
+  const active = coach.steps.find((x) => x.workspaceId === workspaceId && x.status === "active");
+  const learnings = coach.learnings.map((l) => l.text).slice(-6);
+  if (!active && !learnings.length) return null;
+  const next = active ? nextCheckIn(active.checkIns) : null;
+  return {
+    active: active
+      ? {
+          title: active.step.title,
+          kind: active.step.kind,
+          day: Math.min(active.step.days, daysSince(active.acceptedAt) + 1),
+          days: active.step.days,
+          measure: active.step.measure,
+          baseline: active.baseline,
+          nextCheckIn: next ? (next.due ? "due now" : friendlyDate(next.checkIn.dueAt)) : undefined,
+        }
+      : null,
+    learnings,
+  };
+}
 
 export function buildBusinessContext(input: {
   workspace: { name: string; country?: string; currency?: string } | null | undefined;
   facts: BusinessFacts | null | undefined;
   diagnosis: DiagnosisContent | null | undefined;
   months?: { label: string; revenue?: number; enquiries?: number; customers?: number }[];
+  coaching?: BusinessContextPayload["coaching"];
+  /** Their list of challenges (see challengesContext). */
+  challenges?: BusinessContextPayload["challenges"];
 }): BusinessContextPayload | null {
   const { workspace, facts, diagnosis: d } = input;
   if (!workspace && !facts) return null;
@@ -39,5 +67,7 @@ export function buildBusinessContext(input: {
     facts: facts ? { ...facts, facts: [], chips: [] } : null,
     diagnosis,
     months: (input.months ?? []).slice(-3),
+    coaching: input.coaching ?? null,
+    challenges: input.challenges?.length ? input.challenges : null,
   };
 }

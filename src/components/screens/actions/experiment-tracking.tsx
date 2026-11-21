@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/shared/badges";
 import { Breadcrumbs, InfoBanner, KeyValue, PageHeader, SectionCard } from "@/components/shared/layout";
 import { ErrorState } from "@/components/shared/states";
 import { getBusiness } from "@/lib/data/businesses";
-import { useBizz } from "@/lib/store";
+import { useBizz, useCoachStep } from "@/lib/store";
 import { fmtDate } from "@/lib/format";
 import type { ScreenProps } from "../view-types";
 import {
@@ -22,6 +22,7 @@ import {
   useCombinedExperiments,
   windowProgressPct,
 } from "./helpers";
+import { OWN_WORKSPACE, StepStatusPill } from "./your-actions";
 
 export function ExperimentTracking({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
@@ -32,6 +33,7 @@ export function ExperimentTracking({ params }: ScreenProps) {
   const business = getBusiness(businessId, userWorkspace);
 
   const exp = experiments.find((e) => e.id === params.id);
+  const coachStep = useCoachStep(exp?.coachStepId);
 
   if (!exp) {
     return (
@@ -46,23 +48,29 @@ export function ExperimentTracking({ params }: ScreenProps) {
   const action = actions.find((a) => a.id === exp.actionId);
   const others = experiments.filter((e) => e.id !== exp.id);
   const complete = exp.status === "complete";
+  // From an accepted step: where it stands (running, paused, finished, stopped) comes from the step.
+  const status = coachStep ? <StepStatusPill status={coachStep.status} /> : <StatusBadge status={exp.status} />;
 
   return (
     <div>
       <Breadcrumbs
         items={[
-          { label: "Action Centre", onClick: () => navigate("actions") },
+          { label: businessId === OWN_WORKSPACE ? "Actions" : "Action Centre", onClick: () => navigate("actions") },
           { label: "Experiments" },
           { label: exp.title },
         ]}
       />
       <PageHeader
         title={exp.title}
-        badge={<StatusBadge status={exp.status} />}
+        badge={status}
         description={exp.hypothesis}
         actions={
           complete ? (
             <Button onClick={() => navigate(`outcome/${exp.id}`)}>View outcome</Button>
+          ) : coachStep && coachStep.status === "active" ? (
+            <Button className="bg-brand-600 hover:bg-brand-700" onClick={() => navigate(`check-in/${coachStep.id}`)}>
+              Check in now
+            </Button>
           ) : undefined
         }
       />
@@ -85,6 +93,7 @@ export function ExperimentTracking({ params }: ScreenProps) {
             target={exp.targetValue}
             label={metricLabelFor(exp)}
             formatter={metricFormatterFor(exp)}
+            axisFormatter={exp.unit ? (v: number) => `${v}` : undefined}
           />
           <p className="mt-2 text-xs text-muted-foreground">
             Interim readings are directional — an outcome is recorded only when the window closes.
@@ -93,9 +102,7 @@ export function ExperimentTracking({ params }: ScreenProps) {
 
         <SectionCard title="Setup">
           <div className="space-y-3">
-            <KeyValue label="Status">
-              <StatusBadge status={exp.status} />
-            </KeyValue>
+            <KeyValue label="Status">{status}</KeyValue>
             <KeyValue label="Owner">{exp.owner}</KeyValue>
             <KeyValue label="Started">{fmtDate(exp.startedAt)}</KeyValue>
             <KeyValue label="Window">{exp.windowDays} days</KeyValue>
@@ -155,7 +162,7 @@ export function ExperimentTracking({ params }: ScreenProps) {
                     className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <FlaskConical className="size-4 shrink-0 text-violet-600" aria-hidden />
+                      <FlaskConical className="size-4 shrink-0 text-brand-600" aria-hidden />
                       <span className="truncate text-sm font-medium">{e.title}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">

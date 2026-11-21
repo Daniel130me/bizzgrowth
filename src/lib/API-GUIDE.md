@@ -1,6 +1,6 @@
-# bizzGrowth — Screen Builder API Guide (READ THIS FULLY BEFORE CODING)
+# Nellovia — Screen Builder API Guide (READ THIS FULLY BEFORE CODING)
 
-You are building screens for the **bizzGrowth** clickable MVP prototype (AI Business Growth OS).
+You are building screens for the **Nellovia** clickable MVP prototype (AI Business Growth OS).
 All code is TypeScript + React client components. Target quality: premium SaaS (Stripe/Linear/Notion clarity), calm evidence-based copy, NO lorem ipsum, NO dead primary buttons.
 
 ## Hard rules
@@ -15,6 +15,7 @@ All code is TypeScript + React client components. Target quality: premium SaaS (
 8. Accessibility: semantic HTML, aria-labels on icon buttons, keyboard focusable cards, colour+icon+label (never colour alone).
 9. Responsive: mobile-first; desktop 1440 target. Cards `p-4`/`p-6`, gaps `gap-4`/`gap-6`. Long lists: `max-h-96 overflow-y-auto`.
 10. No emojis in UI copy. Calm business tone ("Revenue increased 3% this month.", not "Awesome! 🎉").
+11. Name and voice: the product is **Nellovia**, and so is its AI business consultant. Write "Nellovia" in copy — never "bizzGrowth", "bizz growth", "the analyst" or "the coach". When Nellovia itself speaks it says "I" (never "we", "our" or "us") and "let's" for things done together, and it stays clear that it is an AI wherever trust matters (badges stay "AI interpretation"). Never put Nellovia's name on words written for the owner's own customers (drafts are in the owner's voice). Storage keys (`bizzgrowth-*`), cookies (`bizz_*`) and the `BIZZ_AI_DISABLED` switch keep their old names on purpose — renaming them would wipe saved data or sign people out.
 
 ## Navigation
 

@@ -101,7 +101,7 @@ export default function HomeScreen(_props: ScreenProps) {
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <StatusBadge status={business.lastSyncOk ? "connected" : "error"} />
           <span>{business.lastSyncNote}</span>
-          <button onClick={() => navigate("data")} className="font-medium text-blue-700 hover:underline">
+          <button onClick={() => navigate("data")} className="font-medium text-brand-700 hover:underline">
             Data centre
           </button>
         </div>
@@ -148,10 +148,10 @@ export default function HomeScreen(_props: ScreenProps) {
 
         <div className="grid gap-4 lg:grid-cols-2">
           {topInsight && (
-            <Card className="border-violet-200 bg-violet-50/60 p-5">
+            <Card className="border-brand-200 bg-brand-50/60 p-5">
               <div className="flex flex-wrap items-center gap-2">
-                <Sparkles className="size-4 text-violet-600" aria-hidden />
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">AI insight</span>
+                <Sparkles className="size-4 text-brand-600" aria-hidden />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">AI insight</span>
                 <ProvenanceBadge provenance="ai-interpretation" />
               </div>
               <p className="mt-2 text-[15px] font-semibold leading-snug">
@@ -165,7 +165,7 @@ export default function HomeScreen(_props: ScreenProps) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-violet-700 hover:text-violet-800"
+                  className="text-brand-700 hover:text-brand-800"
                   onClick={() => navigate(`insights/${topInsight.id}`)}
                 >
                   View diagnosis <ArrowRight className="ml-1 size-3.5" aria-hidden />
@@ -177,8 +177,8 @@ export default function HomeScreen(_props: ScreenProps) {
           {rec && (
             <Card className="p-5">
               <div className="flex flex-wrap items-center gap-2">
-                <Target className="size-4 text-blue-600" aria-hidden />
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">Recommended action</span>
+                <Target className="size-4 text-brand-600" aria-hidden />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">Recommended action</span>
                 <ImpactBadge impact={rec.impact} />
               </div>
               <p className="mt-2 text-[15px] font-semibold leading-snug">{rec.title}</p>

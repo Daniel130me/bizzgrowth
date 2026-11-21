@@ -1,4 +1,5 @@
-// bizzGrowth prototype — shared type system
+import type { CountUnit, DraftHint } from "./coach";
+// Nellovia prototype — shared type system
 // Provenance is a core product principle: never treat measured data,
 // user-supplied data, estimates and AI interpretation as visually identical.
 
@@ -148,8 +149,10 @@ export interface Insight {
   rootCause?: { step: string; note?: string }[];
   missingToImprove: string[];
   primaryMetric: string;
-  /** Ready-to-use words for the recommended action (AI insights only). */
+  /** Ready-to-use words for the recommended action (older AI insights only). */
   tryThis?: { title: string; body: string };
+  /** Words the app can write for the recommended action, on request (AI insights). */
+  draft?: DraftHint;
 }
 
 export interface Recommendation {
@@ -190,6 +193,8 @@ export interface ActionRecord {
   notes: string;
   metric: string;
   activity: { date: string; text: string }[];
+  /** Set when the action came from an accepted coaching next step. */
+  coachStepId?: string;
 }
 
 export interface Outcome {
@@ -227,6 +232,10 @@ export interface ExperimentRecord {
   owner: string;
   status: "running" | "measuring" | "complete";
   outcome?: Outcome;
+  /** How the count reads: out of every 10 who ask, or a plain number (coaching experiments). */
+  unit?: CountUnit;
+  /** Set when the experiment came from an accepted coaching next step. */
+  coachStepId?: string;
 }
 
 export interface AlertItem {

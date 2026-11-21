@@ -76,7 +76,7 @@ export function Upgrade() {
               htmlFor={`plan-${p}`}
               className={
                 "flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-4 transition-colors " +
-                (plan === p ? "border-blue-300 bg-blue-50/50" : "hover:bg-slate-50")
+                (plan === p ? "border-brand-300 bg-brand-50/50" : "hover:bg-slate-50")
               }
             >
               <span className="flex items-start gap-3">
@@ -109,7 +109,7 @@ export function Upgrade() {
             htmlFor="freq-monthly"
             className={
               "flex flex-1 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors " +
-              (frequency === "monthly" ? "border-blue-300 bg-blue-50/50" : "hover:bg-slate-50")
+              (frequency === "monthly" ? "border-brand-300 bg-brand-50/50" : "hover:bg-slate-50")
             }
           >
             <RadioGroupItem id="freq-monthly" value="monthly" />
@@ -122,7 +122,7 @@ export function Upgrade() {
             htmlFor="freq-annual"
             className={
               "flex flex-1 cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors " +
-              (frequency === "annual" ? "border-blue-300 bg-blue-50/50" : "hover:bg-slate-50")
+              (frequency === "annual" ? "border-brand-300 bg-brand-50/50" : "hover:bg-slate-50")
             }
           >
             <RadioGroupItem id="freq-annual" value="annual" />

@@ -55,7 +55,7 @@ function SpecialistCard({ s, onOpen }: { s: SpecialistDTO; onOpen: () => void })
           {s.badges.length > 0 ? (
             <div className="flex flex-wrap justify-end gap-1">
               {s.badges.map((b) => (
-                <Badge key={b} className="border-transparent bg-violet-50 text-[11px] font-normal text-violet-700">
+                <Badge key={b} className="border-transparent bg-brand-50 text-[11px] font-normal text-brand-700">
                   {b}
                 </Badge>
               ))}
@@ -114,7 +114,7 @@ function TaskRow({ t, onOpen }: { t: TaskDTO; onOpen: () => void }) {
           <p className="flex items-center gap-1.5 text-sm font-semibold">
             <span className="truncate">{t.title}</span>
             {t.source === "recommendation" ? (
-              <Badge variant="outline" className="border-violet-200 bg-violet-50 text-[10px] font-normal text-violet-700">
+              <Badge variant="outline" className="border-brand-200 bg-brand-50 text-[10px] font-normal text-brand-700">
                 From your intelligence
               </Badge>
             ) : null}
@@ -143,8 +143,8 @@ function TaskRow({ t, onOpen }: { t: TaskDTO; onOpen: () => void }) {
 // ---------- Screen ----------
 
 export function MarketHome({ params }: ScreenProps) {
+  void params;
   const navigate = useBizz((s) => s.navigate);
-  const businessId = useBizz((s) => s.businessId);
 
   // ---- Roster: fetched once on mount, then filtered client-side ----
   const [specialists, setSpecialists] = useState<SpecialistDTO[] | null>(null);
@@ -157,7 +157,7 @@ export function MarketHome({ params }: ScreenProps) {
       setRosterLoading(true);
       setRosterError(null);
       try {
-        const res = await fetch("/api/market/specialists");
+        const res = await fetch("/api/market/specialists?pageSize=50");
         const data = (await res.json()) as { ok?: boolean; specialists?: SpecialistDTO[]; error?: string };
         if (!data?.ok || !Array.isArray(data.specialists)) {
           throw new Error(data?.error ?? "Could not load the specialist roster.");
@@ -204,7 +204,7 @@ export function MarketHome({ params }: ScreenProps) {
       setTasksLoading(true);
       setTasksError(null);
       try {
-        const res = await fetch(`/api/market/tasks?workspaceId=${encodeURIComponent(businessId)}`);
+        const res = await fetch("/api/market/tasks");
         const data = (await res.json()) as { ok?: boolean; tasks?: TaskDTO[]; error?: string };
         if (!data?.ok || !Array.isArray(data.tasks)) {
           throw new Error(data?.error ?? "Could not load your tasks.");
@@ -217,7 +217,7 @@ export function MarketHome({ params }: ScreenProps) {
       }
     }
     void load();
-  }, [tasksLoaded, tasksReload, businessId]);
+  }, [tasksLoaded, tasksReload]);
 
   const sortedTasks = useMemo(
     () => (tasks ?? []).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),

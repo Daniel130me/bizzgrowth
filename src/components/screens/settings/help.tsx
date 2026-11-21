@@ -26,7 +26,7 @@ const TOPICS: Topic[] = [
         a: "Access tokens can expire. Open the source settings and reconnect — the link refreshes authorization and backfills any gap. Historical data is retained.",
       },
       {
-        q: "What can bizzGrowth read from a connected source?",
+        q: "What can Nellovia read from a connected source?",
         a: "Only read-only reporting data, such as spend, orders and funnel metrics. We never modify campaigns, budgets or store content, and we cannot move money.",
       },
       {
@@ -84,7 +84,7 @@ const TOPICS: Topic[] = [
         a: "A measurement window opens so results can be interpreted honestly — including any other changes that happened in the same period.",
       },
       {
-        q: "Can I record changes I made outside bizzGrowth?",
+        q: "Can I record changes I made outside Nellovia?",
         a: "Yes — add them to the Business timeline. The change ledger keeps attribution honest when we interpret results.",
       },
     ],
@@ -94,7 +94,7 @@ const TOPICS: Topic[] = [
     title: "Billing",
     faqs: [
       {
-        q: "How much does bizzGrowth cost?",
+        q: "How much does Nellovia cost?",
         a: "The Private Beta is free. Indicative pricing for the Growth and Team plans is on the upgrade page — pricing there is illustrative for this prototype.",
       },
       {

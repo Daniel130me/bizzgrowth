@@ -13,6 +13,7 @@ import { ConfidenceBadge } from "@/components/shared/badges";
 import { ConfidencePanel, EvidencePanel, KnowThinkUnknown, ProvenanceLegend } from "@/components/shared/evidence";
 import { useBizz } from "@/lib/store";
 import type { EvidenceItem } from "@/lib/types";
+import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import type { ScreenProps } from "../view-types";
 
 const FALLBACK_EVIDENCE: EvidenceItem[] = [
@@ -123,12 +124,12 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <Button variant="ghost" size="sm" className="-ml-2 mb-4 text-slate-500" onClick={() => navigate("first-diagnosis")}>
+      <Button variant="ghost" size="sm" className="-ml-2 mb-4 text-slate-500" onClick={() => navigate(diagnosisReturnRoute("diagnosis"))}>
         <ArrowLeft className="size-4" aria-hidden />
         Back to diagnosis
       </Button>
 
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">First diagnosis — evidence</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">First diagnosis — evidence</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">The evidence behind your diagnosis</h1>
       <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         What the system knows, what it thinks, and what it openly does not know yet.

@@ -13,6 +13,7 @@ export async function POST(req: Request) {
   const name = str(body?.name, 120).trim();
   const email = normaliseEmail(body?.email);
   const password = str(body?.password, MAX_PASSWORD_LENGTH + 1);
+  const accountType = body?.accountType === "specialist" ? "specialist" : "business";
 
   if (name.length < 2) return jsonError(400, "Enter your full name.", { field: "name" });
   if (!isEmail(email)) return jsonError(400, "Enter a valid email address.", { field: "email" });
@@ -31,9 +32,22 @@ export async function POST(req: Request) {
     const id = newId();
     const passwordHash = await hashPassword(password);
     try {
-      await db.$executeRaw`
-        INSERT INTO "User" ("id", "email", "passwordHash", "name", "updatedAt", "lastLoginAt")
-        VALUES (${id}, ${email}, ${passwordHash}, ${name}, NOW(), NOW())`;
+      await db.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          INSERT INTO "User" ("id", "email", "passwordHash", "name", "updatedAt", "lastLoginAt")
+          VALUES (${id}, ${email}, ${passwordHash}, ${name}, NOW(), NOW())`;
+        if (accountType === "specialist") {
+          await tx.specialist.create({
+            data: {
+              userId: id,
+              name,
+              status: "draft",
+              onboardingStep: 1,
+              verified: false,
+            },
+          });
+        }
+      });
     } catch (err) {
       // Lost a race with a concurrent sign-up for the same email.
       if (/unique|duplicate/i.test(String((err as Error)?.message))) {
@@ -42,7 +56,7 @@ export async function POST(req: Request) {
       throw err;
     }
 
-    const res = NextResponse.json({ ok: true }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    const res = NextResponse.json({ ok: true, accountType }, { status: 201, headers: { "Cache-Control": "no-store" } });
     await startSession(res, { userId: id, remember: true });
     return res;
   } catch (err) {

@@ -214,7 +214,10 @@ export function scoreSpecialist(
   let score = 0;
   if (s.category === task.category) score += 45;
   const haystack = `${task.title} ${task.description}`;
-  const overlap = keywordOverlap(haystack, [...parseArray(s.skills), ...parseArray(s.headline)]);
+  // A headline is plain text, not a JSON array. Include it as one searchable
+  // phrase so matching benefits from both the structured skills and the
+  // specialist's own positioning statement.
+  const overlap = keywordOverlap(haystack, [...parseArray(s.skills), s.headline]);
   score += Math.min(overlap.length, 5) * 9;
   score += (s.rating - 4.0) * 15;
   score += Math.min(s.completedJobs / 25, 1) * 6;
@@ -250,7 +253,10 @@ export async function matchTask(input: {
   limit?: number;
 }): Promise<MatchResult> {
   const limit = Math.min(Math.max(input.limit ?? 4, 2), 6);
-  const roster = await db.specialist.findMany();
+  const roster = await db.specialist.findMany({
+    where: { status: "approved", verified: true },
+    orderBy: [{ rating: "desc" }, { completedJobs: "desc" }],
+  });
 
   const ranked = roster
     .map((s) => ({ s, ...scoreSpecialist(s, { title: input.title, description: input.description, category: input.category ?? "", skills: input.skills ?? [] }) }))
@@ -266,7 +272,7 @@ export async function matchTask(input: {
   };
 
   const system = [
-    "You are the matchmaking engine inside bizzGrowth, a growth tool for Nigerian small businesses.",
+    "You are the matchmaking engine inside Nellovia, an AI business consultant for Nigerian small businesses.",
     "Given a work task and a roster of vetted specialists, pick the specialists best able to do THIS task.",
     "Rules:",
     "- ONLY use specialist ids from the roster. Never invent ids, names, numbers or claims.",
@@ -363,51 +369,4 @@ export async function matchTask(input: {
   }
 
   return result;
-}
-
-// ---------- Bid generation (pilot marketplace simulation) ----------
-//
-// In the live product real humans bid. In this pilot, invited roster
-// specialists respond automatically with indicative bids derived from their
-// own profile (hourly rate x estimated scope, budget-aware). The client
-// displays this honestly as a pilot behaviour.
-
-function hashString(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-const URGENCY_DAYS: Record<string, number> = { asap: 5, "this-week": 8, flexible: 14 };
-
-export function generateBidFor(s: SpecialistDTO, task: MarketTask): { amount: number; days: number; coverNote: string } {
-  const seed = hashString(`${task.id}:${s.id}`);
-  const jitter = (seed % 1000) / 1000; // stable 0..1 per task+specialist pair
-
-  // Scope: description length hints effort, clamped to a sane range.
-  const scopeHours = Math.min(Math.max(6 + Math.round(task.description.length / 180), 6), 40);
-  let amount = Math.round((s.hourlyRate * scopeHours * (0.85 + jitter * 0.5)) / 500) * 500;
-  if (task.budgetMax) amount = Math.min(amount, Math.round(task.budgetMax * 1.1));
-  if (task.budgetMax && task.budgetMax >= 20000 && amount < task.budgetMax * 0.5) {
-    amount = Math.round((task.budgetMax * (0.6 + jitter * 0.35)) / 500) * 500;
-  }
-  amount = Math.max(amount, 15000);
-
-  const baseDays = URGENCY_DAYS[task.urgency] ?? 8;
-  const days = Math.max(2, Math.round(baseDays * (0.8 + jitter * 0.5)));
-
-  const skills = s.skills;
-  const lead = skills.slice(0, 2).join(" and ");
-  const taskSkills = parseArray(task.skills);
-  const focus = taskSkills.length ? taskSkills.slice(0, 2).join(" and ") : lead;
-  const coverNote = [
-    `I work mainly on ${lead} — this task sits squarely in that lane.`,
-    `For "${task.title}", my plan is to start with a short scoping call, agree the deliverables, then run the work in clear checkpoints so you can see progress on ${focus || "the core deliverable"}.`,
-    `I can deliver in about ${days} ${days === 1 ? "day" : "days"} at ₦${amount.toLocaleString("en-NG")} for the whole task — that price covers everything, no hidden extras.`,
-  ].join(" ");
-
-  return { amount, days, coverNote };
 }

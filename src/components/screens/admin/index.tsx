@@ -12,6 +12,7 @@ import { SyncHealth } from "./sync-health";
 import { JobsView } from "./jobs";
 import { AiAudit } from "./ai-audit";
 import { SupportInbox } from "./support";
+import { SpecialistApplications } from "./specialists";
 
 export const views: ViewMap = {
   admin: AdminDashboard,
@@ -24,4 +25,5 @@ export const views: ViewMap = {
   "admin/jobs": JobsView,
   "admin/ai-audit": AiAudit,
   "admin/support": SupportInbox,
+  "admin/specialists": SpecialistApplications,
 };

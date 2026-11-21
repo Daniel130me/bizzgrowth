@@ -100,7 +100,7 @@ export default function RetentionPerformance(_props: ScreenProps) {
       {!business.lastSyncOk && (
         <InfoBanner tone="warning" title="Data freshness notice">
           {business.lastSyncNote} — customer-level figures below may lag the live store until the sync is restored.{" "}
-          <button onClick={() => navigate("data-quality")} className="font-medium text-blue-700 hover:underline">
+          <button onClick={() => navigate("data-quality")} className="font-medium text-brand-700 hover:underline">
             View data quality
           </button>
         </InfoBanner>
@@ -168,10 +168,10 @@ export default function RetentionPerformance(_props: ScreenProps) {
               </span>
               <span className="ml-2 text-xs text-muted-foreground">arrive via Organic Social ({fmtNum(organicOrders)}) and Direct / Repeat ({fmtNum(directOrders)})</span>
             </KeyValue>
-            <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-3">
+            <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <ProvenanceBadge provenance="ai-interpretation" />
-                <p className="text-sm text-violet-900/90">
+                <p className="text-sm text-brand-900/90">
                   The {fmtPct(retention.repeatRate ?? 0)} repeat rate is consistent with the strong Direct / Repeat and Organic
                   order shares — a healthy signal that does not depend on paid traffic.
                 </p>

@@ -53,10 +53,10 @@ function AreaCard({ icon: Icon, title, value, badge, summary, onClick }: AreaCar
         }
       }}
       aria-label={`${title}: ${value}. ${summary}`}
-      className="cursor-pointer p-5 transition-shadow hover:border-blue-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+      className="cursor-pointer p-5 transition-shadow hover:border-brand-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-start justify-between">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+        <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
           <Icon className="size-5" aria-hidden />
         </span>
         <ArrowUpRight className="size-4 text-slate-300" aria-hidden />
@@ -108,7 +108,7 @@ export default function PerformanceOverview(_props: ScreenProps) {
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             {paths.map((p) => (
               <div key={p.route} className="flex flex-col rounded-xl border p-4">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
                   <p.icon className="size-4" aria-hidden />
                 </span>
                 <p className="mt-2 text-sm font-semibold">{p.title}</p>

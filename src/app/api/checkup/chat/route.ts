@@ -20,6 +20,8 @@ import {
   type TrendDirection,
 } from "@/lib/checkup";
 import { currencySymbol, isBareNumber, parseCloseRate, plainify, shorten, tidyOwnerText, wordsToDigits } from "@/lib/checkup-math";
+import { HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
+import { businessKind, otherChallengeChips, parseOtherChallenges } from "@/lib/challenges";
 
 export const runtime = "nodejs";
 
@@ -71,16 +73,22 @@ const ANSWER_CHIPS: Record<SlotKey, string[]> = {
   followUp: ["Same day, and I check back", "Same day, I don't check back", "Within a few days", "It varies a lot"],
   jobValue: ["Under {cur}50,000", "{cur}50,000 – {cur}200,000", "{cur}200,000 – {cur}1 million", "Over {cur}1 million"],
   monthlyEnquiries: ["1 to 5 a month", "6 to 15 a month", "16 to 40 a month", "More than 40"],
-  pricePresentation: ["A quick price on WhatsApp", "After a call or a visit", "A written quote", "It depends on the job"],
+  pricePresentation: ["A quick price on WhatsApp", "After a call or a visit", "A written quote", "It's on a price list or menu"],
   lostReason: ["They say it's too expensive", "They just stop replying", "\"I'll get back to you\"", "They go with someone cheaper"],
   capacity: ["Yes, easily", "A bit more, not double", "No, I'm already full", "Only if I get help"],
-  proof: ["Yes, I show past work", "Only if they ask", "Not really", "I don't have examples yet"],
+  proof: ["Yes, photos or past work", "Only if they ask", "Not really", "Nothing to show yet"],
   repeat: ["Yes, many come back", "A few come back", "Rarely", "It's mostly one-off work"],
   ownerTheory: ["Prices — others charge less", "Not enough people know me", "Customers forget about me", "Not sure"],
+  // Built per business from what the owner said (see chipsFor) — never a fixed list.
+  otherChallenges: [],
 };
 
 /** Smaller ranges for currencies whose typical job is not in the hundreds of thousands. */
 const JOB_VALUE_CHIPS_SMALL = ["Under {cur}100", "{cur}100 – {cur}500", "{cur}500 – {cur}2,000", "Over {cur}2,000"];
+/** Orders of food or goods from a shop are usually far smaller than service jobs (naira). */
+const ORDER_VALUE_CHIPS_NGN = ["Under {cur}5,000", "{cur}5,000 – {cur}20,000", "{cur}20,000 – {cur}100,000", "Over {cur}100,000"];
+/** Orders of food or goods in smaller currencies. */
+const ORDER_VALUE_CHIPS_SMALL = ["Under {cur}20", "{cur}20 – {cur}100", "{cur}100 – {cur}500", "Over {cur}500"];
 
 /** Likely causes offered as hints, matched to what the owner said is hard. */
 function theoryChips(bottleneck?: string): string[] {
@@ -102,7 +110,24 @@ function theoryChips(bottleneck?: string): string[] {
 
 function chipsFor(slot: SlotKey, cur: string, slots?: CheckupSlots): string[] {
   if (slot === "ownerTheory") return theoryChips(slots?.bottleneck);
-  const base = slot === "jobValue" && cur !== "₦" ? JOB_VALUE_CHIPS_SMALL : ANSWER_CHIPS[slot];
+  if (slot === "otherChallenges") {
+    // Fitted to the kind of business they described, minus the problem they already named.
+    return otherChallengeChips({
+      businessType: slots?.businessType,
+      sells: slots?.sells,
+      targetMarket: slots?.targetMarket,
+      channels: slots?.channels,
+      bottleneck: slots?.bottleneck,
+    });
+  }
+  // Food, shops and product sellers get order-sized ranges; services keep job-sized ones.
+  const goods = slot === "jobValue" && ["food", "retail", "online", "product"].includes(businessKind({ businessType: slots?.businessType, sells: slots?.sells, targetMarket: slots?.targetMarket, channels: slots?.channels }));
+  const base =
+    slot === "jobValue"
+      ? goods
+        ? cur === "₦" ? ORDER_VALUE_CHIPS_NGN : ORDER_VALUE_CHIPS_SMALL
+        : cur !== "₦" ? JOB_VALUE_CHIPS_SMALL : ANSWER_CHIPS.jobValue
+      : ANSWER_CHIPS[slot];
   return base.map((c) => c.replaceAll("{cur}", cur));
 }
 
@@ -172,11 +197,11 @@ const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
     "Anything new lately — a price change, new staff, a new way of getting customers?",
   ],
   bottleneck: [
-    "What feels hardest right now — getting enough people to ask, getting them to actually buy, or keeping up with the work?",
+    "What feels hardest right now — getting enough people to ask, getting them to actually buy, or keeping up with demand?",
     "If you had to name the one thing holding the business back, what would it be?",
   ],
   closeRate: [
-    "Out of every 10 people who ask about your work, roughly how many end up paying you? A guess is fine.",
+    "Out of every 10 people who ask about buying from you, roughly how many end up paying? A guess is fine.",
     "When 10 people ask about your price, about how many go ahead and pay?",
   ],
   followUp: [
@@ -184,15 +209,15 @@ const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
     "What happens after someone asks — do you reply the same day, send a price, check back later?",
   ],
   jobValue: [
-    "Roughly how much does one customer pay you for a typical job? A range like {cur}50k to {cur}200k is fine — or skip it.",
+    "Roughly how much does one customer pay you for a typical job or order? A rough range is fine — or skip it.",
     "What does a typical job or order bring in, roughly? A rough range is perfectly fine.",
   ],
   monthlyEnquiries: [
     "In a normal month, roughly how many people ask about buying from you? A rough range is fine.",
-    "About how many people get in touch about your work in a typical month — 5, 20, more?",
+    "About how many people get in touch to buy in a typical month — 5, 20, more?",
   ],
   pricePresentation: [
-    "When someone asks, how do they usually get your price — a quick figure on WhatsApp, a written quote, or after a call or visit?",
+    "When someone asks, how do they usually get your price — a quick figure on WhatsApp, a price list, a written quote, or after a call or visit?",
     "How do you usually give your price — straight away, or after you've talked through what they need?",
   ],
   lostReason: [
@@ -200,12 +225,12 @@ const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
     "The people who don't buy — what's the most common reason they give, if any?",
   ],
   capacity: [
-    "If twice as many people paid you next month, could you handle the work?",
+    "If twice as many people paid you next month, could you keep up?",
     "Do you have room for more work right now, or are you already quite full?",
   ],
   proof: [
-    "Before they hear your price, do people get to see examples of your past work, or what it did for other customers?",
-    "Do new people see any of your past work or results before you give a price?",
+    "Before they hear your price, do people get to see examples — photos, past work or reviews?",
+    "Do new people see photos, past work or reviews before they hear your price?",
   ],
   repeat: [
     "Do customers usually come back to you again, or is it mostly one-off work?",
@@ -215,9 +240,12 @@ const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
     "What do you think is behind that? Anything you've noticed or tried — even small things — helps.",
     "Why do you think that happens? You know the business best, so any hunch is useful.",
   ],
+  otherChallenges: [
+    "Is anything else holding the business back right now? Tap any that apply — I'll keep them on your list, and let's take them one at a time.",
+    "Apart from that, is anything else making growth hard at the moment? Tap any that apply, or tell me it's just the one.",
+  ],
 };
-
-const SYSTEM = `You are the bizzGrowth business checkup — an experienced, friendly business consultant having a SHORT first conversation with a small-business owner. Many owners are in Nigeria and many have NO website or online presence. Warm, sharp, efficient, genuinely listening. You never sound like a survey, a form or a script.
+const SYSTEM = `You are Nellovia, an AI business consultant inside the Nellovia app — experienced and friendly — having a SHORT first conversation (the business checkup) with a small-business owner. Many owners are in Nigeria and many have NO website or online presence. Warm, sharp, efficient, genuinely listening. You never sound like a survey, a form or a script.
 
 GOAL
 Gather what a first growth diagnosis needs — first the REQUIRED slots, then the DEPTH follow-ups the prompt lists. There is NO fixed order: each turn, pick what to ask from what the owner just said. Take the time you need (usually 8-12 owner replies): owners would much rather answer a few more questions than get a shallow diagnosis — but never ask anything that won't change the diagnosis.
@@ -226,9 +254,10 @@ WHAT EACH SLOT MEANS
 - sells: what they sell or do. targetMarket: who pays them — the kind of customer. channels: how new customers find them.
 - bottleneck: where growth feels stuck, in their words.
 - ownerTheory: what THEY think is causing it — their own observations, things they have tried or checked, things that happen offline you cannot see (a cheaper competitor nearby, what customers say, a slow season). Ask it right after they tell you where it feels stuck. Ask directly ("What do you think is behind that?") or with gentle hints ("Is it the price itself, the timing, or something else you've noticed?"). Any hunch counts; "not sure" is fine.
+- otherChallenges: anything ELSE holding the business back (up to 3). Asked ONCE, right after ownerTheory, when the prompt says ASK NEXT: otherChallenges — the app reads their answer and supplies the tap answers. NEVER ask follow-up questions about those other things and never diagnose them here; each one gets its own short chat later. Do not let them change what you ask about the main problem.
 - closeRate: out of the people who ask about buying, how many go ahead and pay. Accept BOTH NUMBERS ("2 out of 5", "about 3 out of 10") or a clear word ("about half", "most of them", "very few") — never push for exact numbers after a clear word. A bare number like "2" is NOT an answer — ask "2 out of how many people who ask?". NEVER assume "out of 10".
 - monthlyEnquiries: roughly how many people ask about buying in a normal month (a range is fine, e.g. "6 to 15").
-- jobValue: roughly what one customer pays for a typical job or order, in the owner's currency (a range is fine).
+- jobValue: roughly what one customer pays for a typical job or order, in the owner's currency (a range is fine). Say "order" for food, shops and products, "job" for services.
 - followUp: how fast they reply when someone asks, and whether they check back with people who go quiet.
 - DEPTH follow-ups (asked once the required slots are known, one at a time, only those the prompt lists):
   - pricePresentation: how and when they give the price — a quick figure on WhatsApp, a written quote, after a call or visit, before or after understanding what the customer needs.
@@ -250,16 +279,21 @@ CLASSIFY THE OWNER'S LATEST MESSAGE BEFORE REPLYING
 - "answer": it answers your pending question.
 - "correction": it fixes something you got wrong. In ONE short clause say what you had wrong, then ALWAYS carry on with your next question in the same reply. Only say things like "thanks for clarifying" when they actually corrected you.
 - "partial": answers part of it — take the part they gave, then ask for the missing piece lightly.
-- "dodge": they can't or won't answer — respect it ("No problem at all") and move to a different gap.
+- "dodge": they can't or won't answer, or say "not sure" — that is a real answer. Respect it warmly. If the question matters for the diagnosis (where it's stuck, how many pay, how they follow up, people asking, a typical job), say in ONE short friendly sentence what not knowing it means — e.g. "No problem — without a rough count I can't work out what fixing it is worth, so that part will be a best guess." Then move to a different gap or an easier angle. Never guilt-trip, never ask the same thing twice in a row.
 - "question": they asked you something — answer honestly in 1-2 sentences, then ask your next question.
 
 TONE AND STYLE
-- 1-3 short sentences. Plain, warm, human. No emoji, no lists, no "As an AI".
+- 1-3 short sentences. Plain, warm and natural. No emoji, no lists, and never the stiff "As an AI language model…" line — but if they ask who or what you are, say plainly that you are Nellovia, an AI business consultant.
+- Your very first message already introduced you by name. Don't introduce yourself again unless they ask.
 - Do NOT repeat the owner's answer back to them. At most echo a 2-4 word fragment — better, say what it suggests ("Referrals usually mean people already trust your work.").
 - Do not mention their country or city unless they just did.
 - Never judge their numbers ("that's low", "that's a big challenge") — stay curious and neutral; the diagnosis interprets them.
 - Thank them only now and then, and vary it. Never start two replies the same way.
 - Exactly ONE question per reply (none when wrapping), written out inside your reply.
+
+${I_VOICE}
+
+${HONESTY_RULES}
 
 PLAIN LANGUAGE — ANY SMALL-BUSINESS OWNER MUST UNDERSTAND YOU
 - Write the way you would talk to a market trader or a tailor: short, everyday words. Never assume they have a website, ads, an app or social media unless they said so.
@@ -285,7 +319,7 @@ OUTPUT — return ONLY valid JSON, no markdown:
     "bottleneck": "...", "closeRate": "X out of Y", "followUp": "...", "jobValue": "...", "monthlyEnquiries": "...",
     "pricePresentation": "...", "lostReason": "...", "proof": "...", "capacity": "...", "repeat": "...", "ownerTheory": "..."
   },
-  "learnedChips": ["up to 3 short plain labels <= 46 chars for what you understood THIS turn, e.g. 'Sells: websites and apps', 'How many pay: 2 out of 5', 'Typical job: ₦200k–₦500k'. Never 'Close rate'. Prefix 'Updated:' ONLY when correcting something"],
+  "learnedChips": ["up to 3 short plain labels <= 46 chars for what you understood THIS turn, in the form 'Sells: <what they sell>', 'How many pay: <X out of Y>', 'Typical job: <range>' (say 'Typical order' for goods). Never 'Close rate'. Prefix 'Updated:' ONLY when correcting something"],
   "nextSlot": "the ONE missing slot your question goes after, or \\"none\\" when wrapping up",
   "chips": ["up to 4 tap-to-send ANSWERS <= 40 chars the OWNER could give to your NEXT question, in the owner's voice. NEVER a question. Include an easy option like 'Not sure' when sensible; empty when wrapping"]
 }
@@ -346,6 +380,8 @@ function sanitizeSlots(input: Partial<CheckupSlots> | undefined): CheckupSlots {
     proof: str(input.proof, 160),
     repeat: str(input.repeat, 160),
     ownerTheory: str(input.ownerTheory, 220),
+    // An empty list is a real answer here ("no, that's the main one").
+    otherChallenges: Array.isArray(input.otherChallenges) ? (list(input.otherChallenges, 80, 3) ?? []) : undefined,
     pending: typeof input.pending === "string" && (SLOT_KEYS as string[]).includes(input.pending) ? input.pending : undefined,
     declined: (list(input.declined, 20, SLOT_KEYS.length) ?? []).filter((d): d is SlotKey => (SLOT_KEYS as string[]).includes(d)),
     corrections:
@@ -368,6 +404,7 @@ function sanitizeAskCounts(input: AskCounts | undefined): AskCounts {
 function isResolved(slots: CheckupSlots, key: SlotKey): boolean {
   if (slots.declined.includes(key)) return true;
   const v = slots[key];
+  if (key === "otherChallenges") return Array.isArray(v);
   if (key === "channels" || key === "changes") return Array.isArray(v) && v.length > 0;
   return typeof v === "string" && v.length > 0;
 }
@@ -388,7 +425,10 @@ function knownSignals(slots: CheckupSlots): number {
  * its full number of times without an answer, so this always converges.
  */
 function missingRequired(slots: CheckupSlots): SlotKey[] {
-  const missing = REQUIRED_SLOTS.filter((k) => !isResolved(slots, k));
+  // "Anything else holding you back?" — once, right after the main problem and their view of it.
+  const order: SlotKey[] = [...REQUIRED_SLOTS];
+  order.splice(order.indexOf("ownerTheory") + 1, 0, "otherChallenges");
+  const missing = order.filter((k) => (k === "otherChallenges" ? isResolved(slots, "bottleneck") && !isResolved(slots, k) : !isResolved(slots, k)));
   if (knownSignals(slots) < MIN_SIGNALS) {
     for (const k of SIGNAL_SLOTS) {
       if (!missing.includes(k) && !isResolved(slots, k)) missing.push(k);
@@ -435,6 +475,7 @@ function deriveLearnedChips(updates: Partial<CheckupSlots>): string[] {
   push("Past work shown", updates.proof);
   push("Customers coming back", updates.repeat);
   push("Your view", updates.ownerTheory);
+  (updates.otherChallenges ?? []).slice(0, 3).forEach((c) => chips.push(shorten(`Also: ${c}`, 46)));
   (updates.channels ?? []).slice(0, 2).forEach((c) => chips.push(shorten(`Found via: ${c}`, 46)));
   (updates.changes ?? []).slice(0, 2).forEach((c) => chips.push(shorten(`Change: ${c}`, 46)));
   TREND_SLOT_KEYS.forEach((k) => {
@@ -445,11 +486,13 @@ function deriveLearnedChips(updates: Partial<CheckupSlots>): string[] {
 
 /** Plain labels for slot keys the model sometimes leaks into chips ("monthlyEnquiries about 5"). */
 const CHIP_LABELS: [RegExp, string][] = [
+  [/^(other ?challenges?|also holding( you)? back|anything else|other problems?|also)\b/i, "Also"],
   [/^(owner ?theory|your view|your theory|you think|cause)\b/i, "Your view"],
   [/^(repeat|customers coming back|come back)\b/i, "Customers coming back"],
   [/^(target ?market|customers?)\b/i, "Customers"],
   [/^(monthly ?enquiries|people asking( a month)?)\b/i, "People asking a month"],
-  [/^(job ?value|typical (job|order|project)( value)?)\b/i, "Typical job"],
+  [/^typical order( value)?\b/i, "Typical order"],
+  [/^(job ?value|typical (job|project)( value)?)\b/i, "Typical job"],
   [/^(follow[- ]?up|getting back to people)\b/i, "Getting back to people"],
   [/^(bottleneck|hardest part)\b/i, "Hardest part"],
   [/^(close ?rate|how many pay|conversion(?: rate)?)\b/i, "How many pay"],
@@ -466,6 +509,7 @@ const LABEL_SLOT: Record<string, SlotKey> = {
   Customers: "targetMarket",
   "People asking a month": "monthlyEnquiries",
   "Typical job": "jobValue",
+  "Typical order": "jobValue",
   "Getting back to people": "followUp",
   "Hardest part": "bottleneck",
   "How many pay": "closeRate",
@@ -475,6 +519,7 @@ const LABEL_SLOT: Record<string, SlotKey> = {
   "Past work shown": "proof",
   "Customers coming back": "repeat",
   "Your view": "ownerTheory",
+  Also: "otherChallenges",
   "Found via": "channels",
   Sells: "sells",
 };
@@ -507,6 +552,9 @@ function classifyQuestion(reply: string): SlotKey | null {
   const q = (qs[qs.length - 1] ?? "").toLowerCase();
   if (!q) return null;
   const rules: [RegExp, SlotKey][] = [
+    // "What do you think is causing them to drop off after you give the price?" asks for their view,
+    // not how they give the price — so this is read first.
+    [/(what|why) do you think|behind (that|this|it)|what('s| is) causing|any (idea|hunch|theory)|reason (for|behind) (that|this|it)|something else you've noticed/, "ownerTheory"],
     [/out of (how many|every)|how many (of them|of those|out of)|how many .*(pay|buy|go ahead|end up)|go ahead and pay/, "closeRate"],
     [/(each|a|per|normal|typical) month|monthly/, "monthlyEnquiries"],
     [/twice as many|room for more|more work (right now|than)|handle (the|more|that|it)|already (quite )?full|capacity/, "capacity"],
@@ -516,7 +564,7 @@ function classifyQuestion(reply: string): SlotKey | null {
     [/don't go ahead|doesn't go ahead|don't buy|didn't buy|reason they give|what do they (usually )?say|why (they|people) (don't|didn't)/, "lostReason"],
     [/get your price|give (your|the|a) price|send (your|the|a) price|written quote|how do you (usually )?(price|quote)/, "pricePresentation"],
     [/how much|cost|typical (job|project|order)|pay you for|bring in|worth/, "jobValue"],
-    [/(what|why) do you think|behind (that|this|it)|what('s| is) causing|any (idea|hunch|theory)|reason (for|behind) (that|this|it)|something else you've noticed/, "ownerTheory"],
+    [/anything else (that'?s |is )?(holding|getting in the way|making (it|growth) hard|stopping)|else (is )?(holding|making growth hard)|other (problems|challenges|things holding)/, "otherChallenges"],
     [/stuck|hardest|holding .* back|biggest challenge|main challenge|struggl/, "bottleneck"],
     [/find you|hear about you|come from|reach you|discover/, "channels"],
     [/who (usually )?(pays|buys)|which (kind|type) of (client|customer)|your (usual |typical )?(clients|customers) are|kind of (client|customer|person)/, "targetMarket"],
@@ -595,6 +643,16 @@ const FRUSTRATION_RE = /(just|already)\s+(said|answered|told)|as i said|i said (
 const DODGE_RE = /rather not|prefer not|skip|don't know|do not know|no idea|not sure|private|confidential/i;
 const GREETING_RE = /^(hi|hello|hey|good (morning|afternoon|evening))[\s.,!]*$/i;
 const ACKS = ["Thanks, that helps.", "Good to know.", "That's useful.", "Got it.", "Thanks for that."];
+
+/** What skipping a question that matters costs — said plainly, once, then the chat moves on. */
+const SKIP_COST: Partial<Record<SlotKey, string>> = {
+  closeRate: "No problem — without a rough count of how many pay, I can't tell whether the gap is in finding people or winning them, so that part will be a best guess.",
+  monthlyEnquiries: "That's fine — without a rough number I can't work out what fixing it is worth, so I'll leave that figure out.",
+  jobValue: "No problem — without a rough amount I can't put a money figure on what fixing it is worth.",
+  followUp: "That's okay — I'll go on the rest, though how people are followed up is often where a lot quietly slips away.",
+  bottleneck: "No problem — I'll work it out from your other answers, so the diagnosis may be a little broader.",
+  ownerTheory: "That's fine — I'll lean on your other answers instead.",
+};
 
 /** Channels the owner named, harvested conservatively from their own words. */
 function harvestChannels(text: string): string[] {
@@ -731,10 +789,15 @@ function fallbackTurn(body: {
     };
   }
 
+  // "Anything else holding you back?" — their answer, split into up to 3 (none = just the main one).
+  const answeringOthers = slots.pending === "otherChallenges";
+  const otherUpdate = answeringOthers ? parseOtherChallenges(lastUser, slots.bottleneck) ?? undefined : undefined;
+  if (otherUpdate) merged.otherChallenges = otherUpdate;
+
   // Substantive answer harvest in the owner's own words, for the slot the
   // last question asked about (or "sells" on the very first reply).
   const textUpdates: Partial<CheckupSlots> = {};
-  if (!dodge && !correctionish && lastUser.trim().length >= 1) {
+  if (!dodge && !correctionish && !answeringOthers && lastUser.trim().length >= 1) {
     const pendingCandidates = TEXT_SLOT_KEYS.filter((k) => !isResolved(merged, k));
     const pending =
       (slots.pending && (pendingCandidates as SlotKey[]).includes(slots.pending) ? slots.pending : undefined) ??
@@ -767,7 +830,7 @@ function fallbackTurn(body: {
   }
   if (textUpdates.channels) merged.channels = textUpdates.channels;
 
-  const learnedChips = deriveLearnedChips(textUpdates);
+  const learnedChips = deriveLearnedChips({ ...textUpdates, ...(otherUpdate ? { otherChallenges: otherUpdate } : {}) });
 
   // The last question went unanswered and has used its asks — accept the gap.
   if (slots.pending && !isResolved(merged, slots.pending) && (askCounts[slots.pending] ?? 0) >= ASK_CAP[slots.pending]) {
@@ -786,9 +849,11 @@ function fallbackTurn(body: {
   }
   nextAskCounts[target] = (nextAskCounts[target] ?? 0) + 1;
 
-  const ack = ACKS[userTurns % ACKS.length];
+  // Not sure / skip on a question that matters: say once, plainly, what that costs.
+  const skipCost = dodge && slots.pending ? SKIP_COST[slots.pending] : undefined;
+  const ack = skipCost ?? ACKS[userTurns % ACKS.length];
   return {
-    read: Object.keys(trendHarvest).length || Object.keys(textUpdates).length ? "answer" : "other",
+    read: Object.keys(trendHarvest).length || Object.keys(textUpdates).length || otherUpdate ? "answer" : skipCost ? "dodge" : "other",
     reply: `${ack} ${questionFor(target, asked, cur)}`,
     learnedChips,
     phase: "interview",
@@ -847,8 +912,12 @@ export async function POST(request: NextRequest) {
     // Compact on purpose: every token here counts against provider rate limits.
     const coverageLines = SLOT_KEYS.map((key) => {
       if (isResolved(slots, key)) {
+        if (key === "otherChallenges" && !slots.declined.includes(key)) {
+          return slots.otherChallenges?.length ? `- otherChallenges: KNOWN ${JSON.stringify(slots.otherChallenges)} (recorded for later — do not ask about them)` : "- otherChallenges: KNOWN (nothing else — just the main problem)";
+        }
         return slots.declined.includes(key) ? `- ${key}: DECLINED` : `- ${key}: KNOWN ${JSON.stringify(slots[key])}`;
       }
+      if (key === "otherChallenges" && !isResolved(slots, "bottleneck")) return "- otherChallenges: not yet (asked once, after the main problem)";
       const asked = askCounts[key] ?? 0;
       const tag = REQUIRED_SLOTS.includes(key) ? "REQUIRED" : "optional";
       return `- ${key}: MISSING, ${tag}, asked ${asked}/${ASK_CAP[key]}${asked >= ASK_CAP[key] ? " (off-limits)" : ""}${REQUIRED_SLOTS.includes(key) ? ` — ${SLOT_LABELS[key]}` : ""}`;
@@ -873,6 +942,9 @@ export async function POST(request: NextRequest) {
       !wrapNow && isResolved(slots, "bottleneck") && !isResolved(slots, "ownerTheory")
         ? "ASK NEXT: ownerTheory — they have told you where it feels stuck; now ask what THEY think is causing it (directly, or with 2-3 likely reasons as hints). Their own observations matter."
         : "",
+      !wrapNow && isResolved(slots, "bottleneck") && isResolved(slots, "ownerTheory") && !isResolved(slots, "otherChallenges")
+        ? "ASK NEXT: otherChallenges — react briefly to their last answer, then ask ONE question: is anything else holding the business back right now? They can tap any that apply. Never ask about those other things — the app records them for later."
+        : "",
       wrapNow
         ? "WRAP: all required information is gathered (or its ask budget is spent). Do NOT ask anything more — close warmly per your wrapping rules, nextSlot \"none\"."
         : inDepth
@@ -880,7 +952,7 @@ export async function POST(request: NextRequest) {
           : `REQUIRED GAPS: ${missing.join(", ")}. Choose your own next question — the one that flows most naturally from the owner's last message.`,
       "",
       "CONVERSATION SO FAR (the last OWNER line is the message you are responding to):",
-      transcript.map((t) => `${t.role === "ai" ? "ASSISTANT" : "OWNER"}: ${t.text}`).join("\n"),
+      transcript.map((t) => `${t.role === "ai" ? "NELLOVIA" : "OWNER"}: ${t.text}`).join("\n"),
     ].join("\n");
 
     const raw = await completeText(SYSTEM, userPrompt, { maxTokens: 700, profile: "fast" });
@@ -910,6 +982,14 @@ export async function POST(request: NextRequest) {
     const asked = askedQuestions(transcript);
 
     const updates = sanitizeSlots(parsed.slotUpdates);
+    // "Anything else holding you back?" is read by the app, never guessed by the model
+    // (a model "none" the owner didn't say would skip the question for good).
+    updates.otherChallenges =
+      slots.pending === "otherChallenges" && read !== "question" && read !== "correction" ? parseOtherChallenges(lastUser, slots.bottleneck) ?? undefined : undefined;
+    if (updates.otherChallenges) {
+      // Their answer to that question is about other problems — not an answer to any other slot.
+      for (const key of TEXT_SLOT_KEYS) updates[key] = undefined;
+    }
     let ownChips: SlotKey | null = null; // set when we write the question ourselves
     let clarifyN: string | null = null; // set when we ask "N out of how many?"
     const nextSlotRaw = typeof parsed.nextSlot === "string" ? parsed.nextSlot : "";
@@ -936,7 +1016,10 @@ export async function POST(request: NextRequest) {
     // The owner answered the question we asked, but the model recorded nothing:
     // keep their answer (lightly cleaned) against that question.
     const recordedSomething =
-      TEXT_SLOT_KEYS.some((k) => updates[k]) || Boolean(updates.channels) || Boolean(updates.enquiries || updates.customers || updates.revenue);
+      TEXT_SLOT_KEYS.some((k) => updates[k]) ||
+      Boolean(updates.channels) ||
+      Boolean(updates.enquiries || updates.customers || updates.revenue) ||
+      updates.otherChallenges !== undefined;
     const pend = slots.pending;
     if (!recordedSomething && pend && read === "answer" && !isResolved(slots, pend) && !DODGE_RE.test(lastUser)) {
       const text = tidyOwnerText(snippet(lastUser, 160));
@@ -958,6 +1041,7 @@ export async function POST(request: NextRequest) {
     }
     if (updates.channels) merged.channels = updates.channels;
     if (updates.changes) merged.changes = updates.changes;
+    if (updates.otherChallenges !== undefined) merged.otherChallenges = updates.otherChallenges;
     for (const key of ["enquiries", "customers", "revenue"] as const) {
       if (updates[key]) merged[key] = updates[key];
     }
@@ -1023,6 +1107,25 @@ export async function POST(request: NextRequest) {
         }
       }
       if (finalSlot !== "none" && isResolved(merged, finalSlot)) finalSlot = stillMissing[0] ?? "none";
+
+      // Right after the main problem and their view of it: "anything else?", asked once,
+      // in the app's own words with tap answers fitted to their kind of business.
+      const askOthersNow =
+        isResolved(merged, "bottleneck") &&
+        isResolved(merged, "ownerTheory") &&
+        !isResolved(merged, "otherChallenges") &&
+        (askCounts.otherChallenges ?? 0) < ASK_CAP.otherChallenges &&
+        !clarifyN;
+      if (askOthersNow) {
+        const lead =
+          reply
+            .split(/(?<=[.!?])\s+/)
+            .filter((s) => !s.includes("?") && !/tap any|anything else|holding (the|your) business back|on your list|one at a time/i.test(s))[0]
+            ?.trim() ?? "";
+        reply = `${lead} ${questionFor("otherChallenges", asked, cur)}`.trim();
+        finalSlot = "otherChallenges";
+        ownChips = "otherChallenges";
+      }
     }
 
     // Count an ask only when this reply really asks something.
@@ -1032,6 +1135,13 @@ export async function POST(request: NextRequest) {
     }
     merged.pending = outPhase === "interview" && finalSlot !== "none" ? finalSlot : undefined;
 
+    // Not sure / skip on a question that matters: the owner hears, once and kindly, what that costs.
+    const answeredPending = Boolean(slots.pending && isResolved(merged, slots.pending) && !merged.declined.includes(slots.pending));
+    const skipCost = slots.pending && DODGE_RE.test(lastUser) && !answeredPending ? SKIP_COST[slots.pending] : undefined;
+    if (skipCost && outPhase === "interview" && !/without|best guess|can't (work|tell|put)|leave that|broader/i.test(reply)) {
+      reply = `${skipCost} ${reply.replace(/^(no problem( at all)?|that's (fine|okay|ok)|okay|ok)[,.!—–-]*\s*/i, "")}`;
+    }
+
     reply = plainify(reply, ownerText);
     if (outPhase === "interview") reply = varyOpener(reply, transcript);
 
@@ -1039,7 +1149,14 @@ export async function POST(request: NextRequest) {
     // Chips show only what is NEW this turn (or corrected), and never a ratio
     // the owner did not give (no "Close rate: 2 out of 10").
     const newThisTurn = new Set<SlotKey>(SLOT_KEYS.filter((k) => !isResolved(slots, k) && isResolved(merged, k) && !merged.declined.includes(k)));
-    const learnedChips = [...new Set((rawLearned.length ? rawLearned : deriveLearnedChips(updates)).map((c) => cleanChip(c, read)))]
+    // Other challenges they named this turn always show, so they can see they were heard.
+    const otherChips = updates.otherChallenges?.length ? deriveLearnedChips({ otherChallenges: updates.otherChallenges }) : [];
+    const modelChips = (rawLearned.length ? rawLearned : deriveLearnedChips(updates)).filter((c) => !otherChips.length || !/^\s*(updated:\s*)?also\b/i.test(cleanChip(c, read)));
+    // Food, shops and product sellers have orders, not jobs.
+    const goodsChips = ["food", "retail", "online", "product"].includes(
+      businessKind({ businessType: merged.businessType, sells: merged.sells, targetMarket: merged.targetMarket, channels: merged.channels }),
+    );
+    const learnedChips = [...new Set([...otherChips, ...modelChips].map((c) => cleanChip(c, read)).map((c) => (goodsChips ? c.replace(/^(Updated: )?Typical job:/, "$1Typical order:") : c)))]
       .filter((c) => {
         if (c.length === 0 || !ownerGaveRatio(c, transcript)) return false;
         const label = c.replace(/^Updated:\s*/, "").split(":")[0].trim();

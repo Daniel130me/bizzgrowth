@@ -30,14 +30,12 @@ import { MarketStatusBadge, SpecialistAvatar, SpecialistRow, URGENCY_LABEL, cate
 interface TaskDetailData {
   task: TaskDTO;
   bids: BidDTO[];
+  invitations: Array<{ id: string; specialistId: string; status: string }>;
+  engagement: { id: string; status: string; paymentStatus: string } | null;
 }
-
-const INVITE_PILOT_NOTE =
-  "Pilot marketplace: invited roster specialists respond automatically with indicative bids derived from their profile.";
 
 export function TaskDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
-  const businessId = useBizz((s) => s.businessId);
 
   const [data, setData] = useState<TaskDetailData | null>(null);
   const [loadError, setLoadError] = useState("");
@@ -57,12 +55,19 @@ export function TaskDetail({ params }: ScreenProps) {
     setLoadError("");
     try {
       const res = await fetch(`/api/market/tasks/${params.id}`);
-      const json = (await res.json()) as { ok: boolean; task?: TaskDTO; bids?: BidDTO[]; error?: string };
+      const json = (await res.json()) as {
+        ok: boolean;
+        task?: TaskDTO;
+        bids?: BidDTO[];
+        invitations?: TaskDetailData["invitations"];
+        engagement?: TaskDetailData["engagement"];
+        error?: string;
+      };
       if (!res.ok || !json.ok || !json.task || !json.bids) {
         setLoadError(json.error ?? "This task could not be loaded.");
         return;
       }
-      setData({ task: json.task, bids: json.bids });
+      setData({ task: json.task, bids: json.bids, invitations: json.invitations ?? [], engagement: json.engagement ?? null });
     } catch {
       setLoadError("The marketplace could not be reached just now. Check your connection and try again.");
     } finally {
@@ -106,7 +111,10 @@ export function TaskDetail({ params }: ScreenProps) {
     }
   }, [data, match, matching, matchError, runMatch]);
 
-  const invitedNames = useMemo(() => new Set(data?.bids.map((b) => b.specialist.id) ?? []), [data]);
+  const invitedNames = useMemo(
+    () => new Set([...(data?.invitations.map((invitation) => invitation.specialistId) ?? []), ...(data?.bids.map((bid) => bid.specialist.id) ?? [])]),
+    [data],
+  );
   const acceptedBid = data?.bids.find((b) => b.status === "accepted") ?? null;
 
   const inviteMatched = async () => {
@@ -124,10 +132,10 @@ export function TaskDetail({ params }: ScreenProps) {
         return;
       }
       if (json.invited === 0) {
-        toast(json.message ?? "Those specialists have already bid on this task.");
+        toast(json.message ?? "Those specialists have already been invited.");
       } else {
         toast.success(`${json.invited} ${json.invited === 1 ? "specialist" : "specialists"} invited`, {
-          description: "Indicative bids will appear here shortly.",
+          description: "They can now review the brief and submit their own bids.",
         });
       }
       setReload((r) => r + 1);
@@ -147,12 +155,18 @@ export function TaskDetail({ params }: ScreenProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bidId: bid.id }),
       });
-      const json = (await res.json()) as { ok: boolean; task?: TaskDTO; bids?: BidDTO[]; error?: string };
+      const json = (await res.json()) as {
+        ok: boolean;
+        task?: TaskDTO;
+        bids?: BidDTO[];
+        engagement?: TaskDetailData["engagement"];
+        error?: string;
+      };
       if (!res.ok || !json.ok || !json.task || !json.bids) {
         toast.error("Could not award the task", { description: json.error ?? "Please try again." });
         return;
       }
-      setData({ task: json.task, bids: json.bids });
+      setData({ ...data, task: json.task, bids: json.bids, engagement: json.engagement ?? null });
       toast.success("Task awarded", { description: `${bid.specialist.name} will take it from here.` });
     } catch {
       toast.error("Could not award the task", { description: "Check your connection and try again." });
@@ -203,19 +217,6 @@ export function TaskDetail({ params }: ScreenProps) {
 
   if (!data) return null;
   const { task, bids } = data;
-
-  if (task.workspaceId !== businessId) {
-    return (
-      <div className="mx-auto max-w-2xl py-10">
-        <ErrorState
-          title="This task belongs to another workspace"
-          description="Tasks are private to the business that posted them. Switch workspaces to see this brief."
-          onRetry={() => navigate("market")}
-          onHome={() => navigate("market")}
-        />
-      </div>
-    );
-  }
 
   const awarded = task.status === "awarded";
   const closed = task.status === "closed";
@@ -281,7 +282,7 @@ export function TaskDetail({ params }: ScreenProps) {
             title="Who fits this work"
             description="The matchmaker reads your brief against the vetted roster."
             action={
-              matching ? <Loader2 className="size-4 animate-spin text-violet-600" aria-label="Matching" /> : (
+              matching ? <Loader2 className="size-4 animate-spin text-brand-600" aria-label="Matching" /> : (
                 <Badge variant="outline" className="font-normal">
                   {match?.aiInterpreted ? "AI-matched" : match ? "Category-matched" : "Pending"}
                 </Badge>
@@ -305,7 +306,7 @@ export function TaskDetail({ params }: ScreenProps) {
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Skills to look for</span>
                     {match.skillsToSeek.map((s) => (
-                      <Badge key={s} className="border-transparent bg-violet-100 font-normal text-violet-800">
+                      <Badge key={s} className="border-transparent bg-brand-100 font-normal text-brand-800">
                         {s}
                       </Badge>
                     ))}
@@ -318,9 +319,13 @@ export function TaskDetail({ params }: ScreenProps) {
                         s={m.specialist}
                         onClick={() => navigate(`market/specialist/${m.specialistId}`)}
                         right={
-                          invitedNames.has(m.specialistId) || bids.some((b) => b.specialist.id === m.specialistId) ? (
+                          bids.some((b) => b.specialist.id === m.specialistId) ? (
                             <Badge variant="outline" className="shrink-0 font-normal text-emerald-700">
                               Bid received
+                            </Badge>
+                          ) : invitedNames.has(m.specialistId) ? (
+                            <Badge variant="outline" className="shrink-0 font-normal text-brand-700">
+                              Invited
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="shrink-0 font-normal text-slate-500">
@@ -352,7 +357,7 @@ export function TaskDetail({ params }: ScreenProps) {
             <EmptyState
               icon={<Gavel className="size-5" />}
               title="No bids yet"
-              description="Invite matched specialists and their indicative bids will appear here — you award only when you choose one."
+              description="Invite matched specialists to review the brief and submit their own price, delivery time and proposal."
               actions={
                 task.status === "open" ? (
                   <Button size="sm" onClick={inviteMatched} disabled={inviting}>
@@ -373,10 +378,16 @@ export function TaskDetail({ params }: ScreenProps) {
             <div className="space-y-4">
               {acceptedBid && (
                 <InfoBanner tone="success" title={`Awarded to ${acceptedBid.specialist.name} — ${fmtNaira(acceptedBid.amount)}, about ${acceptedBid.days} ${acceptedBid.days === 1 ? "day" : "days"}`}>
-                  You will be contacted to confirm scope and start. Payment and delivery happen directly between you and the specialist — this pilot does not process payments.{" "}
-                  <button className="font-semibold underline" onClick={() => navigate(`market/specialist/${acceptedBid.specialist.id}`)}>
-                    View profile
-                  </button>
+                  Use the engagement workspace to confirm scope, message the specialist, track delivery and record external payment status.{" "}
+                  {data.engagement ? (
+                    <button className="font-semibold underline" onClick={() => navigate(`market/engagement/${data.engagement?.id}`)}>
+                      Open engagement
+                    </button>
+                  ) : (
+                    <button className="font-semibold underline" onClick={() => setReload((value) => value + 1)}>
+                      Refresh engagement
+                    </button>
+                  )}
                 </InfoBanner>
               )}
               <div className="grid gap-4 md:grid-cols-2">
@@ -391,7 +402,7 @@ export function TaskDetail({ params }: ScreenProps) {
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">{INVITE_PILOT_NOTE}</p>
+              <p className="text-xs text-muted-foreground">Bids are submitted by specialists. Review scope and delivery terms before accepting.</p>
             </div>
           )}
         </SectionCard>

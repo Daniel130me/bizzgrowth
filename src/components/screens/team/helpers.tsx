@@ -47,8 +47,8 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
 };
 
 const ROLE_CLS: Record<TeamRole, string> = {
-  owner: "bg-violet-50 text-violet-700 border-violet-200",
-  admin: "bg-blue-50 text-blue-700 border-blue-200",
+  owner: "bg-brand-50 text-brand-700 border-brand-200",
+  admin: "bg-teal-50 text-teal-700 border-teal-200",
   member: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
@@ -69,6 +69,7 @@ export const ROLE_CAPABILITIES: Record<TeamRole, string> = {
 
 // ---------- Team list with prototype-level overrides (sessionStorage) ----------
 
+// Keys keep the old "bizz-" prefix on purpose: renaming one would lose what was saved under it.
 const ROLES_KEY = "bizz-team-role-overrides";
 const REMOVED_KEY = "bizz-team-removed";
 
@@ -177,9 +178,9 @@ export const NOTIF_CATEGORY_META: Record<
   { label: string; icon: React.ReactNode; cls: string }
 > = {
   alert: { label: "Alert", icon: <CircleAlert className="size-3" aria-hidden />, cls: "bg-red-50 text-red-700 border-red-200" },
-  assignment: { label: "Assignment", icon: <ClipboardList className="size-3" aria-hidden />, cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  assignment: { label: "Assignment", icon: <ClipboardList className="size-3" aria-hidden />, cls: "bg-teal-50 text-teal-700 border-teal-200" },
   report: { label: "Report", icon: <FileText className="size-3" aria-hidden />, cls: "bg-slate-100 text-slate-600 border-slate-200" },
-  experiment: { label: "Experiment", icon: <FlaskConical className="size-3" aria-hidden />, cls: "bg-violet-50 text-violet-700 border-violet-200" },
+  experiment: { label: "Experiment", icon: <FlaskConical className="size-3" aria-hidden />, cls: "bg-brand-50 text-brand-700 border-brand-200" },
   connection: { label: "Connection", icon: <PlugZap className="size-3" aria-hidden />, cls: "bg-amber-50 text-amber-700 border-amber-200" },
   goal: { label: "Goal", icon: <Target className="size-3" aria-hidden />, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   team: { label: "Team", icon: <Users className="size-3" aria-hidden />, cls: "bg-slate-100 text-slate-600 border-slate-200" },

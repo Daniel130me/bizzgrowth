@@ -58,7 +58,7 @@ export function BrainPriorities({ params: _params }: ScreenProps) {
             <li key={item} className="flex items-center gap-3 border-b py-3 first:pt-0 last:border-0 last:pb-0">
               <span
                 className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tnum ${
-                  i === 0 ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600"
+                  i === 0 ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
                 }`}
               >
                 {i + 1}

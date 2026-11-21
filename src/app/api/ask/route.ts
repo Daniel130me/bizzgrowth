@@ -1,28 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { completeText } from "@/lib/ai";
 import { extractJson, type AskAnswerContent, type AskWorkspaceContext } from "@/lib/checkup";
-import { parseAmount, plainify } from "@/lib/checkup-math";
+import { DRAFT_KIND_ENUM, DRAFT_KIND_GUIDE, cleanDraftHint } from "@/lib/coach";
+import { plainify } from "@/lib/checkup-math";
 import { CONSULTANT_PATTERNS, NUMBER_RULES, VOICE_RULES, formatBusinessContext } from "@/lib/ai-voice";
 import { collectAllowedNumbers, dropUngroundedSentences, ungroundedNumbers } from "@/lib/grounding";
+import { cleanNoticed } from "@/lib/challenges";
+import { getSession } from "@/lib/auth/session";
+import { measuredContext } from "@/lib/connectors/summary";
 
 export const runtime = "nodejs";
 
 /**
- * Ask — the owner's own analyst. It knows their checkup answers, their
- * diagnosis and how far they are with the plan, so every answer builds on what
- * they already know and moves them forward: a straight answer, the reasoning,
- * and — when the question calls for it — the exact words to use.
+ * Ask — Nellovia, the owner's own AI consultant. It knows their checkup
+ * answers, their diagnosis and how far they are with the plan, so every answer
+ * builds on what they already know and moves them forward: a straight answer,
+ * the reasoning, and — when the question calls for it — the exact words to use.
  */
-const SYSTEM = `You are the owner's own business analyst inside bizzGrowth. A small-business owner (often in Nigeria, often with no website) is asking about THEIR business. You know their checkup answers, their diagnosis, their plan and any numbers in the snapshot. Answer like a trusted consultant who knows them well — never like a search engine.
+const SYSTEM = `You are Nellovia, the owner's own AI business consultant inside the Nellovia app. A small-business owner (often in Nigeria, often with no website) is asking about THEIR business. You know their checkup answers, their diagnosis, their plan and any numbers in the snapshot. Answer like a trusted consultant who knows them well — never like a search engine.
 
 HOW TO ANSWER
 - Answer their exact question directly in the FIRST sentence. Never restate the question. Never open with a generic description of their business.
+- If they ask who or what you are, or what you can do: say so directly in the FIRST sentence, as yourself — Nellovia, an AI business consultant — then in one or two short sentences say how you can help THEIR business, using what you know about it. Don't turn it into a sales pitch, and leave "interpretation" and "evidence" empty for this kind of question.
 - Then give the reasoning from what they told you, their diagnosis and any numbers — specific, never generic.
-- When the question is about what to do, what to say or how to handle someone, give them the exact words to use in "tryThis" (a WhatsApp message, what to say on a call, a simple price layout) — short, friendly, in their voice, with [name] where a name goes.
+- When the question is about what to do, what to say or how to handle someone — or the answer means writing something (website words, an ad, a post, a product description, a bio, a flyer or sign, a brief for someone they'll hire, a reply to a review, a policy) — offer to write the words with "draft"; the app writes them only if they tap the button. Set its kind to WHAT IT MAKES:
+${DRAFT_KIND_GUIDE}
+  Use "other" if none fits — never squeeze website words, a brief or an ad into an email or a message. Give it a button label naming what it makes ("Write the follow-up message", "Write the words for my homepage", "Write the developer brief") and the purpose (what the words are for and who reads them). Don't write the words yourself.
+- If they are trying a step right now (WHAT THEY ARE TRYING RIGHT NOW in the context), connect your answer to it when it is relevant, in one short sentence; a few days in, you may lightly ask how it's going. Never nag, never more than one sentence about it.
 - Build on their diagnosis and plan: if they ask "what should I do?", start from the plan steps they have NOT done yet; if they did some, acknowledge it and move them forward.
 - If previous questions in this session are provided, build on them and move the conversation forward — never repeat earlier wording.
+- If the owner is FOLLOWING UP ON AN EARLIER ANSWER (that block is in the context), their question is about that answer: build on it, refer to it naturally in a few words ("On the showcase idea…"), and never repeat it back.
 - If the snapshot cannot answer the question, say so plainly in one sentence, give your best reasoning from what they DID tell you, and name the cheapest way to find out (e.g. "count the next 10 people who ask").
 - Offer 2-3 natural next questions THEY might ask you next, in their voice ("How do I follow up without sounding pushy?").
+- NOTICING A NEW CHALLENGE: if the question describes a NEW problem holding the business back that is not already on THEIR CHALLENGES list (for example something that just started going wrong, or a problem they hadn't mentioned), answer it as usual AND set "newChallenge" — the problem in their own words, its stage, and "sameAs": the id of a challenge on their list only if it is really the same problem seen from another angle. Never for a question that only asks how to do something, and never for a challenge already on the list.
 
 ${CONSULTANT_PATTERNS}
 
@@ -34,16 +44,17 @@ Return ONLY valid JSON, no markdown:
 {
   "grounded": ["2-3 short paragraphs (strings). Paragraph 1: the direct answer. Paragraph 2+: the reasoning."],
   "interpretation": "optional: 1-2 sentences — the pattern you see or the likely real cause",
-  "tryThis": { "title": "<= 60 chars", "body": "the exact words to use, 2-5 short sentences" } or null,
-  "limitations": ["0-2 short strings: what is genuinely unknown and would change the answer"],
+  "draft": { "kind": "${DRAFT_KIND_ENUM}", "label": "button text naming what it makes, <= 40 chars", "purpose": "what the words are for and who reads them, 1 sentence" } or null,
+  "limitations": ["0-2 short strings in your own voice ('I don't know yet how many…', never 'We don't know'): what is genuinely unknown and would change the answer"],
   "evidence": [
     { "label": "short label", "value": "the exact number or short fact", "provenance": "measured|user-supplied|estimated|ai-interpretation", "source": "e.g. 'Your checkup answers', 'Your diagnosis', 'Owner-entered totals', 'Meta Ads (connected)'" }
   ],
   "followUps": ["2-3 short questions the owner might ask next, each <= 70 chars"],
+  "newChallenge": null or { "title": "the new problem in the owner's own words, <= 70 chars", "stage": "found|enquire|convert|deliver|return|outside", "sameAs": "an id from THEIR CHALLENGES, or null", "why": "1 short sentence: why it looks new (or the same as that one)" },
   "referencedPeriod": "e.g. 'September 2026', 'Your checkup answers' — from the snapshot"
 }
 Rules:
-- provenance "measured" ONLY for numbers from connected sources or metrics in the snapshot; "user-supplied" for things the owner told us or entered; "estimated" for their stated directions; "ai-interpretation" for anything you derived.
+- provenance "measured" ONLY for numbers from connected sources or metrics in the snapshot; "user-supplied" for things the owner told you or entered; "estimated" for their stated directions; "ai-interpretation" for anything you derived.
 - evidence: 0-4 items, each value <= 40 chars. Do not pad.`;
 
 const HISTORY_TURNS = 4;
@@ -53,6 +64,8 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       question?: string;
       history?: { question: string; summary: string }[];
+      /** The earlier answer this question follows up on (may be older than the recent turns). */
+      replyTo?: { question?: unknown; summary?: unknown };
       workspace?: AskWorkspaceContext;
     };
 
@@ -76,6 +89,14 @@ export async function POST(request: NextRequest) {
     const historyBlock =
       history.length > 0 ? history.map((h) => `Q: ${h.question}\nA (summary): ${h.summary}`).join("\n") : "(none — this is the first question)";
 
+    const replyTo =
+      body.replyTo && typeof body.replyTo.question === "string" && body.replyTo.question.trim()
+        ? { question: body.replyTo.question.trim().slice(0, 240), summary: String(body.replyTo.summary ?? "").trim().slice(0, 900) }
+        : null;
+    const replyBlock = replyTo ? `THE OWNER IS FOLLOWING UP ON AN EARLIER ANSWER:\nQ: ${replyTo.question}\nA (summary): ${replyTo.summary || "(not kept)"}` : "";
+    const session = workspace.isUserWorkspace ? await getSession().catch(() => null) : null;
+    const connected = session ? await measuredContext(session.userId, session.workspaceId) : "";
+
     // The owner's business in full (checkup, diagnosis, plan) + the numeric snapshot.
     const { business, ...snapshot } = workspace;
     const prompt = [
@@ -83,20 +104,18 @@ export async function POST(request: NextRequest) {
       "",
       `WORKSPACE NUMBERS SNAPSHOT:\n${JSON.stringify(snapshot, null, 2)}`,
       "",
+      ...(connected ? [connected, ""] : []),
       `PREVIOUS QUESTIONS THIS SESSION:\n${historyBlock}`,
       "",
+      ...(replyBlock ? [replyBlock, ""] : []),
       `OWNER'S QUESTION:\n${question}`,
     ].join("\n");
 
-    const ownerText = [question, ...history.map((h) => h.question)].join("\n");
+    const ownerText = [question, ...history.map((h) => h.question), ...(replyTo ? [replyTo.question] : [])].join("\n");
     // The only figures an answer may use: what is in the context and the snapshot.
     const allowed = collectAllowedNumbers(prompt);
-    const priceRange = parseAmount(business?.facts?.jobValue);
     const inventedIn = (p: Partial<AskAnswerContent>) =>
-      [
-        ...[...(p.grounded ?? []), p.interpretation ?? ""].flatMap((t) => ungroundedNumbers(String(t ?? ""), allowed)),
-        ...(p.tryThis && typeof p.tryThis.body === "string" ? ungroundedNumbers(p.tryThis.body, allowed, { priceRange }) : []),
-      ];
+      [...(p.grounded ?? []), p.interpretation ?? ""].flatMap((t) => ungroundedNumbers(String(t ?? ""), allowed));
 
     let parsed: Partial<AskAnswerContent> | null = null;
     let feedback = "";
@@ -105,7 +124,7 @@ export async function POST(request: NextRequest) {
       if (raw === null) {
         if (attempt === 0) {
           // The model is genuinely unreachable — say so instead of degrading to a script.
-          return NextResponse.json({ ok: false, error: "The AI analyst is temporarily unavailable. Please retry in a moment." }, { status: 503 });
+          return NextResponse.json({ ok: false, error: "Nellovia is temporarily unavailable. Please retry in a moment." }, { status: 503 });
         }
         break;
       }
@@ -133,13 +152,15 @@ export async function POST(request: NextRequest) {
           ...parsed,
           grounded,
           interpretation: parsed.interpretation ? dropUngroundedSentences(parsed.interpretation, allowed) || undefined : undefined,
-          tryThis: parsed.tryThis && ungroundedNumbers(String(parsed.tryThis.body ?? ""), allowed, { priceRange }).length === 0 ? parsed.tryThis : null,
         };
       } else {
         verified = false;
       }
     }
-    return NextResponse.json({ ok: true, answer: { ...normalizeAnswer(parsed, ownerText), verified } });
+    // A new problem the owner described — offered as a challenge to add, never added by itself.
+    const list = (business?.challenges ?? []).map((c) => ({ id: c.id, title: c.title, status: c.status }));
+    const newChallenge = workspace.isUserWorkspace ? cleanNoticed((parsed as { newChallenge?: unknown }).newChallenge, question, list) : null;
+    return NextResponse.json({ ok: true, answer: { ...normalizeAnswer(parsed, ownerText), verified, newChallenge } });
   } catch (error) {
     console.error("[api/ask] error:", error);
     return NextResponse.json({ ok: false, error: "Ask failed" }, { status: 500 });
@@ -148,15 +169,13 @@ export async function POST(request: NextRequest) {
 
 function normalizeAnswer(parsed: Partial<AskAnswerContent>, ownerText: string): AskAnswerContent {
   const plain = (s: string, cap: number) => plainify(s.replace(/\s+\n/g, "\n").trim(), ownerText).slice(0, cap);
-  const tryThis =
-    parsed.tryThis && typeof parsed.tryThis === "object" && typeof parsed.tryThis.body === "string" && parsed.tryThis.body.trim().length > 15
-      ? { title: plain(String(parsed.tryThis.title ?? "Try this"), 70), body: plainify(parsed.tryThis.body.trim(), ownerText).slice(0, 700) }
-      : null;
   return {
     grounded: parsed.grounded!.filter((g) => typeof g === "string" && g.trim()).map((g) => plain(String(g), 800)).slice(0, 5),
     interpretation:
       typeof parsed.interpretation === "string" && parsed.interpretation.trim().length > 0 ? plain(parsed.interpretation, 500) : undefined,
-    tryThis,
+    tryThis: null,
+    // The words themselves are written on request (POST /api/draft), grounded there.
+    draft: cleanDraftHint((parsed as { draft?: unknown }).draft),
     limitations: Array.isArray(parsed.limitations)
       ? parsed.limitations.filter((l) => typeof l === "string" && l.trim()).map((l) => plain(String(l), 180)).slice(0, 3)
       : [],

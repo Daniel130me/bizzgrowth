@@ -31,6 +31,8 @@ export interface ChatLogPayload {
   messages: ChatLogMessage[];
 }
 
+// Storage keys in this file keep the old "bizzgrowth-" prefix on purpose: renaming
+// one would hide the owner's saved chats and browser id.
 const CLIENT_ID_KEY = "bizzgrowth-client-id-v1";
 
 export function newChatId(prefix = "chat"): string {

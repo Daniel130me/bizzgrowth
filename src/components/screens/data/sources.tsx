@@ -2,7 +2,7 @@
 // Screens 51–56 — Sources Library, Integration Detail, Permission Review,
 // Initial Sync, Connection Error, Connected Source Settings.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   ArrowLeft,
   Check,
@@ -48,6 +48,18 @@ import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Business, ConnectionStatus, IntegrationDef } from "@/lib/types";
 import type { ViewMap } from "../view-types";
+import {
+  GoogleAccountPicker,
+  MetaAccountPicker,
+  ShopifyConnectScreen,
+  TikTokAdsAccountPicker,
+  RealConnectPermission,
+  RealConnectionError,
+  RealIntegrationDetail,
+  RealIntegrationsLibrary,
+  RealSourceSettings,
+  RealSyncing,
+} from "./real-connections";
 
 // ---------- Shared bits ----------
 
@@ -58,7 +70,7 @@ function effectiveStatus(int: IntegrationDef, connections: Record<string, Connec
 function CapabilityBadge({ badge }: { badge: IntegrationDef["badge"] }) {
   const cls =
     badge === "Read"
-      ? "bg-blue-50 text-blue-700 border-blue-200"
+      ? "bg-brand-50 text-brand-700 border-brand-200"
       : badge === "Observe"
         ? "bg-slate-100 text-slate-600 border-slate-200"
         : "bg-amber-50 text-amber-700 border-amber-200";
@@ -256,21 +268,21 @@ function IntegrationDetailScreen({ params }: { params: Record<string, string> })
         </SectionCard>
 
         <SectionCard title="What intelligence it unlocks">
-          <div className="flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
-            <p className="text-sm leading-relaxed text-violet-900">{int.unlocks}</p>
+          <div className="flex items-start gap-2.5 rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
+            <p className="text-sm leading-relaxed text-brand-900">{int.unlocks}</p>
           </div>
         </SectionCard>
 
-        <SectionCard title="Permissions needed" description="What bizzGrowth will read — and what it cannot do.">
+        <SectionCard title="Permissions needed" description="What Nellovia will read — and what it cannot do.">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-blue-800">
+            <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-800">
                 <Unlock className="size-3.5" aria-hidden /> What we will read
               </p>
               <ul className="mt-2 space-y-1.5">
                 {int.permissions.read.map((r) => (
-                  <li key={r} className="text-sm text-blue-900/80">
+                  <li key={r} className="text-sm text-brand-900/80">
                     · {r}
                   </li>
                 ))}
@@ -352,13 +364,13 @@ function ConnectPermissionScreen({ params }: { params: Record<string, string> })
       />
 
       <InfoBanner tone="info" title="Read-only by default">
-        bizzGrowth requests read-only access. We never publish content, modify campaigns or move money on your accounts.
+        Nellovia requests read-only access. We never publish content, modify campaigns or move money on your accounts.
       </InfoBanner>
 
       <div className="mt-5 space-y-4">
         <SectionCard title="Why we need access">
           <div className="flex items-start gap-2.5">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
             <p className="text-sm leading-relaxed">{int.unlocks}</p>
           </div>
         </SectionCard>
@@ -392,13 +404,13 @@ function ConnectPermissionScreen({ params }: { params: Record<string, string> })
         </SectionCard>
 
         <SectionCard title="What this unlocks">
-          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700">
+          <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
               <Sparkles className="size-3.5" aria-hidden /> Insights that improve
             </p>
             <ul className="mt-2 space-y-1.5">
               {(UNLOCK_BY_CATEGORY[int.category] ?? [int.unlocks]).map((u) => (
-                <li key={u} className="text-sm text-violet-900">
+                <li key={u} className="text-sm text-brand-900">
                   · {u}
                 </li>
               ))}
@@ -473,7 +485,7 @@ function SyncingScreen() {
             <span className="font-medium">Initial sync</span>
             <span className="tnum text-muted-foreground">{progress}%</span>
           </div>
-          <Progress value={progress} className="mt-2 h-2 [&>div]:bg-blue-600" aria-label={`Sync progress ${progress}%`} />
+          <Progress value={progress} className="mt-2 h-2 [&>div]:bg-brand-600" aria-label={`Sync progress ${progress}%`} />
         </div>
 
         <ol className="mt-6 space-y-3" aria-label="Sync steps">
@@ -486,7 +498,7 @@ function SyncingScreen() {
                   className={cn(
                     "flex size-7 shrink-0 items-center justify-center rounded-full border",
                     done && "border-emerald-200 bg-emerald-50 text-emerald-600",
-                    active && "border-blue-200 bg-blue-50 text-blue-600",
+                    active && "border-brand-200 bg-brand-50 text-brand-600",
                     !done && !active && "border-slate-200 bg-slate-50 text-slate-400"
                   )}
                   aria-hidden
@@ -576,7 +588,7 @@ function ConnectionErrorScreen() {
         </Card>
         <Card className="p-5">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-            <Wrench className="size-4 text-blue-600" aria-hidden /> How to resolve
+            <Wrench className="size-4 text-brand-600" aria-hidden /> How to resolve
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{error.resolution}</p>
           <p className="mt-2 text-xs text-muted-foreground">Takes under a minute. The connection stays read-only.</p>
@@ -724,7 +736,7 @@ function SourceSettingsScreen({ params }: { params: Record<string, string> }) {
         <SectionCard title="Permissions" description="Read-only — these cannot be widened from the prototype.">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Reads</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Reads</p>
               <ul className="mt-1.5 space-y-1">
                 {int.permissions.read.map((r) => (
                   <li key={r} className="text-sm text-muted-foreground">
@@ -810,7 +822,7 @@ function SourceSettingsScreen({ params }: { params: Record<string, string> }) {
 
       <button
         onClick={() => navigate(`integrations/${int.id}`)}
-        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline"
+        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"
       >
         <ArrowLeft className="size-4" aria-hidden /> What {int.name} provides and unlocks
       </button>
@@ -818,11 +830,27 @@ function SourceSettingsScreen({ params }: { params: Record<string, string> }) {
   );
 }
 
+function OwnerOrDemo({ owner, demo, params }: { owner: ComponentType<{ params: Record<string, string> }>; demo: ComponentType<{ params: Record<string, string> }>; params: Record<string, string> }) {
+  const businessId = useBizz((state) => state.businessId);
+  const Component = businessId === "user-workspace" ? owner : demo;
+  return <Component params={params} />;
+}
+
+const route = (owner: ComponentType<{ params: Record<string, string> }>, demo: ComponentType<{ params: Record<string, string> }>) =>
+  function ConnectionRoute({ params }: { params: Record<string, string> }) {
+    return <OwnerOrDemo owner={owner} demo={demo} params={params} />;
+  };
+
 export const views: ViewMap = {
-  integrations: IntegrationsLibraryScreen,
-  "integrations/:id": IntegrationDetailScreen,
-  "connect/:id": ConnectPermissionScreen,
-  syncing: SyncingScreen,
-  "connection-error": ConnectionErrorScreen,
-  "source-settings/:id": SourceSettingsScreen,
+  integrations: route(RealIntegrationsLibrary, IntegrationsLibraryScreen),
+  "integrations/:id": route(RealIntegrationDetail, IntegrationDetailScreen),
+  "connect/:id": route(RealConnectPermission, ConnectPermissionScreen),
+  "connect/google": GoogleAccountPicker,
+  "connect/meta": MetaAccountPicker,
+  "connect/tiktok-ads": TikTokAdsAccountPicker,
+  "connect/shopify": ShopifyConnectScreen,
+  syncing: route(RealSyncing, SyncingScreen),
+  "connection-error": route(RealConnectionError, ConnectionErrorScreen),
+  "connection-error/:id": RealConnectionError,
+  "source-settings/:id": route(RealSourceSettings, SourceSettingsScreen),
 };

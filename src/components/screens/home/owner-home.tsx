@@ -35,7 +35,10 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProvenanceBadge } from "@/components/shared/badges";
 import { SectionCard } from "@/components/shared/layout";
-import { useBizz } from "@/lib/store";
+import { useActiveCoachStep, useBizz, useFocusChallenge, useLatestCoachStep, useOwnChallenges } from "@/lib/store";
+import { ActiveStepCard, NextStepCard, VerdictPill } from "@/components/shared/coach";
+import { ChallengesStrip, SolvedSuggestion, StuckNotice, WorkOnThisButton } from "@/components/shared/challenges";
+import { templateNextStep } from "@/lib/coach";
 import { fmtDelta, fmtNum, fmtNaira } from "@/lib/format";
 import { ownerMonthsFromEntries, type OwnerMonth } from "@/lib/data/user-business";
 import type { BusinessFacts, DiagnosisContent, ImprovedDiagnosis, TranscriptTurn, TrendDirection } from "@/lib/checkup";
@@ -140,7 +143,7 @@ function DataPathsRow() {
     <div className="grid gap-3 sm:grid-cols-3">
       {DATA_PATHS.map((p) => (
         <Card key={p.id} className="flex flex-col p-4">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
             <p.icon className="size-4" aria-hidden />
           </span>
           <p className="mt-2.5 text-sm font-semibold">{p.title}</p>
@@ -165,6 +168,14 @@ export default function OwnerHome(_props: ScreenProps) {
   const diagnosis = useBizz((s) => s.checkup.diagnosis) as DiagnosisContent | null;
   const improved = useBizz((s) => s.checkup.improved) as ImprovedDiagnosis | null;
   const manualEntries = useBizz((s) => s.manualEntries) as ManualEntry[];
+  const coachSteps = useBizz((s) => s.coach.steps);
+  const activeStep = useActiveCoachStep();
+  const latestStep = useLatestCoachStep();
+  const focus = useFocusChallenge();
+  const challenges = useOwnChallenges();
+  // Nothing in focus (the last one was solved or stopped): the next one waits for the owner's go.
+  const nextUp = !focus ? challenges.filter((c) => c.status === "up-next").sort((a, b) => a.order - b.order)[0] ?? null : null;
+  const noFocus = challenges.length > 0 && !focus;
 
   const firstName = user.name.split(" ")[0];
   const businessName = userWorkspace?.name ?? "Your business";
@@ -185,13 +196,18 @@ export default function OwnerHome(_props: ScreenProps) {
   const planDone = planSteps.filter((_, i) => planDoneMap[i]).length;
   const nextStep = planSteps.find((_, i) => !planDoneMap[i]);
 
+  // The coaching next step: the diagnosis's own, or the ready-made one for its stage.
+  const tried = coachSteps.filter((x) => x.workspaceId === "user-workspace").map((x) => x.step.title);
+  const coachNext = content && !noFocus ? content.nextStep ?? templateNextStep(content.focusStage ?? "convert", facts, tried) : null;
+  const lastResult = !activeStep && latestStep?.status === "done" ? latestStep : null;
+
   // The answers that matter most, in the owner's own (tidied) words — only the ones they gave.
   const establishedRows = (
     [
       ["You sell", facts?.whatTheySell],
       ["You serve", facts?.customers],
       ["People find you through", facts?.channels?.length ? facts.channels.join(", ") : undefined],
-      ["Where it feels stuck", facts?.bottleneck],
+      [challenges.length > 1 ? "Working on now" : "Where it feels stuck", noFocus ? undefined : facts?.bottleneck],
       ["How many go on to pay", facts?.closeRate],
       ["People asking each month", facts?.monthlyEnquiries],
       ["A typical job", facts?.jobValue],
@@ -220,19 +236,93 @@ export default function OwnerHome(_props: ScreenProps) {
               ? `${months.length} month${months.length > 1 ? "s" : ""} of your own entered totals`
               : "Everything below comes from your checkup — nothing is sampled or invented."}
           </span>
-          <button onClick={() => navigate("data")} className="font-medium text-blue-700 hover:underline">
+          <button onClick={() => navigate("data")} className="font-medium text-brand-700 hover:underline">
             Data centre
           </button>
         </div>
       </header>
 
+      {/* The list of challenges at a glance — and a way to add another */}
+      <ChallengesStrip />
+
+      {/* The one being worked on: solved? stuck? — said plainly, the owner decides */}
+      {focus ? <SolvedSuggestion challenge={focus} /> : null}
+      {focus ? <StuckNotice challenge={focus} steps={coachSteps} /> : null}
+
+      {/* Nothing in focus: suggest what's next, the owner says go */}
+      {noFocus ? (
+        <section aria-label="What's next" className="rounded-3xl border border-brand-200 bg-white p-5 shadow-sm sm:p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">What&apos;s next</p>
+          {nextUp ? (
+            <>
+              <p className="mt-1.5 text-lg font-semibold leading-snug text-slate-900">“{nextUp.title}”</p>
+              {nextUp.orderReason ? <p className="mt-1 text-sm text-slate-600">{nextUp.orderReason}</p> : null}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <WorkOnThisButton challenge={nextUp} />
+                <Button variant="ghost" onClick={() => navigate("challenges")}>
+                  See all challenges
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-1.5 text-sm text-slate-700">Nothing is waiting on your list. Is anything else holding the business back?</p>
+              <Button className="mt-3 bg-brand-600 hover:bg-brand-700" onClick={() => navigate("challenges/new")}>
+                Report a new challenge
+              </Button>
+            </>
+          )}
+        </section>
+      ) : null}
+
+      {/* Just switched to a challenge that has no diagnosis yet */}
+      {focus && !content && facts ? (
+        <section aria-label="Working on now" className="rounded-3xl border border-brand-200 bg-white p-5 shadow-sm sm:p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">Working on now</p>
+          <p className="mt-1.5 text-lg font-semibold leading-snug text-slate-900">“{focus.title}”</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {focus.chatDone ? "Its diagnosis and first step are on its page." : "A few quick questions about it first — then its own diagnosis and first step."}
+          </p>
+          <Button className="mt-3 bg-brand-600 hover:bg-brand-700" onClick={() => navigate(focus.chatDone ? `challenges/${focus.id}` : `challenges/${focus.id}/chat`)}>
+            {focus.chatDone ? "Open it" : "Start — about a minute"}
+            <ArrowRight className="ml-1 size-3.5" aria-hidden />
+          </Button>
+        </section>
+      ) : null}
+
+      {/* The coaching loop: what to do next, or how the current step is going */}
+      {activeStep ? (
+        <ActiveStepCard coachStep={activeStep} />
+      ) : coachNext ? (
+        <div className="space-y-3">
+          {lastResult?.result ? (
+            <section aria-label="Your last step" className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Your last step</span>
+                <VerdictPill verdict={lastResult.result.verdict} />
+              </div>
+              <p className="mt-1 text-sm font-semibold text-slate-900">{lastResult.step.title}</p>
+              <p className="mt-0.5 text-sm text-slate-600">{lastResult.result.summary}</p>
+              {lastResult.experimentId ? (
+                <button onClick={() => navigate(`outcome/${lastResult.experimentId}`)} className="mt-1.5 text-xs font-medium text-brand-700 hover:underline">
+                  See the result
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+          <NextStepCard step={coachNext} facts={facts} heading={lastResult ? "Your next step" : "Your first step"} challengeId={focus?.id} />
+        </div>
+      ) : null}
+
       {/* First diagnosis + what the checkup established */}
       <section className="grid gap-4 lg:grid-cols-2" aria-label="Your diagnosis and checkup summary">
-        <Card className="border-violet-200 bg-violet-50/60 p-5">
+        {/* The diagnosis belongs to the challenge being worked on — none in focus, none shown. */}
+        {noFocus ? null : (
+        <Card className="border-brand-200 bg-brand-50/60 p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <Sparkles className="size-4 text-violet-600" aria-hidden />
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-              {improved ? "Your sharpened diagnosis" : "Your first diagnosis"}
+            <Sparkles className="size-4 text-brand-600" aria-hidden />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">
+              {improved ? "Your sharpened diagnosis" : focus && focus.source !== "onboarding" ? "Your diagnosis — working on now" : "Your first diagnosis"}
             </span>
             <ProvenanceBadge provenance="ai-interpretation" />
           </div>
@@ -248,19 +338,19 @@ export default function OwnerHome(_props: ScreenProps) {
                 <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{improved?.story ?? content.story}</p>
               )}
               {content.stake ? (
-                <div className="mt-3 rounded-xl bg-violet-700 px-4 py-3 text-white">
-                  <p className="text-xl font-bold tnum">{content.stake.figure}</p>
-                  <p className="text-xs text-violet-100">
+                <div className="mt-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3">
+                  <p className="text-xl font-bold text-brand-700 tnum">{content.stake.figure}</p>
+                  <p className="text-xs text-slate-700">
                     {content.stake.label}
                     {content.stake.detail ? ` — ${content.stake.detail.replace(/^If /, "if ")}` : ""}
                   </p>
                 </div>
               ) : null}
               {planSteps.length > 0 ? (
-                <div className="mt-3 rounded-xl border border-violet-200 bg-white px-4 py-3">
+                <div className="mt-3 rounded-xl border border-brand-200 bg-white px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                      <ListChecks className="size-4 text-violet-600" aria-hidden /> Your plan this week
+                      <ListChecks className="size-4 text-brand-600" aria-hidden /> Your plan this week
                     </p>
                     <span className="text-xs text-slate-500 tnum">
                       {planDone} of {planSteps.length} done
@@ -275,6 +365,10 @@ export default function OwnerHome(_props: ScreenProps) {
                   ) : (
                     <p className="mt-2 text-sm font-medium text-emerald-700">All done — add what happened to sharpen your diagnosis.</p>
                   )}
+                  <button type="button" onClick={() => navigate("diagnosis/what-to-do")} className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline">
+                    Tick them off — and the help written for you
+                    <ArrowRight className="size-3" aria-hidden />
+                  </button>
                 </div>
               ) : null}
               <p className="mt-3 flex items-center gap-1.5 text-xs text-emerald-800">
@@ -284,13 +378,13 @@ export default function OwnerHome(_props: ScreenProps) {
                   : "Every figure checked against your answers — nothing invented."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" className="bg-violet-600 hover:bg-violet-700" onClick={() => navigate("first-diagnosis")}>
+                <Button size="sm" className="bg-brand-600 hover:bg-brand-700" onClick={() => navigate("diagnosis")}>
                   <Eye className="mr-1.5 size-3.5" aria-hidden /> Open my diagnosis &amp; plan
                 </Button>
                 <Button size="sm" variant="outline" className="bg-white" onClick={() => navigate("ask")}>
                   <Sparkles className="mr-1.5 size-3.5" aria-hidden /> Ask about it
                 </Button>
-                <Button size="sm" variant="ghost" className="text-violet-700 hover:text-violet-800" onClick={() => navigate("first-diagnosis-evidence")}>
+                <Button size="sm" variant="ghost" className="text-brand-700 hover:text-brand-800" onClick={() => navigate("first-diagnosis-evidence")}>
                   <Search className="mr-1.5 size-3.5" aria-hidden /> See the evidence
                 </Button>
               </div>
@@ -301,18 +395,19 @@ export default function OwnerHome(_props: ScreenProps) {
               <p className="mt-1.5 text-sm text-muted-foreground">
                 Finish the checkup conversation and your first diagnosis will appear here, built only from what you told us.
               </p>
-              <Button size="sm" className="mt-3 bg-violet-600 hover:bg-violet-700" onClick={() => navigate("checkup-intro")}>
+              <Button size="sm" className="mt-3 bg-brand-600 hover:bg-brand-700" onClick={() => navigate("checkup-intro")}>
                 Start the checkup <ArrowRight className="ml-1 size-3.5" aria-hidden />
               </Button>
             </>
           )}
         </Card>
+        )}
 
         <Card className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Building2 className="size-4 text-blue-600" aria-hidden />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">What your checkup established</span>
+              <Building2 className="size-4 text-brand-600" aria-hidden />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">What your checkup established</span>
             </div>
             <ProvenanceBadge provenance="user-supplied" />
           </div>
@@ -407,7 +502,7 @@ export default function OwnerHome(_props: ScreenProps) {
                 <div>
                   <p className="text-sm font-semibold">No measured numbers yet — and that is stated plainly here.</p>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    bizzGrowth will not fill this space with sample figures. Your diagnosis still works from what you described —
+                    Nellovia will not fill this space with sample figures. Your diagnosis still works from what you described —
                     and it gets sharper the moment real numbers arrive. Pick whichever path suits you; all are optional.
                   </p>
                 </div>
@@ -434,7 +529,7 @@ export default function OwnerHome(_props: ScreenProps) {
             <Card className="flex flex-col justify-between p-4">
               <div>
                 <p className="flex items-center gap-1.5 text-sm font-semibold">
-                  <Target className="size-4 text-blue-600" aria-hidden /> Improve the diagnosis with channel counts
+                  <Target className="size-4 text-brand-600" aria-hidden /> Improve the diagnosis with channel counts
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Enter last month&apos;s enquiries and paying customers for each way people find you — we work out how many go on to pay from your own counts, so the
@@ -448,7 +543,7 @@ export default function OwnerHome(_props: ScreenProps) {
             <Card className="flex flex-col justify-between p-4">
               <div>
                 <p className="flex items-center gap-1.5 text-sm font-semibold">
-                  <Sparkles className="size-4 text-violet-600" aria-hidden /> Ask about your business
+                  <Sparkles className="size-4 text-brand-600" aria-hidden /> Ask about your business
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Ask anything — answers are grounded in your checkup facts and whatever numbers you have added, and they say

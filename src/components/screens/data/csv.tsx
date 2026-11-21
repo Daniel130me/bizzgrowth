@@ -105,10 +105,10 @@ function CsvUploadScreen() {
         }}
         className={cn(
           "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors",
-          dragging ? "border-blue-400 bg-blue-50/60" : "border-slate-300 bg-slate-50/60 hover:border-blue-300 hover:bg-blue-50/30"
+          dragging ? "border-brand-400 bg-brand-50/60" : "border-slate-300 bg-slate-50/60 hover:border-brand-300 hover:bg-brand-50/30"
         )}
       >
-        <div className="flex size-12 items-center justify-center rounded-full border bg-white text-blue-600 shadow-sm">
+        <div className="flex size-12 items-center justify-center rounded-full border bg-white text-brand-600 shadow-sm">
           <Upload className="size-5" aria-hidden />
         </div>
         <p className="mt-4 text-base font-semibold">Drop your CSV or Excel file here</p>
@@ -148,12 +148,12 @@ function CsvUploadScreen() {
         </ul>
       </Card>
 
-      <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-4 sm:flex-row">
+      <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50/60 p-4 sm:flex-row">
         <div>
-          <p className="text-sm font-medium text-violet-900">Reviewing the prototype?</p>
-          <p className="mt-0.5 text-sm text-violet-800/80">Skip the file picker and walk through the mapping flow with {fileName}.</p>
+          <p className="text-sm font-medium text-brand-900">Reviewing the prototype?</p>
+          <p className="mt-0.5 text-sm text-brand-800/80">Skip the file picker and walk through the mapping flow with {fileName}.</p>
         </div>
-        <Button onClick={() => navigate("csv-mapping")} className="shrink-0 bg-violet-600 hover:bg-violet-700">
+        <Button onClick={() => navigate("csv-mapping")} className="shrink-0 bg-brand-600 hover:bg-brand-700">
           Try with sample file
         </Button>
       </div>
@@ -361,7 +361,7 @@ function CsvReviewScreen() {
             <Badge key={f.csv} variant="outline" className="gap-1.5 font-normal">
               {f.csv}
               <span aria-hidden>→</span>
-              <span className={f.target === "Ignored" ? "text-muted-foreground" : "font-medium text-blue-700"}>{f.target}</span>
+              <span className={f.target === "Ignored" ? "text-muted-foreground" : "font-medium text-brand-700"}>{f.target}</span>
             </Badge>
           ))}
         </div>

@@ -116,7 +116,7 @@ export function SyncHealth(_props: ScreenProps) {
                         setSelected(row);
                       }
                     }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
                   >
                     <TableCell className="font-medium">{row.source}</TableCell>
                     <TableCell>{row.business}</TableCell>
@@ -169,9 +169,9 @@ export function SyncHealth(_props: ScreenProps) {
                 <p className="text-sm text-muted-foreground">No errors recorded for this connection.</p>
               )}
 
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Suggested fix</p>
-                <p className="mt-1 text-sm text-blue-900">{suggestedFix(selected)}</p>
+              <div className="rounded-lg border border-brand-200 bg-brand-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Suggested fix</p>
+                <p className="mt-1 text-sm text-brand-900">{suggestedFix(selected)}</p>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
@@ -180,13 +180,13 @@ export function SyncHealth(_props: ScreenProps) {
                     setSelected(null);
                     navigate("admin/businesses");
                   }}
-                  className="text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline"
                 >
                   Open business admin detail
                 </button>
                 <button
                   onClick={() => notify(selected)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                 >
                   <BellRing className="size-3.5" aria-hidden /> Notify business
                 </button>

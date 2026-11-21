@@ -57,8 +57,8 @@ export function GoalDetail({ params }: ScreenProps) {
           onHome={undefined}
         />
         {elsewhere && ownerName ? (
-          <div className="mx-auto max-w-md rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-center">
-            <p className="text-sm text-blue-900">
+          <div className="mx-auto max-w-md rounded-xl border border-brand-200 bg-brand-50/60 p-4 text-center">
+            <p className="text-sm text-brand-900">
               This goal lives in <strong>{ownerName}</strong> — a different demo workspace.
             </p>
             <Button
@@ -107,6 +107,7 @@ export function GoalDetail({ params }: ScreenProps) {
 
   const openEdit = () => {
     try {
+      // Same key as EDIT_PREFILL_KEY; the old "bizzgrowth-" prefix is kept on purpose.
       sessionStorage.setItem("bizzgrowth-edit-goal", goal.id);
     } catch {}
     toast("Editing prefills from goal", { description: "The form opens with this goal's current definition." });
@@ -256,10 +257,10 @@ export function GoalDetail({ params }: ScreenProps) {
         <SectionCard
           title="AI summary"
           action={<ProvenanceBadge provenance="ai-interpretation" source="Reasoning over monthly and channel data" />}
-          className="border-violet-200 bg-violet-50/40"
+          className="border-brand-200 bg-brand-50/40"
         >
           <div className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
             <p className="text-sm leading-6 text-slate-700">{goal.summary}</p>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">

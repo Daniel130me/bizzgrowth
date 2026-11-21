@@ -220,13 +220,13 @@ export function AlertDetail({ params }: ScreenProps) {
             <button
               type="button"
               onClick={() => navigate(`insights/${alert.relatedDiagnosisId}`)}
-              className="flex w-full items-start justify-between gap-3 rounded-xl border p-4 text-left transition-colors hover:border-violet-300 hover:bg-violet-50/40"
+              className="flex w-full items-start justify-between gap-3 rounded-xl border p-4 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/40"
             >
               <span>
                 <span className="block text-sm font-semibold">{related.title}</span>
                 <span className="mt-1 block text-sm text-muted-foreground">{related.summary}</span>
               </span>
-              <ArrowRight className="mt-1 size-4 shrink-0 text-violet-600" aria-hidden />
+              <ArrowRight className="mt-1 size-4 shrink-0 text-brand-600" aria-hidden />
             </button>
           </SectionCard>
         )}
@@ -234,7 +234,7 @@ export function AlertDetail({ params }: ScreenProps) {
         {/* Recommended response + actions */}
         <SectionCard
           title="Recommended response"
-          className="border-violet-200 bg-violet-50/40"
+          className="border-brand-200 bg-brand-50/40"
         >
           <p className="text-[15px] leading-relaxed">{alert.whatToDo}</p>
           <div className="mt-4 flex flex-wrap gap-2">

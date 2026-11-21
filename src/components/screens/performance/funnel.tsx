@@ -82,7 +82,7 @@ export default function FunnelPerformance(_props: ScreenProps) {
             <Button
               size="sm"
               variant="outline"
-              className="shrink-0 border-violet-300 bg-white text-violet-700 hover:bg-violet-100"
+              className="shrink-0 border-brand-300 bg-white text-brand-700 hover:bg-brand-100"
               onClick={() => navigate("insights/ins-kh-1")}
             >
               View diagnosis <ArrowRight className="ml-1 size-3.5" aria-hidden />

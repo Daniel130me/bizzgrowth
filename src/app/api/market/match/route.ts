@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { matchTask } from "@/lib/market";
+import { marketErrorResponse, requireMarketSession, requireWorkspace } from "@/lib/market-auth";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,8 @@ export const runtime = "nodejs";
  */
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireMarketSession(req, { mutation: true, action: "match", limit: 10 });
+    requireWorkspace(session);
     const body = await req.json().catch(() => null);
     const title = typeof body?.title === "string" ? body.title.trim().slice(0, 120) : "";
     const description = typeof body?.description === "string" ? body.description.trim().slice(0, 2000) : "";
@@ -26,7 +29,6 @@ export async function POST(req: NextRequest) {
     const result = await matchTask({ title, description, category, skills });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
-    console.error("[api/market/match] POST error:", error);
-    return NextResponse.json({ ok: false, error: "Matchmaking failed. You can still invite specialists manually." }, { status: 500 });
+    return marketErrorResponse(error, "match");
   }
 }

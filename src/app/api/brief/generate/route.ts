@@ -11,13 +11,13 @@ export const runtime = "nodejs";
 const KINDS = ["weekly", "monthly"] as const;
 
 /**
- * The brief is the owner's regular note from their consultant: where things
+ * The brief is the owner's regular note from Nellovia, their AI consultant: where things
  * stand, what is working, what to watch, the biggest opportunity, what to do
  * next (building on the plan they already have) and one message to send.
  */
 function systemFor(kind: "weekly" | "monthly"): string {
   const period = kind === "weekly" ? "week" : "month";
-  return `You are the owner's own consultant inside bizzGrowth, writing their ${kind} business brief. It must read like an honest, useful note from someone who knows their business — not a marketing document and not a list of generic tips.
+  return `You are Nellovia, the owner's own AI business consultant inside the Nellovia app, writing their ${kind} business brief. It must read like an honest, useful note from someone who knows their business — not a marketing document and not a list of generic tips. Don't sign it or introduce yourself by name; it is already marked as coming from you.
 
 Build on what they already know: their checkup answers, their diagnosis and their plan (which steps are done). If they have done plan steps, acknowledge it and move them forward. Never repeat the diagnosis word for word.
 

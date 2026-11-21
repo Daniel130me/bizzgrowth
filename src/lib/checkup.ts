@@ -1,5 +1,7 @@
-// Shared contract between the bizzGrowth AI backend (API routes) and client screens.
+// Shared contract between the Nellovia AI backend (API routes) and client screens.
 // Pure types + a tolerant JSON extractor — safe to import from both server and client.
+
+import type { DraftHint, NextStep } from "./coach";
 
 export type TrendDirection = "Increased" | "Decreased" | "About the same" | "Don't know";
 
@@ -46,6 +48,12 @@ export interface BusinessFacts {
   repeat?: string;
   /** What the owner thinks is causing the problem — their own observations and hunches. */
   ownerTheory?: string;
+  /**
+   * Other things holding the business back, in the owner's words (up to 3).
+   * Captured in the checkup with one question, never diagnosed there — each
+   * becomes a challenge of its own, taken one at a time.
+   */
+  otherChallenges?: string[];
   chips: string[];
   facts: CheckupFact[];
   confidence: number;
@@ -55,7 +63,7 @@ export interface DiagnosisDelta {
   label: string;
   /**
    * Real measured percent change. null when no measured figure exists —
-   * bizzGrowth NEVER invents a number the owner did not give.
+   * Nellovia NEVER invents a number the owner did not give.
    */
   delta: number | null;
   /** Self-reported direction, used when delta is null. */
@@ -121,6 +129,10 @@ export interface DiagnosisContent {
   tools?: DiagnosisTool[];
   /** True when every figure in the diagnosis was traced to the owner's own answers (grounding check). */
   checked?: boolean;
+  /** The ONE thing to do next — an experiment or a recommendation the owner can accept. */
+  nextStep?: NextStep;
+  /** What the latest check-in taught us, shown on top of the diagnosis. */
+  update?: { at: string; note: string };
 }
 
 export type FocusStage = "found" | "enquire" | "convert" | "deliver" | "return";
@@ -168,12 +180,16 @@ export interface AskAnswerContent {
   limitations?: string[];
   evidence: AskEvidenceItem[];
   referencedPeriod: string;
-  /** Ready-to-use words when the question calls for them (a message, what to say). */
+  /** Ready-to-use words (older answers only — new answers offer a draft button instead). */
   tryThis?: { title: string; body: string } | null;
+  /** Words the app can write for this answer, on request. */
+  draft?: DraftHint | null;
   /** 2-3 natural next questions the owner might ask. */
   followUps?: string[];
   /** True when every figure in the answer was traced to the workspace data (grounding check). */
   verified?: boolean;
+  /** A new problem the question described — offered as a challenge to add, in one tap. */
+  newChallenge?: NoticedChallenge | null;
 }
 
 /**
@@ -197,6 +213,22 @@ export interface BusinessContextPayload {
   } | null;
   /** Owner-entered monthly totals, oldest first. */
   months?: { label: string; revenue?: number; enquiries?: number; customers?: number }[];
+  /** The step they are trying right now, and what earlier check-ins taught us. */
+  coaching?: {
+    active?: { title: string; kind: string; day: number; days: number; measure?: string; baseline?: string; nextCheckIn?: string } | null;
+    learnings?: string[];
+  } | null;
+  /** Their list of challenges (one worked on at a time), so answers can connect to it. */
+  challenges?: { id: string; title: string; status: string; stage: string; note?: string }[] | null;
+}
+
+/** A new problem the owner described (in Ask or a check-in) that is not on their list yet. */
+export interface NoticedChallenge {
+  title: string;
+  stage: string;
+  /** An open challenge it is probably the same problem as. */
+  sameAs: string | null;
+  why?: string;
 }
 
 /** Workspace snapshot sent to the Ask endpoint so answers stay grounded. */
@@ -266,7 +298,8 @@ export type SlotKey =
   | "capacity"
   | "proof"
   | "repeat"
-  | "ownerTheory";
+  | "ownerTheory"
+  | "otherChallenges";
 
 export const SLOT_KEYS: SlotKey[] = [
   "businessType",
@@ -290,6 +323,7 @@ export const SLOT_KEYS: SlotKey[] = [
   "proof",
   "repeat",
   "ownerTheory",
+  "otherChallenges",
 ];
 
 /**
@@ -368,6 +402,8 @@ export const ASK_CAP: Record<SlotKey, number> = {
   proof: 1,
   repeat: 1,
   ownerTheory: 1,
+  // Asked once; a second time only if they asked something back instead of answering.
+  otherChallenges: 2,
 };
 
 export const SLOT_LABELS: Record<SlotKey, string> = {
@@ -392,6 +428,7 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
   proof: "Whether new people see past work or results before hearing the price",
   repeat: "Whether past customers come back or order again, or it is mostly one-off work",
   ownerTheory: "What the owner thinks is causing the problem — their own observations, checks or hunches",
+  otherChallenges: "Anything else holding the business back — up to 3, in their words (recorded only, never followed up here)",
 };
 
 /** What the engine currently understands about the business. Updated every turn. */
@@ -417,6 +454,8 @@ export interface CheckupSlots {
   proof?: string;
   repeat?: string;
   ownerTheory?: string;
+  /** Other things holding the business back (an empty list = "no, that's the main one"). */
+  otherChallenges?: string[];
   /** The slot the last question asked about — lets the next turn read a short reply in context. */
   pending?: SlotKey;
   /** Slots the owner declined to answer — accepted gaps, never fabricated. */

@@ -19,7 +19,8 @@ import { useBizz } from "@/lib/store";
 import type { ScreenProps } from "../view-types";
 import { guessCategory } from "../market/parts";
 import { BackLink, IMPORTANCE_LABEL, INSIGHT_TYPE_META, evidenceWithFacts, metricSlugFor } from "./parts";
-import { TryThisBox } from "@/components/shared/try-this";
+import { DraftButton, TryThisBox } from "@/components/shared/try-this";
+import { InsightNextMove } from "./insight-next-move";
 
 export function InsightDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
@@ -30,15 +31,18 @@ export function InsightDetail({ params }: ScreenProps) {
 
   // AI-generated insights live in the store; curated ones in the dataset.
   const insight = aiInsights.find((i) => i.id === params.id) ?? insightById(params.id);
+  // The owner's insights open from their diagnosis page ("More worth knowing").
+  const back = businessId === "user-workspace" ? { label: "Back to your diagnosis", route: "diagnosis/more" } : { label: "Back to insights", route: "insights" };
+  const ownInsight = businessId === "user-workspace" && aiInsights.some((i) => i.id === params.id);
 
   if (!insight) {
     return (
       <div className="mx-auto max-w-2xl py-10">
-        <BackLink label="Back to insights" onClick={() => navigate("insights")} />
+        <BackLink label={back.label} onClick={() => navigate(back.route)} />
         <ErrorState
           title="Diagnosis not found"
           description="This insight is not available. It may belong to another workspace or has been archived as newer conclusions replaced it."
-          onRetry={() => navigate("insights")}
+          onRetry={() => navigate(back.route)}
           onHome={() => navigate("home")}
         />
       </div>
@@ -79,7 +83,7 @@ export function InsightDetail({ params }: ScreenProps) {
 
   return (
     <div>
-      <BackLink label="Back to insights" onClick={() => navigate("insights")} />
+      <BackLink label={back.label} onClick={() => navigate(back.route)} />
 
       <IntelligenceDetail
         eyebrow={meta.eyebrow}
@@ -104,7 +108,7 @@ export function InsightDetail({ params }: ScreenProps) {
           <ul className="space-y-2.5">
             {insight.known.map((k, i) => (
               <li key={i} className="flex items-start gap-2.5 text-sm">
-                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-600" aria-hidden />
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand-600" aria-hidden />
                 <span>{k}</span>
               </li>
             ))}
@@ -203,11 +207,21 @@ export function InsightDetail({ params }: ScreenProps) {
         <SectionCard
           title="Recommended next action"
           description={rec ? "Linked to a prepared recommendation in the Action Centre." : "No prepared recommendation yet — you can set the action up from this insight."}
-          action={<Sparkles className="size-4 text-violet-600" aria-hidden />}
-          className="border-violet-200 bg-violet-50/40"
+          action={<Sparkles className="size-4 text-brand-600" aria-hidden />}
+          className="border-brand-200 bg-brand-50/40"
         >
           <p className="text-[15px] leading-relaxed">{insight.recommendedAction}</p>
-          {insight.tryThis ? (
+          {/* The owner's own insight: one move that feeds their plan or challenges. */}
+          {ownInsight ? (
+            <div className="mt-4">
+              <InsightNextMove insight={insight} />
+            </div>
+          ) : null}
+          {insight.draft ? (
+            <div className="mt-4 flex">
+              <DraftButton hint={insight.draft} />
+            </div>
+          ) : insight.tryThis ? (
             <div className="mt-4">
               <TryThisBox title={insight.tryThis.title} body={insight.tryThis.body} />
             </div>
@@ -249,7 +263,7 @@ export function InsightDetail({ params }: ScreenProps) {
           <button
             type="button"
             onClick={openRelatedMetric}
-            className="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium transition-colors hover:border-blue-300 hover:bg-blue-50/50"
+            className="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium transition-colors hover:border-brand-300 hover:bg-brand-50/50"
           >
             {insight.primaryMetric}
             <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />

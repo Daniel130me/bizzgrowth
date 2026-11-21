@@ -8,6 +8,11 @@ host-key-verified SSH.
 No DigitalOcean resource is created by this repository. Create and harden the
 Droplet separately, then follow this guide.
 
+> **Naming:** the product is now called Nellovia. The paths, Docker volumes,
+> compose project and other deployment names below keep the original
+> `bizzgrowth` name on purpose, so existing deployments keep working. Do not
+> rename them as part of the product rename.
+
 ## 1. Prepare the host
 
 The current target is a Basic Droplet with 1 regular vCPU, 512 MB RAM, 10 GB

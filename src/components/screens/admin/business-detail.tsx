@@ -156,7 +156,7 @@ export function BusinessAdminDetail({ params }: ScreenProps) {
             action={
               <button
                 onClick={() => navigate("admin/sync-health")}
-                className="text-xs font-medium text-blue-600 underline-offset-2 hover:underline"
+                className="text-xs font-medium text-brand-600 underline-offset-2 hover:underline"
               >
                 View sync health
               </button>
@@ -205,7 +205,7 @@ export function BusinessAdminDetail({ params }: ScreenProps) {
                   <span>Overall data coverage</span>
                   <span className="font-medium tabular-nums text-slate-700">{business.coverage}%</span>
                 </p>
-                <MiniProgress value={business.coverage} barClassName={business.coverage >= 60 ? "bg-emerald-500" : business.coverage >= 30 ? "bg-blue-600" : "bg-amber-500"} className="[&>span]:hidden" />
+                <MiniProgress value={business.coverage} barClassName={business.coverage >= 60 ? "bg-emerald-500" : business.coverage >= 30 ? "bg-brand-600" : "bg-amber-500"} className="[&>span]:hidden" />
               </div>
               {coverageBreakdown(business.coverage, business.type).map((row) => (
                 <div key={row.label}>
@@ -226,7 +226,7 @@ export function BusinessAdminDetail({ params }: ScreenProps) {
           title="Recent diagnoses"
           description="Latest AI diagnoses generated for this workspace."
           action={
-            <button onClick={() => navigate("admin/ai-audit")} className="text-xs font-medium text-blue-600 underline-offset-2 hover:underline">
+            <button onClick={() => navigate("admin/ai-audit")} className="text-xs font-medium text-brand-600 underline-offset-2 hover:underline">
               Open AI audit
             </button>
           }
@@ -266,7 +266,7 @@ export function BusinessAdminDetail({ params }: ScreenProps) {
             <ul className="space-y-2">
               {recommendations.map((r, i) => (
                 <li key={i} className="flex items-start gap-2.5 rounded-lg border bg-white p-3">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                     <Sparkles className="size-3" aria-hidden />
                   </span>
                   <p className="text-sm leading-snug">{r}</p>

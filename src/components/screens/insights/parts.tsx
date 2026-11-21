@@ -10,7 +10,7 @@ import { AlertTriangle, ArrowLeft, CircleAlert, Info, Lightbulb } from "lucide-r
 // ---------- Insight type presentation ----------
 
 export const INSIGHT_TYPE_META = {
-  problem: { eyebrow: "Problem diagnosis", text: "text-violet-600", chip: "bg-violet-100 text-violet-700" },
+  problem: { eyebrow: "Problem diagnosis", text: "text-brand-600", chip: "bg-brand-100 text-brand-700" },
   opportunity: { eyebrow: "Opportunity", text: "text-amber-600", chip: "bg-amber-100 text-amber-700" },
   improvement: { eyebrow: "Improvement detected", text: "text-emerald-600", chip: "bg-emerald-100 text-emerald-700" },
   watch: { eyebrow: "Watch signal", text: "text-slate-500", chip: "bg-slate-200/70 text-slate-600" },
@@ -95,7 +95,7 @@ export function severityAccent(severity: AlertItem["severity"]): {
       return { border: "border-l-amber-500", label: "text-amber-700", bg: "bg-amber-50/50", icon: <Lightbulb className="size-3.5" aria-hidden /> };
     case "info":
     default:
-      return { border: "border-l-blue-500", label: "text-blue-700", bg: "bg-blue-50/50", icon: <Info className="size-3.5" aria-hidden /> };
+      return { border: "border-l-brand-500", label: "text-brand-700", bg: "bg-brand-50/50", icon: <Info className="size-3.5" aria-hidden /> };
   }
 }
 

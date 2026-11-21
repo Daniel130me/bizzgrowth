@@ -27,6 +27,7 @@ import {
 import { shorten, tidyOwnerText } from "@/lib/checkup-math";
 import { cn } from "@/lib/utils";
 import { chatDraftKey, clearDraft, fetchResumableChat, getClientId, loadDraft, newChatId, saveDraft, syncChat, workspaceKey, type ChatLogMessage, type StoredConversation } from "@/lib/chat-log";
+import { NONE_CHIP } from "@/lib/challenges";
 import type { ScreenProps } from "../view-types";
 
 type LearnStatus = "done" | "active" | "pending";
@@ -94,12 +95,13 @@ const INTRO_CHIPS = [
   ["We are a small delivery business in Port Harcourt — customers call us or are referred.", "I sell baked goods from home; people order on WhatsApp or by phone."],
 ];
 
+// The first message introduces the consultant by name — Nellovia, an AI — once.
 const OPENERS = [
-  "Hi, and welcome! I'd love to hear about your business — what do you do, and what would you most like to improve?",
-  "Hello! Let's keep this relaxed. To start, what does your business do, and what's one thing you'd love to get better at?",
-  "Welcome — thanks for taking a few minutes. Tell me a little about your business: what you offer and who you serve.",
-  "Hi there! I'm here to understand your business so I can help. What do you do, and what part of the business feels hardest right now?",
-  "Great to meet you. In your own words, what does your business do — and if you could fix one thing this month, what would it be?",
+  "Hi, and welcome! I'm Nellovia, an AI business consultant. I'd love to hear about your business — what do you do, and what would you most like to improve?",
+  "Hello, I'm Nellovia, an AI consultant for small businesses. Let's keep this relaxed. To start, what does your business do, and what's one thing you'd love to get better at?",
+  "Welcome — I'm Nellovia, an AI business consultant. Thanks for taking a few minutes. Tell me a little about your business: what you offer and who you serve.",
+  "Hi there! I'm Nellovia, an AI consultant, and I'm here to understand your business so I can help. What do you do, and what part of the business feels hardest right now?",
+  "Great to meet you — I'm Nellovia, your AI business consultant. In your own words, what does your business do — and if you could fix one thing this month, what would it be?",
 ];
 
 /** Client-side regex extraction — offline fallback only, never the primary path. */
@@ -127,13 +129,14 @@ const LEARN_LABELS: Partial<Record<SlotKey, string>> = {
   ownerTheory: "What you think is causing it",
   closeRate: "How many go on to pay",
   monthlyEnquiries: "People asking each month",
-  jobValue: "A typical job",
+  jobValue: "A typical job or order",
   followUp: "Getting back to people",
   pricePresentation: "How you give your price",
   lostReason: "When people don't buy",
-  proof: "Past work people see",
+  proof: "What people see before the price",
   repeat: "Customers coming back",
   capacity: "Room for more work",
+  otherChallenges: "Anything else holding you back",
 };
 
 /** Hard cap on owner replies — matches the server; depth beats speed. */
@@ -148,6 +151,7 @@ const CHIP_SLOT: Record<string, SlotKey> = {
   "how many pay": "closeRate",
   "people asking a month": "monthlyEnquiries",
   "typical job": "jobValue",
+  "typical order": "jobValue",
   "getting back to people": "followUp",
   "how you give prices": "pricePresentation",
   "when people don't buy": "lostReason",
@@ -155,6 +159,7 @@ const CHIP_SLOT: Record<string, SlotKey> = {
   "room for more work": "capacity",
   "customers coming back": "repeat",
   "your view": "ownerTheory",
+  also: "otherChallenges",
 };
 
 /** The model's short summaries of each answer, rebuilt from the chips on its replies. */
@@ -187,6 +192,8 @@ export default function OnboardingChat(_props: ScreenProps) {
   const [slowReply, setSlowReply] = useState(false);
   const [input, setInput] = useState("");
   const [finishing, setFinishing] = useState(false);
+  // "Anything else holding you back?" — tap any that apply, then send them together.
+  const [picked, setPicked] = useState<string[]>([]);
   const started = useRef(false);
   const idRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -271,6 +278,7 @@ export default function OnboardingChat(_props: ScreenProps) {
       proof: slots.proof,
       repeat: slots.repeat,
       ownerTheory: slots.ownerTheory,
+      otherChallenges: slots.otherChallenges,
       chips,
       facts: [
         { section: "Business", value: `${userWorkspace?.name ?? "Your business"} — described in your checkup conversation`, provenance: "user-supplied", source: "Workspace setup" },
@@ -352,7 +360,6 @@ export default function OnboardingChat(_props: ScreenProps) {
       // Unmounted before the lookup finished: let a remount start again.
       if (!settled) started.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated]);
 
   // Keep the draft in the browser and the conversation on the server.
@@ -411,7 +418,6 @@ export default function OnboardingChat(_props: ScreenProps) {
       startedAt: startedAtRef.current,
       messages: logged,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, chips, phase, slots]);
 
   /** Throw away the saved conversation and start a fresh one. */
@@ -524,6 +530,7 @@ export default function OnboardingChat(_props: ScreenProps) {
   function send(raw?: string) {
     const text = (raw ?? input).trim();
     if (!text || typing || busyRef.current || finishing || phaseRef.current === "done") return;
+    setPicked([]);
     transcriptRef.current.push({ role: "user", text });
     setMessages((m) => [...m, { id: nextId(), role: "user", text, at: stamp() }]);
     setInput("");
@@ -535,6 +542,8 @@ export default function OnboardingChat(_props: ScreenProps) {
   // so far make them relevant.
   const summaries = summariesFrom(messages);
   const valueOf = (key: SlotKey): string | null => {
+    // Their own words, all of them (a chip summary would show only one).
+    if (key === "otherChallenges" && Array.isArray(slots.otherChallenges)) return slots.otherChallenges.length ? slots.otherChallenges.join("; ") : "Just the main one";
     const v = slots[key as keyof CheckupSlots];
     const raw = Array.isArray(v) ? (v.length ? v.join(", ") : null) : typeof v === "string" && v.length > 0 && v !== "Don't know" ? v : null;
     if (!raw) return null;
@@ -542,7 +551,8 @@ export default function OnboardingChat(_props: ScreenProps) {
     return summaries[key] ?? tidyOwnerText(raw);
   };
   const panelKeys: SlotKey[] = [
-    ...REQUIRED_SLOTS,
+    // "Anything else holding you back?" shows once the main problem is known.
+    ...REQUIRED_SLOTS.flatMap((k): SlotKey[] => (k === "ownerTheory" && slots.bottleneck ? [k, "otherChallenges"] : [k])),
     ...(slots.bottleneck ? depthSlotsFor(slots).filter((k) => !REQUIRED_SLOTS.includes(k)) : []),
   ];
   const LEARN: { key: SlotKey; label: string; value: string | null; status: LearnStatus }[] = panelKeys.map((key) => {
@@ -559,11 +569,11 @@ export default function OnboardingChat(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <div className="overflow-clip rounded-2xl border border-violet-200 bg-white shadow-sm">
+      <div className="overflow-clip rounded-2xl border border-brand-200 bg-white shadow-sm">
         {/* Product context header — this is a product surface, not a chat clone */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-violet-100 bg-violet-50/70 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-100 bg-brand-50/70 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-violet-600 text-white">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-brand-600 text-white">
               <Sparkles className="size-4.5" aria-hidden />
             </span>
             <div>
@@ -577,12 +587,12 @@ export default function OnboardingChat(_props: ScreenProps) {
                 type="button"
                 onClick={startOver}
                 disabled={typing || finishing}
-                className="rounded-md px-2 py-1 text-[11px] font-medium text-violet-700 underline-offset-2 hover:underline disabled:opacity-50"
+                className="rounded-md px-2 py-1 text-[11px] font-medium text-brand-700 underline-offset-2 hover:underline disabled:opacity-50"
               >
                 Start over
               </button>
             ) : null}
-            <p className="flex items-center gap-1.5 rounded-md border border-violet-200 bg-white px-2 py-1 text-[11px] font-medium text-violet-700">
+            <p className="flex items-center gap-1.5 rounded-md border border-brand-200 bg-white px-2 py-1 text-[11px] font-medium text-brand-700">
               <Lock className="size-3" aria-hidden />
               Private checkup — saved so you can pick up later
             </p>
@@ -590,14 +600,14 @@ export default function OnboardingChat(_props: ScreenProps) {
         </div>
 
         {/* Compact progress strip — small screens only, where the side panel is hidden */}
-        <div className="flex items-center gap-3 border-b border-violet-100 px-4 py-2 md:hidden">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-violet-100">
+        <div className="flex items-center gap-3 border-b border-brand-100 px-4 py-2 md:hidden">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-brand-100">
             <div
-              className="h-full rounded-full bg-violet-600 transition-all"
+              className="h-full rounded-full bg-brand-600 transition-all"
               style={{ width: `${Math.round((learnedCount / Math.max(1, LEARN.length)) * 100)}%` }}
             />
           </div>
-          <span className="text-[11px] font-medium text-violet-700">
+          <span className="text-[11px] font-medium text-brand-700">
             {learnedCount}/{LEARN.length} understood
           </span>
         </div>
@@ -614,7 +624,7 @@ export default function OnboardingChat(_props: ScreenProps) {
               {messages.map((m) =>
                 m.role === "ai" ? (
                   <div key={m.id} className="flex items-start gap-2.5">
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                       <Sparkles className="size-3.5" aria-hidden />
                     </span>
                     <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed shadow-sm">
@@ -626,11 +636,11 @@ export default function OnboardingChat(_props: ScreenProps) {
                         </p>
                       ) : null}
                       {m.learned && m.learned.length > 0 ? (
-                        <div className="mt-2 border-t border-dashed border-violet-100 pt-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-500">Understood as</p>
+                        <div className="mt-2 border-t border-dashed border-brand-100 pt-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">Understood as</p>
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {m.learned.map((c) => (
-                              <span key={c} className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                              <span key={c} className="rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700">
                                 {c}
                               </span>
                             ))}
@@ -638,7 +648,7 @@ export default function OnboardingChat(_props: ScreenProps) {
                         </div>
                       ) : null}
                       {m.cta ? (
-                        <Button size="sm" className="mt-2.5 w-full bg-violet-600 hover:bg-violet-700 sm:w-auto" onClick={() => navigate("first-diagnosis")}>
+                        <Button size="sm" className="mt-2.5 w-full bg-brand-600 hover:bg-brand-700 sm:w-auto" onClick={() => navigate("first-diagnosis")}>
                           See my diagnosis
                           <ArrowRight className="size-4" aria-hidden />
                         </Button>
@@ -654,14 +664,14 @@ export default function OnboardingChat(_props: ScreenProps) {
                 ),
               )}
               {typing ? (
-                <div className="flex items-start gap-2.5" role="status" aria-label="bizzGrowth is typing">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                <div className="flex items-start gap-2.5" role="status" aria-label="Nellovia is writing">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                     <Sparkles className="size-3.5" aria-hidden />
                   </span>
                   <div className="flex items-center gap-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                    <span className="size-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:0ms]" />
-                    <span className="size-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:150ms]" />
-                    <span className="size-1.5 animate-bounce rounded-full bg-violet-400 [animation-delay:300ms]" />
+                    <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:0ms]" />
+                    <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:150ms]" />
+                    <span className="size-1.5 animate-bounce rounded-full bg-brand-400 [animation-delay:300ms]" />
                     {finishing ? (
                       <span className="ml-2 text-xs text-slate-500">Pulling together everything you told me…</span>
                     ) : slowReply ? (
@@ -673,17 +683,57 @@ export default function OnboardingChat(_props: ScreenProps) {
             </div>
 
             {/* Quick answers + composer — sticky so it is always in view */}
-            <div className="sticky bottom-0 z-10 border-t border-violet-100 bg-white/95 p-3 shadow-[0_-6px_16px_-10px_rgba(76,29,149,0.25)] backdrop-blur sm:p-4">
-              {chips.length > 0 && !typing && phase !== "done" ? (
+            <div className="sticky bottom-0 z-10 border-t border-brand-100 bg-white/95 p-3 shadow-[0_-6px_16px_-10px_rgba(0,62,103,0.2)] backdrop-blur sm:p-4">
+              {chips.length > 0 && !typing && phase !== "done" && slots.pending === "otherChallenges" ? (
+                // Several can apply: tap any (up to 3), then send them together — or "No, that's the main one".
                 <div className="mb-3">
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-violet-600">Tap an answer — or type your own</p>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">Tap any that apply — or type your own</p>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Other things holding the business back">
+                    {chips.map((c) =>
+                      c === NONE_CHIP ? (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => send(c)}
+                          className="rounded-full border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+                        >
+                          {c}
+                        </button>
+                      ) : (
+                        <button
+                          key={c}
+                          type="button"
+                          aria-pressed={picked.includes(c)}
+                          disabled={!picked.includes(c) && picked.length >= 3}
+                          onClick={() => setPicked((p) => (p.includes(c) ? p.filter((x) => x !== c) : [...p, c].slice(0, 3)))}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 disabled:opacity-50",
+                            picked.includes(c) ? "border-brand-600 bg-brand-600 text-white" : "border-brand-200 bg-brand-50 text-brand-800 hover:border-brand-400 hover:bg-brand-100",
+                          )}
+                        >
+                          {picked.includes(c) ? <CheckCircle2 className="size-3.5" aria-hidden /> : null}
+                          {c}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  {picked.length > 0 ? (
+                    <Button type="button" size="sm" className="mt-2.5 bg-brand-600 hover:bg-brand-700" onClick={() => send(picked.join("; "))}>
+                      {picked.length === 1 ? "Send this one" : `Send these ${picked.length}`}
+                      <ArrowRight className="size-4" aria-hidden />
+                    </Button>
+                  ) : null}
+                </div>
+              ) : chips.length > 0 && !typing && phase !== "done" ? (
+                <div className="mb-3">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-600">Tap an answer — or type your own</p>
                   <div className="flex flex-wrap gap-2" aria-label="Suggested answers">
                     {chips.map((c) => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => send(c)}
-                        className="rounded-full border border-violet-200 bg-violet-50 px-3.5 py-2 text-sm font-medium text-violet-800 transition-colors hover:border-violet-400 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                        className="rounded-full border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-800 transition-colors hover:border-brand-400 hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                       >
                         {c.length > 46 ? c.slice(0, 46) + "…" : c}
                       </button>
@@ -705,9 +755,9 @@ export default function OnboardingChat(_props: ScreenProps) {
                   placeholder={phase === "done" ? "Conversation complete — continue below" : "Type your answer in plain language…"}
                   disabled={typing || phase === "done"}
                   aria-label="Your answer"
-                  className="h-11 border-violet-200 bg-white text-base focus-visible:ring-violet-400"
+                  className="h-11 border-brand-200 bg-white text-base focus-visible:ring-brand-600"
                 />
-                <Button type="submit" size="icon" className="size-11 shrink-0 bg-violet-600 hover:bg-violet-700" disabled={typing || phase === "done" || !input.trim()} aria-label="Send answer">
+                <Button type="submit" size="icon" className="size-11 shrink-0 bg-brand-600 hover:bg-brand-700" disabled={typing || phase === "done" || !input.trim()} aria-label="Send answer">
                   <SendHorizontal className="size-4" aria-hidden />
                 </Button>
               </form>
@@ -718,15 +768,15 @@ export default function OnboardingChat(_props: ScreenProps) {
           </div>
 
           {/* Side panel — what the engine is learning */}
-          <aside className="hidden border-l border-violet-100 bg-violet-50/40 p-4 sm:p-5 md:block" aria-label="What I've learned so far">
+          <aside className="hidden border-l border-brand-100 bg-brand-50/40 p-4 sm:p-5 md:block" aria-label="What I've learned so far">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-sm font-semibold">What I&apos;ve learned</h2>
-              <span className="text-[11px] font-medium text-violet-700 tnum">
+              <span className="text-[11px] font-medium text-brand-700 tnum">
                 {learnedCount}/{LEARN.length}
               </span>
             </div>
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-violet-100" aria-hidden>
-              <div className="h-full rounded-full bg-violet-600 transition-all duration-500" style={{ width: `${Math.round((learnedCount / Math.max(1, LEARN.length)) * 100)}%` }} />
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-brand-100" aria-hidden>
+              <div className="h-full rounded-full bg-brand-600 transition-all duration-500" style={{ width: `${Math.round((learnedCount / Math.max(1, LEARN.length)) * 100)}%` }} />
             </div>
             <ul className="mt-4 max-h-[22rem] space-y-2.5 overflow-y-auto pr-1">
               {LEARN.map((item) => (
@@ -736,9 +786,9 @@ export default function OnboardingChat(_props: ScreenProps) {
                   ) : item.status === "active" ? (
                     <span className="mt-1 flex size-4 shrink-0 items-center justify-center" role="img" aria-label="Asking now">
                       <span className="flex gap-0.5">
-                        <span className="size-1 animate-bounce rounded-full bg-violet-500 [animation-delay:0ms]" />
-                        <span className="size-1 animate-bounce rounded-full bg-violet-500 [animation-delay:150ms]" />
-                        <span className="size-1 animate-bounce rounded-full bg-violet-500 [animation-delay:300ms]" />
+                        <span className="size-1 animate-bounce rounded-full bg-brand-500 [animation-delay:0ms]" />
+                        <span className="size-1 animate-bounce rounded-full bg-brand-500 [animation-delay:150ms]" />
+                        <span className="size-1 animate-bounce rounded-full bg-brand-500 [animation-delay:300ms]" />
                       </span>
                     </span>
                   ) : (
@@ -751,8 +801,8 @@ export default function OnboardingChat(_props: ScreenProps) {
                 </li>
               ))}
             </ul>
-            <div className="mt-5 rounded-lg border border-violet-100 bg-white p-3">
-              <p className="text-[11px] font-semibold text-violet-800">Why all the questions?</p>
+            <div className="mt-5 rounded-lg border border-brand-100 bg-white p-3">
+              <p className="text-[11px] font-semibold text-brand-800">Why all the questions?</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                 Each answer makes your diagnosis more specific to you — and lets us work out what fixing the problem is worth, using your own numbers. Rough guesses are fine, and you can skip anything.
               </p>

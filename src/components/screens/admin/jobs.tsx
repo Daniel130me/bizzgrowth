@@ -82,7 +82,7 @@ export function JobsView(_props: ScreenProps) {
                     setQuery("");
                     setStatusFilter("all");
                   }}
-                  className="text-sm font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline"
                 >
                   Reset filters
                 </button>
@@ -117,7 +117,7 @@ export function JobsView(_props: ScreenProps) {
                               onClick={() => setExpanded(isOpen ? null : job.id)}
                               aria-expanded={isOpen}
                               aria-label={isOpen ? `Hide detail for ${job.job}` : `Show detail for ${job.job}`}
-                              className="flex size-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                              className="flex size-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                             >
                               {isOpen ? <ChevronDown className="size-4" aria-hidden /> : <ChevronRight className="size-4" aria-hidden />}
                             </button>
@@ -148,7 +148,7 @@ export function JobsView(_props: ScreenProps) {
                             <button
                               onClick={() => retry(job.job)}
                               aria-label={`Retry ${job.job}`}
-                              className="inline-flex h-8 items-center gap-1.5 rounded-lg border bg-white px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                              className="inline-flex h-8 items-center gap-1.5 rounded-lg border bg-white px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                             >
                               <RotateCcw className="size-3.5" aria-hidden /> Retry
                             </button>
@@ -183,7 +183,7 @@ export function JobsView(_props: ScreenProps) {
 
       <p className="mt-4 text-xs text-muted-foreground">
         Failed connection jobs also appear in{" "}
-        <button onClick={() => navigate("admin/sync-health")} className="font-medium text-blue-600 underline-offset-2 hover:underline">
+        <button onClick={() => navigate("admin/sync-health")} className="font-medium text-brand-600 underline-offset-2 hover:underline">
           Sync health
         </button>
         . Import validation errors surface to the workspace owner in their import result screen.

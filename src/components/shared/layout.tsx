@@ -122,7 +122,7 @@ export function IntelligenceDetail({
 }) {
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <p className={cn("text-xs font-semibold uppercase tracking-wide", eyebrowClass ?? "text-violet-600")}>{eyebrow}</p>
+      <p className={cn("text-xs font-semibold uppercase tracking-wide", eyebrowClass ?? "text-brand-600")}>{eyebrow}</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight">{title}</h1>
       {meta ? <div className="mt-2 flex flex-wrap items-center gap-2">{meta}</div> : null}
       {actions ? <div className="mt-4 flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -143,11 +143,11 @@ export function InfoBanner({
   action?: React.ReactNode;
 }) {
   const cls = {
-    info: "border-blue-200 bg-blue-50 text-blue-900",
+    info: "border-slate-200 bg-slate-50 text-slate-900",
     warning: "border-amber-200 bg-amber-50 text-amber-900",
     danger: "border-red-200 bg-red-50 text-red-900",
     success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    ai: "border-violet-200 bg-violet-50 text-violet-900",
+    ai: "border-brand-200 bg-brand-50 text-brand-900",
   }[tone];
   return (
     <div className={cn("flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between", cls)}>

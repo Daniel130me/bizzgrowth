@@ -47,7 +47,7 @@ export function PlanSettings() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold">{plan}</h2>
-              <Badge variant="outline" className="bg-violet-50 font-normal text-violet-700 border-violet-200">
+              <Badge variant="outline" className="bg-brand-50 font-normal text-brand-700 border-brand-200">
                 Full platform access
               </Badge>
             </div>
@@ -109,7 +109,7 @@ export function PlanSettings() {
               <li>Priority email support</li>
             </ul>
           </div>
-          <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+          <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-4">
             <div className="flex items-baseline justify-between">
               <h3 className="text-sm font-semibold">Team</h3>
               <p className="text-sm tnum">

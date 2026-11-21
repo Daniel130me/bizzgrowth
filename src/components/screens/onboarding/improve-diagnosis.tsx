@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBizz } from "@/lib/store";
 import type { ImprovedDiagnosis } from "@/lib/checkup";
+import { diagnosisBaseOf, diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import type { ScreenProps } from "../view-types";
 
 const FALLBACK_CHANNELS = [
@@ -126,18 +127,19 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
       });
     } finally {
       setSaving(false);
-      navigate("first-diagnosis");
+      // Back to the diagnosis it came from, on Summary: the sharpened headline comes first.
+      navigate(diagnosisBaseOf(diagnosisReturnRoute("diagnosis")));
     }
   }
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <Button variant="ghost" size="sm" className="-ml-2 mb-4 text-slate-500" onClick={() => navigate("first-diagnosis")}>
+      <Button variant="ghost" size="sm" className="-ml-2 mb-4 text-slate-500" onClick={() => navigate(diagnosisReturnRoute("diagnosis"))}>
         <ArrowLeft className="size-4" aria-hidden />
         Back to diagnosis
       </Button>
 
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">First diagnosis</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">First diagnosis</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">Improve my diagnosis</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         The diagnosis is useful already. Each option below sharpens it — pick whichever suits you, or continue for now.
@@ -150,9 +152,9 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
           >
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
               <Calculator className="size-5" aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
@@ -235,7 +237,7 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
               toast("Upload flow available in the workspace", { description: "You can upload CSV or Excel exports from Settings → Data after setup." });
               navigate("setup-complete");
             }}
-            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
               <Upload className="size-5" aria-hidden />
@@ -258,7 +260,7 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
               toast("Integrations available in the Data Centre after setup", { description: "Meta Ads, Google Ads and more — read-only, always." });
               navigate("setup-complete");
             }}
-            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="flex w-full items-start gap-4 p-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
               <Link2 className="size-5" aria-hidden />

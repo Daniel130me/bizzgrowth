@@ -226,9 +226,9 @@ export default function ChannelDetail({ params }: ScreenProps) {
             tabIndex={0}
             onClick={() => navigate(`insights/${relatedInsight.id}`)}
             onKeyDown={(e) => e.key === "Enter" && navigate(`insights/${relatedInsight.id}`)}
-            className="cursor-pointer border-violet-200 bg-violet-50/50 p-4 transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
+            className="cursor-pointer border-brand-200 bg-brand-50/50 p-4 transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <div className="flex items-center gap-2 text-violet-700">
+            <div className="flex items-center gap-2 text-brand-700">
               <Sparkles className="size-4" aria-hidden />
               <span className="text-[11px] font-semibold uppercase tracking-wide">Related insight</span>
             </div>

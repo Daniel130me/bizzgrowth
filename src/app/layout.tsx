@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -14,12 +14,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "bizzGrowth — Understand what is driving your business growth",
+  title: "Nellovia — Understand what is driving your business growth",
   description:
-    "bizzGrowth turns scattered marketing, sales and website signals into clear decisions. Understand what is happening in your business, why it is happening, and what you should do next.",
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
+    "Nellovia is an AI business consultant. It turns scattered marketing, sales and website signals into clear decisions. Understand what is happening in your business, why it is happening, and what you should do next.",
+  // Icons come from the files in this folder: icon.svg, favicon.ico and apple-icon.png (scripts/brand-icons.mjs).
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1DA1F2",
 };
 
 export default function RootLayout({

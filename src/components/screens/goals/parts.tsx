@@ -13,6 +13,7 @@ import { CHART_COLORS } from "@/lib/chart-colors";
 
 // ---------- Session-local edits for static demo goals ----------
 
+// Storage keys keep the old "bizzgrowth-" prefix on purpose: renaming one would lose what was saved under it.
 const EDITS_KEY = "bizzgrowth-goal-edits";
 export const EDIT_PREFILL_KEY = "bizzgrowth-edit-goal";
 
@@ -70,7 +71,7 @@ export function goalById(businessId: string, storeGoals: GoalRecord[], id: strin
 
 const PRIORITY_STYLE = {
   high: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "High priority" },
-  medium: { cls: "bg-blue-50 text-blue-700 border-blue-200", label: "Medium priority" },
+  medium: { cls: "bg-brand-50 text-brand-700 border-brand-200", label: "Medium priority" },
   low: { cls: "bg-slate-100 text-slate-600 border-slate-200", label: "Low priority" },
 } as const;
 
@@ -148,7 +149,7 @@ export function goalSeriesFor(goal: GoalRecord, monthly: MonthlyPoint[]) {
     data,
     series: [
       { key: "value", label: KIND_LABEL[kind] },
-      { key: "target", label: "Target", color: CHART_COLORS.violet, dashed: true },
+      { key: "target", label: "Target", color: CHART_COLORS.navy, dashed: true },
     ],
     valueFormatter,
   };

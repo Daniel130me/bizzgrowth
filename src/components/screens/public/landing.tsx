@@ -64,7 +64,7 @@ function DeltaChip({ delta, tone }: { delta: number; tone: Tone }) {
 function SectionHeading({ eyebrow, title, lede }: { eyebrow: string; title: string; lede?: string }) {
   return (
     <div className="mx-auto max-w-2xl text-center">
-      <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{eyebrow}</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">{eyebrow}</p>
       <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{title}</h2>
       {lede ? <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">{lede}</p> : null}
     </div>
@@ -92,7 +92,7 @@ const LOOP = [
   {
     icon: SearchCheck,
     title: "Diagnose",
-    body: "When results move, bizzGrowth separates what changed from what it may mean — with evidence and confidence levels.",
+    body: "When results move, Nellovia separates what changed from what it may mean — with evidence and confidence levels.",
   },
   {
     icon: Lightbulb,
@@ -157,13 +157,13 @@ const TRUST_LADDER = [
   {
     icon: Link2,
     title: "Read-only integrations",
-    body: "Connect ad platforms and your store. bizzGrowth reads data and never changes anything in your accounts.",
+    body: "Connect ad platforms and your store. Nellovia reads data and never changes anything in your accounts.",
     share: "Read-only access",
   },
   {
     icon: KeyRound,
     title: "Optional execution permissions",
-    body: "Only if you choose, let bizzGrowth draft or schedule approved actions on your behalf. Revoke anytime.",
+    body: "Only if you choose, let Nellovia draft or schedule approved actions on your behalf. Revoke anytime.",
     share: "Explicit, revocable permission",
   },
 ];
@@ -233,7 +233,7 @@ export default function LandingScreen() {
       {/* 1. Hero */}
       <section className="relative overflow-hidden border-b">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(37,99,235,0.08),rgba(124,58,237,0.05)_45%,transparent_75%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_0%,rgba(29,161,242,0.10),rgba(29,161,242,0.04)_45%,transparent_75%)]"
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 text-center sm:px-6 sm:pb-24 sm:pt-24">
@@ -243,7 +243,7 @@ export default function LandingScreen() {
           </Badge>
           <h1 className="mx-auto max-w-3xl text-balance text-4xl font-bold leading-tight tracking-tight text-slate-900 sm:text-5xl">
             Understand what is driving your business growth —{" "}
-            <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+            <span className="text-brand-600">
               and what to fix next.
             </span>
           </h1>
@@ -262,15 +262,15 @@ export default function LandingScreen() {
           </div>
           <ul className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
             <li className="flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5 text-blue-600" aria-hidden />
+              <ShieldCheck className="size-3.5 text-brand-600" aria-hidden />
               Read-only by default
             </li>
             <li className="flex items-center gap-1.5">
-              <Calculator className="size-3.5 text-blue-600" aria-hidden />
+              <Calculator className="size-3.5 text-brand-600" aria-hidden />
               Estimates are welcome
             </li>
             <li className="flex items-center gap-1.5">
-              <Lock className="size-3.5 text-blue-600" aria-hidden />
+              <Lock className="size-3.5 text-brand-600" aria-hidden />
               Your data stays yours
             </li>
           </ul>
@@ -282,7 +282,7 @@ export default function LandingScreen() {
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">The problem</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">The problem</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 We have information everywhere, but we don&apos;t know what it means.
               </h2>
@@ -295,7 +295,7 @@ export default function LandingScreen() {
               <div className="mt-3 space-y-3">
                 {PROBLEM_QUESTIONS.map((q) => (
                   <div key={q} className="flex items-start gap-3 rounded-xl border bg-white p-3.5 shadow-sm">
-                    <MessageSquareText className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+                    <MessageSquareText className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
                     <p className="text-sm text-slate-700">{q}</p>
                   </div>
                 ))}
@@ -321,9 +321,9 @@ export default function LandingScreen() {
               <div className="my-5 flex justify-center" aria-hidden>
                 <ArrowRight className="size-4 rotate-90 text-slate-300" />
               </div>
-              <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-4">
-                <p className="flex items-start gap-2 text-sm font-medium leading-relaxed text-violet-900">
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
+              <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
+                <p className="flex items-start gap-2 text-sm font-medium leading-relaxed text-brand-900">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
                   One clear picture: what changed, why it may have happened, and what to do next.
                 </p>
               </div>
@@ -338,7 +338,7 @@ export default function LandingScreen() {
           <SectionHeading
             eyebrow="How it works"
             title="A continuous loop, not another dashboard"
-            lede="bizzGrowth closes the gap between seeing numbers and acting on them. Every month the loop repeats, and the picture gets sharper."
+            lede="Nellovia closes the gap between seeing numbers and acting on them. Every month the loop repeats, and the picture gets sharper."
           />
           <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {LOOP.map((step, i) => {
@@ -349,8 +349,8 @@ export default function LandingScreen() {
                     <span className="absolute right-4 top-4 text-xs font-semibold text-slate-300 tnum">
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span className="flex size-10 items-center justify-center rounded-lg bg-blue-50">
-                      <Icon className="size-5 text-blue-600" aria-hidden />
+                    <span className="flex size-10 items-center justify-center rounded-lg bg-brand-50">
+                      <Icon className="size-5 text-brand-600" aria-hidden />
                     </span>
                     <h3 className="mt-4 text-sm font-semibold text-slate-900">{step.title}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{step.body}</p>
@@ -360,7 +360,7 @@ export default function LandingScreen() {
             })}
           </ol>
           <p className="mt-8 flex items-center justify-center gap-2 text-center text-sm text-slate-500">
-            <RefreshCw className="size-3.5 text-violet-600" aria-hidden />
+            <RefreshCw className="size-3.5 text-brand-600" aria-hidden />
             Act, measure, and feed the result back — so the next diagnosis is sharper than the last.
           </p>
         </div>
@@ -372,7 +372,7 @@ export default function LandingScreen() {
           <SectionHeading
             eyebrow="What you get"
             title="A diagnosis, not just a dashboard"
-            lede="This is the kind of conclusion bizzGrowth produces — with the evidence, confidence and provenance attached."
+            lede="This is the kind of conclusion Nellovia produces — with the evidence, confidence and provenance attached."
           />
           <Card className="mx-auto mt-10 max-w-3xl p-0 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
@@ -395,9 +395,9 @@ export default function LandingScreen() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-violet-100 bg-violet-50/60 px-5 py-4">
-              <p className="flex items-start gap-2 text-sm leading-relaxed text-violet-900">
-                <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
+            <div className="border-t border-brand-100 bg-brand-50/60 px-5 py-4">
+              <p className="flex items-start gap-2 text-sm leading-relaxed text-brand-900">
+                <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
                 <span>
                   <span className="font-semibold">What this may mean:</span> Marketing spend and enquiries are growing
                   far faster than new customers and revenue. Your immediate growth constraint may not be lead
@@ -405,7 +405,7 @@ export default function LandingScreen() {
                 </span>
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2 sm:pl-6">
-                <Badge variant="outline" className="border-violet-200 bg-white text-[11px] font-normal text-violet-700">
+                <Badge variant="outline" className="border-brand-200 bg-white text-[11px] font-normal text-brand-700">
                   Medium confidence
                 </Badge>
                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={exploreSample}>
@@ -435,8 +435,8 @@ export default function LandingScreen() {
               const Icon = m.icon;
               return (
                 <Card key={m.title} className="flex h-full flex-col p-6 shadow-sm">
-                  <span className="flex size-10 items-center justify-center rounded-lg bg-blue-50">
-                    <Icon className="size-5 text-blue-600" aria-hidden />
+                  <span className="flex size-10 items-center justify-center rounded-lg bg-brand-50">
+                    <Icon className="size-5 text-brand-600" aria-hidden />
                   </span>
                   <h3 className="mt-4 text-sm font-semibold text-slate-900">{m.title}</h3>
                   <p className="mt-1.5 flex-1 text-sm leading-relaxed text-slate-600">{m.body}</p>
@@ -465,7 +465,7 @@ export default function LandingScreen() {
           <SectionHeading
             eyebrow="Progressive privacy"
             title="Share only what you're comfortable with"
-            lede="bizzGrowth works in steps. Start with nothing at all, and move up the ladder only when you see the value."
+            lede="Nellovia works in steps. Start with nothing at all, and move up the ladder only when you see the value."
           />
           <ol className="relative mx-auto mt-10 max-w-3xl space-y-4 before:absolute before:bottom-8 before:left-6 before:top-8 before:hidden before:w-px before:bg-slate-200 sm:before:block">
             {TRUST_LADDER.map((step, i) => {
@@ -473,7 +473,7 @@ export default function LandingScreen() {
               return (
                 <li key={step.title} className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <span className="relative z-10 flex size-12 shrink-0 items-center justify-center rounded-full border bg-white shadow-sm">
-                    <Icon className="size-5 text-blue-600" aria-hidden />
+                    <Icon className="size-5 text-brand-600" aria-hidden />
                   </span>
                   <Card className="flex-1 p-4 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -504,7 +504,7 @@ export default function LandingScreen() {
           <SectionHeading
             eyebrow="Early signals"
             title="What pilot participants check first"
-            lede="Businesses in the private beta are using bizzGrowth to settle the questions that used to start arguments."
+            lede="Businesses in the private beta are using Nellovia to settle the questions that used to start arguments."
           />
           <div className="mt-10 grid gap-4 lg:grid-cols-3">
             {TESTIMONIALS.map((t) => (
@@ -534,7 +534,7 @@ export default function LandingScreen() {
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
           <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl bg-slate-900 px-6 py-12 text-center shadow-sm sm:px-12">
             <div
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_80%_at_50%_0%,rgba(37,99,235,0.35),transparent_70%)]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_80%_at_50%_0%,rgba(29,161,242,0.35),transparent_70%)]"
               aria-hidden
             />
             <div className="relative">

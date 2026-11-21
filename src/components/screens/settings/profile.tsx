@@ -40,7 +40,7 @@ export function ProfileSettings() {
       <SectionCard title="Profile details">
         <div className="space-y-5">
           <div className="flex items-center gap-4">
-            <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-violet-100 text-lg font-bold text-violet-700" aria-hidden>
+            <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-brand-100 text-lg font-bold text-brand-700" aria-hidden>
               {name
                 .trim()
                 .split(" ")

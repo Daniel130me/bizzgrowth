@@ -61,7 +61,7 @@ export default function AcceptInviteScreen() {
     >
       <div className="rounded-xl border bg-slate-50/70 p-5">
         <div className="flex items-center gap-3">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-white">
+          <span className="flex size-12 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
             <Building2 className="size-6" aria-hidden />
           </span>
           <div className="min-w-0">

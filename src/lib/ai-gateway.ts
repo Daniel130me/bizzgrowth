@@ -105,8 +105,9 @@ const DEFAULT_ORDER: GatewayProviderId[] = ["z.ai", "openai", "groq", "openroute
 /**
  * Call profiles. "default" keeps AI_GATEWAY_ORDER for every existing feature.
  *  - "fast": live conversation turns, where every second of waiting is felt.
- *    Low-latency providers first (AI_GATEWAY_FAST_ORDER) and a short timeout,
- *    so a slow provider fails over instead of leaving the owner waiting.
+ *    Low-latency providers first (AI_GATEWAY_FAST_ORDER) and a shorter timeout
+ *    (AI_GATEWAY_FAST_TIMEOUT_MS, 20 s by default), so a slow provider fails
+ *    over instead of leaving the owner waiting.
  *  - "quality": the diagnosis — one call that decides whether the product
  *    impresses. Strongest reasoning first (AI_GATEWAY_QUALITY_ORDER), more
  *    reasoning effort on reasoning models.
@@ -129,7 +130,9 @@ function envInt(name: string, fallback: number): number {
 }
 
 const TIMEOUT_MS = envInt("AI_GATEWAY_TIMEOUT_MS", 45_000);
-const FAST_TIMEOUT_MS = envInt("AI_GATEWAY_FAST_TIMEOUT_MS", 12_000);
+// 20 s, not 12: z.ai's free flash model often answers in 11-12 s, so a 12 s
+// limit cut off replies that were nearly done and restarted on the next key.
+const FAST_TIMEOUT_MS = envInt("AI_GATEWAY_FAST_TIMEOUT_MS", 20_000);
 const COOLDOWN_MS = envInt("AI_GATEWAY_COOLDOWN_MS", 60_000);
 const AUTH_PARK_MS = envInt("AI_GATEWAY_AUTH_PARK_MS", 6 * 60 * 60 * 1000);
 const QUOTA_PARK_MS = envInt("AI_GATEWAY_QUOTA_PARK_MS", 60 * 60 * 1000);
@@ -323,7 +326,7 @@ function scheduleSave() {
       const keys = Object.fromEntries(state.health.entries());
       writeFileSync(file, JSON.stringify({ version: 1, savedAt: Date.now(), keys }, null, 2));
     } catch (error) {
-      console.warn("[bizzGrowth AI] could not persist gateway usage:", error instanceof Error ? error.message : error);
+      console.warn("[Nellovia AI] could not persist gateway usage:", error instanceof Error ? error.message : error);
     }
   }, 1_000);
 }
@@ -478,9 +481,11 @@ async function callOpenAiCompatible(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${route.apiKey}`,
-        // OpenRouter attribution (optional, harmless elsewhere is NOT sent)
+        // OpenRouter attribution (optional, harmless elsewhere is NOT sent).
+        // The app name is Nellovia; the referer domain is left as it was until
+        // the owner decides which domain Nellovia lives on.
         ...(route.provider.id === "openrouter"
-          ? { "HTTP-Referer": "https://bizzgrowth.app", "X-Title": "bizzGrowth" }
+          ? { "HTTP-Referer": "https://bizzgrowth.app", "X-Title": "Nellovia" }
           : {}),
       },
       body: JSON.stringify({
@@ -537,6 +542,11 @@ async function callZai(system: string, user: string, timeoutMs: number): Promise
 }
 
 /** Connection-level blips (DNS, reset, socket closed) — worth one quick retry. */
+/** Cut off by our own time limit: the AbortController ("This operation was aborted") or the platform race ("timeout after …"). */
+function isTimeoutError(message: string): boolean {
+  return /\babort(ed)?\b|timed? ?out|timeout after/i.test(message);
+}
+
 function isNetworkError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message.toLowerCase() : "";
   const code = String((error as { cause?: { code?: string } })?.cause?.code ?? "").toLowerCase();
@@ -590,7 +600,7 @@ export async function gatewayChatComplete(
   opts?: { maxTokens?: number; profile?: GatewayProfile; timeoutMs?: number },
 ): Promise<GatewayResult> {
   if (process.env.BIZZ_AI_DISABLED === "1") {
-    console.warn("[bizzGrowth AI] disabled via BIZZ_AI_DISABLED=1 — gateway will not be called");
+    console.warn("[Nellovia AI] disabled via BIZZ_AI_DISABLED=1 — gateway will not be called");
     return { text: null, attempts: [] };
   }
 
@@ -602,7 +612,15 @@ export async function gatewayChatComplete(
   const attempts: GatewayAttempt[] = [];
   const anyRouteAvailable = routes.some((r) => healthFor(r).openUntil <= Date.now());
 
-  for (const route of routes) {
+  // A timeout says the PROVIDER is slow right now, not one key: rotating to its
+  // next key usually times out too (three z.ai keys in a row). Its other keys
+  // move to the back of the queue so a different provider answers first — they
+  // stay as a last resort, nothing is dropped.
+  const queue = [...routes];
+  const slowProviders = new Set<string>();
+
+  for (let i = 0; i < queue.length; i++) {
+    const route = queue[i];
     const h = healthFor(route);
     // Skip cooling-down keys unless every key is cooling down (probe mode).
     // Uses the live clock so a key/provider parked earlier in THIS call is skipped too.
@@ -646,7 +664,15 @@ export async function gatewayChatComplete(
         const message = redact(error instanceof Error ? error.message : String(error), route.apiKey);
         attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: false, latencyMs, error: message });
         recordEvent({ ts: Date.now(), routeLabel: route.routeLabel, provider: route.provider.id, model: route.model, ok: false, latencyMs, error: message.slice(0, 200) });
-        console.error(`[bizzGrowth AI] ${route.routeLabel} (${route.masked}) failed (${latencyMs}ms):`, message);
+        console.error(`[Nellovia AI] ${route.routeLabel} (${route.masked}) failed (${latencyMs}ms):`, message);
+        if (isTimeoutError(message) && !slowProviders.has(route.provider.id)) {
+          slowProviders.add(route.provider.id);
+          // Providers that haven't timed out go first; slow ones keep their order behind them.
+          const later = queue.slice(i + 1);
+          const fresh = later.filter((r) => !slowProviders.has(r.provider.id));
+          const slow = later.filter((r) => slowProviders.has(r.provider.id));
+          queue.splice(i + 1, later.length, ...fresh, ...slow);
+        }
         addUsage(h, (error as { usage?: CompletionUsage })?.usage);
         h.failures += 1;
         h.consecutiveFailures += 1;
@@ -762,6 +788,8 @@ export interface GatewaySnapshot {
   disabled: boolean;
   orderLabel: string;
   timeoutMs: number;
+  /** Per-try limit for live features (chat turns, check-ins, drafts). */
+  fastTimeoutMs: number;
   cooldownMs: number;
   authParkMs: number;
   /** Where per-key usage is persisted (relative to the app), or null when in-memory only. */
@@ -890,6 +918,7 @@ export function getGatewaySnapshot(): GatewaySnapshot {
     disabled: process.env.BIZZ_AI_DISABLED === "1",
     orderLabel: parseOrder().join(" → "),
     timeoutMs: TIMEOUT_MS,
+    fastTimeoutMs: Math.min(FAST_TIMEOUT_MS, TIMEOUT_MS),
     cooldownMs: COOLDOWN_MS,
     authParkMs: AUTH_PARK_MS,
     usageFile: file ? path.relative(appRoot(), file) || file : null,

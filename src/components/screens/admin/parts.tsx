@@ -38,12 +38,12 @@ const ADMIN_STATUS_META: Record<AdminStatus, { label: string; cls: string; dot?:
   delayed: { label: "Delayed", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
   failed: { label: "Failed", cls: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
   success: { label: "Success", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  running: { label: "Running", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500 animate-pulse" },
+  running: { label: "Running", cls: "bg-brand-50 text-brand-700 border-brand-200", dot: "bg-brand-500 animate-pulse" },
   active: { label: "Active", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  trial: { label: "Trial", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  trial: { label: "Trial", cls: "bg-brand-50 text-brand-700 border-brand-200", dot: "bg-brand-500" },
   suspended: { label: "Suspended", cls: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
   "past-due": { label: "Past due", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  trialing: { label: "Trialing", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  trialing: { label: "Trialing", cls: "bg-brand-50 text-brand-700 border-brand-200", dot: "bg-brand-500" },
   invited: { label: "Invited", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
   disabled: { label: "Disabled", cls: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" },
   pending: { label: "Pending review", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
@@ -55,9 +55,9 @@ const ADMIN_STATUS_META: Record<AdminStatus, { label: string; cls: string; dot?:
   bug: { label: "Bug", cls: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
   feedback: { label: "Feedback", cls: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" },
   "data-concern": { label: "Data concern", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  "ai-concern": { label: "AI concern", cls: "bg-violet-50 text-violet-700 border-violet-200", dot: "bg-violet-500" },
+  "ai-concern": { label: "AI concern", cls: "bg-teal-50 text-teal-700 border-teal-200", dot: "bg-teal-500" },
   open: { label: "Open", cls: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  "in-progress": { label: "In progress", cls: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  "in-progress": { label: "In progress", cls: "bg-brand-50 text-brand-700 border-brand-200", dot: "bg-brand-500" },
   resolved: { label: "Resolved", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
 };
 
@@ -95,7 +95,7 @@ export function MiniProgress({ value, className, barClassName }: { value: number
     <div className={cn("flex items-center gap-2", className)}>
       <div className="h-1.5 w-full min-w-16 overflow-hidden rounded-full bg-slate-100" role="presentation">
         <div
-          className={cn("h-full rounded-full bg-blue-600", barClassName)}
+          className={cn("h-full rounded-full bg-brand-600", barClassName)}
           style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
         />
       </div>
@@ -110,7 +110,7 @@ export function ConfidenceBar({ value, className }: { value: number; className?:
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100" role="presentation">
-        <div className="h-full rounded-full bg-violet-500" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
+        <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.max(4, Math.min(100, value))}%` }} />
       </div>
       <span className="text-xs tabular-nums text-slate-600">{value}%</span>
     </div>

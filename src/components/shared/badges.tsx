@@ -28,7 +28,8 @@ const PROV_STYLE: Record<Provenance, { label: string; icon: React.ReactNode; cls
   measured: {
     label: "Measured",
     icon: <Ruler className="size-3" aria-hidden />,
-    cls: "bg-blue-50 text-blue-700 border-blue-200",
+    // Teal, not brand blue: brand blue marks the AI's own interpretation below.
+    cls: "bg-teal-50 text-teal-700 border-teal-200",
     tip: "Directly retrieved from a connected source or recorded measurement.",
   },
   "user-supplied": {
@@ -46,7 +47,7 @@ const PROV_STYLE: Record<Provenance, { label: string; icon: React.ReactNode; cls
   "ai-interpretation": {
     label: "AI interpretation",
     icon: <Sparkles className="size-3" aria-hidden />,
-    cls: "bg-violet-50 text-violet-700 border-violet-200",
+    cls: "bg-brand-50 text-brand-700 border-brand-200",
     tip: "A conclusion produced by reasoning over the available evidence — not measured data.",
   },
 };
@@ -115,10 +116,10 @@ export function TrendBadge({ delta, goodness, suffix = "", className }: { delta:
 }
 
 const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-  "in-progress": { label: "In progress", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  measuring: { label: "Measuring", cls: "bg-violet-50 text-violet-700 border-violet-200" },
+  "in-progress": { label: "In progress", cls: "bg-brand-50 text-brand-700 border-brand-200" },
+  measuring: { label: "Measuring", cls: "bg-teal-50 text-teal-700 border-teal-200" },
   completed: { label: "Completed", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  running: { label: "Running", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  running: { label: "Running", cls: "bg-brand-50 text-brand-700 border-brand-200" },
   complete: { label: "Complete", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   open: { label: "Open", cls: "bg-amber-50 text-amber-700 border-amber-200" },
   resolved: { label: "Resolved", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -129,7 +130,7 @@ const STATUS_MAP: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200" },
   connected: { label: "Connected", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   available: { label: "Available", cls: "bg-slate-100 text-slate-600 border-slate-200" },
-  syncing: { label: "Syncing…", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  syncing: { label: "Syncing…", cls: "bg-brand-50 text-brand-700 border-brand-200" },
   error: { label: "Error — action needed", cls: "bg-red-50 text-red-700 border-red-200" },
   invited: { label: "Invited", cls: "bg-amber-50 text-amber-700 border-amber-200" },
 };
@@ -148,7 +149,7 @@ const SEVERITY_MAP = {
   critical: { label: "Critical", icon: <CircleAlert className="size-3" />, cls: "bg-red-50 text-red-700 border-red-200" },
   warning: { label: "Warning", icon: <CircleAlert className="size-3" />, cls: "bg-amber-50 text-amber-700 border-amber-200" },
   opportunity: { label: "Opportunity", icon: <Lightbulb className="size-3" />, cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  info: { label: "Information", icon: <Info className="size-3" />, cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  info: { label: "Information", icon: <Info className="size-3" />, cls: "bg-brand-50 text-brand-700 border-brand-200" },
 } as const;
 
 export function SeverityBadge({ severity, className }: { severity: keyof typeof SEVERITY_MAP; className?: string }) {
@@ -197,7 +198,7 @@ export function ExecutionTypeBadge({ type, className }: { type: keyof typeof EXE
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="outline" className={cn("gap-1 font-normal bg-violet-50 text-violet-700 border-violet-200", className)}>
+          <Badge variant="outline" className={cn("gap-1 font-normal bg-brand-50 text-brand-700 border-brand-200", className)}>
             {s.icon}
             {type === "guided" ? "Guided" : type === "human" ? "Human action" : "Automatic"}
           </Badge>

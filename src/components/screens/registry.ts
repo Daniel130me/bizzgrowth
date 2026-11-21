@@ -18,6 +18,8 @@ export type ScreenGroup =
   | "states"
   | "admin"
   | "market"
+  | "challenges"
+  | "diagnosis"
   | "prototype";
 
 export interface ScreenMeta {
@@ -52,6 +54,12 @@ export const SCREENS: ScreenMeta[] = [
   { num: 18, id: "first-diagnosis-evidence", route: "first-diagnosis-evidence", name: "First Diagnosis Evidence", category: "Onboarding", group: "onboarding" },
   { num: 19, id: "improve-diagnosis", route: "improve-diagnosis", name: "Improve My Diagnosis", category: "Onboarding", group: "onboarding" },
   { num: 20, id: "setup-complete", route: "setup-complete", name: "Setup Complete / Enter Workspace", category: "Onboarding", group: "onboarding" },
+  // B2. The owner's diagnosis on its own page (sidebar), in tabs — the reveal above uses the same tabs
+  // Routes are patterns that match the page's view map (one screen serves every tab, so it stays mounted).
+  { num: 130, id: "diagnosis", route: "diagnosis", name: "Your Diagnosis — Summary", category: "Diagnosis", group: "diagnosis" },
+  { num: 131, id: "diagnosis/tab", route: "diagnosis/:tab", name: "Your Diagnosis — a tab (summary, what-to-do, why, more = the owner's insights)", category: "Diagnosis", group: "diagnosis" },
+  { num: 132, id: "diagnosis/challenge", route: "diagnosis/:tab/:challenge", name: "Your Diagnosis — another challenge's diagnosis", category: "Diagnosis", group: "diagnosis" },
+  { num: 133, id: "first-diagnosis/tab", route: "first-diagnosis/:tab", name: "First Diagnosis — a tab (setup reveal)", category: "Onboarding", group: "onboarding" },
   // C. Home and executive overview
   { num: 21, id: "home", route: "home", name: "Home / Business Overview", category: "Home", group: "home" },
   { num: 22, id: "health-detail", route: "health-detail", name: "Business Health Detail", category: "Home", group: "home" },
@@ -83,6 +91,13 @@ export const SCREENS: ScreenMeta[] = [
   { num: 45, id: "timeline", route: "timeline", name: "Business Timeline / Change Ledger", category: "Actions", group: "actions" },
   { num: 46, id: "change-add", route: "change-add", name: "Add / Edit Business Change", category: "Actions", group: "actions" },
   { num: 47, id: "change-confirm", route: "timeline", name: "Detected Change Confirmation (dialog)", category: "Actions", group: "actions" },
+  { num: 120, id: "check-in/:id", route: "check-in/:id", name: "Check-in (coaching follow-up)", category: "Actions", group: "actions" },
+  // F2. Challenges — what's holding the business back, one at a time
+  { num: 121, id: "challenges", route: "challenges", name: "Challenges (list and summary)", category: "Challenges", group: "challenges" },
+  { num: 122, id: "challenges/:id", route: "challenges/:id", name: "Challenge Detail / Full Story", category: "Challenges", group: "challenges" },
+  { num: 123, id: "challenges/new", route: "challenges/new", name: "Report a New Challenge (short chat)", category: "Challenges", group: "challenges" },
+  { num: 124, id: "challenges/:id/chat", route: "challenges/:id/chat", name: "Challenge Short Chat (tell me more)", category: "Challenges", group: "challenges" },
+  { num: 125, id: "test-businesses", route: "test-businesses", name: "Test Businesses (development only)", category: "Prototype", group: "prototype" },
   // G. Ask your business
   { num: 48, id: "ask", route: "ask", name: "Ask Your Business", category: "Ask", group: "ask" },
   { num: 49, id: "ask/history", route: "ask/history", name: "Conversation History", category: "Ask", group: "ask" },
@@ -91,8 +106,13 @@ export const SCREENS: ScreenMeta[] = [
   { num: 51, id: "integrations", route: "integrations", name: "Integrations / Sources Library", category: "Data", group: "data" },
   { num: 52, id: "integrations/:id", route: "integrations/:id", name: "Integration Detail", category: "Data", group: "data" },
   { num: 53, id: "connect/:id", route: "connect/:id", name: "Permission Review Before Connecting", category: "Data", group: "data" },
+  { num: 125, id: "connect/google", route: "connect/google", name: "Choose Google Sites and Properties", category: "Data", group: "data" },
+  { num: 127, id: "connect/meta", route: "connect/meta", name: "Choose Meta Accounts and Pages", category: "Data", group: "data" },
+  { num: 128, id: "connect/tiktok-ads", route: "connect/tiktok-ads", name: "Choose TikTok Advertiser", category: "Data", group: "data" },
+  { num: 129, id: "connect/shopify", route: "connect/shopify", name: "Connect Shopify Store", category: "Data", group: "data" },
   { num: 54, id: "syncing", route: "syncing", name: "Connection Success / Initial Sync", category: "Data", group: "data" },
   { num: 55, id: "connection-error", route: "connection-error", name: "Connection Error / Reconnect", category: "Data", group: "data" },
+  { num: 126, id: "connection-error/:id", route: "connection-error/:id", name: "Connection Error Detail", category: "Data", group: "data" },
   { num: 56, id: "source-settings/:id", route: "source-settings/:id", name: "Connected Source Settings", category: "Data", group: "data" },
   { num: 57, id: "manual-entry", route: "manual-entry", name: "Manual Data Entry", category: "Data", group: "data" },
   { num: 58, id: "manual-history", route: "manual-history", name: "Manual Data History", category: "Data", group: "data" },
@@ -144,6 +164,10 @@ export const SCREENS: ScreenMeta[] = [
   { num: 117, id: "market/specialist", route: "market/specialist/:id", name: "Specialist Profile / Showcase", category: "Specialists", group: "market" },
   { num: 118, id: "market/post", route: "market/post", name: "Post a Task / Brief", category: "Specialists", group: "market" },
   { num: 119, id: "market/task", route: "market/task/:id", name: "Task Detail & Bids", category: "Specialists", group: "market" },
+  { num: 120, id: "specialist/onboarding", route: "specialist/onboarding", name: "Specialist Application & Profile", category: "Specialists", group: "market" },
+  { num: 121, id: "specialist/dashboard", route: "specialist/dashboard", name: "Specialist Work Dashboard", category: "Specialists", group: "market" },
+  { num: 122, id: "specialist/engagement", route: "specialist/engagement/:id", name: "Specialist Engagement Workspace", category: "Specialists", group: "market" },
+  { num: 123, id: "market/engagement", route: "market/engagement/:id", name: "Engagement Workspace", category: "Specialists", group: "market" },
   // O. Critical system states
   { num: 95, id: "state/no-data", route: "state/no-data", name: "New Workspace / No Data Yet", category: "System state", group: "states" },
   { num: 96, id: "state/insufficient", route: "state/insufficient", name: "Insufficient Data for Diagnosis", category: "System state", group: "states" },
@@ -166,6 +190,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 112, id: "admin/jobs", route: "admin/jobs", name: "Background Jobs / Import Errors", category: "Admin", group: "admin" },
   { num: 113, id: "admin/ai-audit", route: "admin/ai-audit", name: "AI Diagnosis & Recommendation Audit", category: "Admin", group: "admin" },
   { num: 114, id: "admin/support", route: "admin/support", name: "Support / Feedback Inbox", category: "Admin", group: "admin" },
+  { num: 124, id: "admin/specialists", route: "admin/specialists", name: "Specialist Application Review", category: "Admin", group: "admin" },
 ];
 
 export const SCREENS_WITH_MAP = SCREENS;

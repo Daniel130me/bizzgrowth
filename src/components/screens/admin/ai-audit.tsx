@@ -220,7 +220,7 @@ export function AiAudit(_props: ScreenProps) {
                         setSelectedId(item.id);
                       }
                     }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600"
+                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-600"
                   >
                     <TableCell className="whitespace-nowrap font-medium">{item.business}</TableCell>
                     <TableCell className="max-w-72">
@@ -255,7 +255,7 @@ export function AiAudit(_props: ScreenProps) {
             <>
               <DialogHeader>
                 <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
-                  <Sparkles className="size-4 text-violet-600" aria-hidden />
+                  <Sparkles className="size-4 text-brand-600" aria-hidden />
                   {selected.business}
                   <AdminBadge status={selectedStatus ?? "pending"} />
                   <AdminBadge status={selected.feedback} />
@@ -266,9 +266,9 @@ export function AiAudit(_props: ScreenProps) {
               </DialogHeader>
 
               <div className="space-y-5">
-                <div className="rounded-lg border border-violet-200 bg-violet-50/60 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Diagnosis (AI interpretation)</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-violet-950">{selected.diagnosis}</p>
+                <div className="rounded-lg border border-brand-200 bg-brand-50/60 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">Diagnosis (AI interpretation)</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-brand-950">{selected.diagnosis}</p>
                 </div>
 
                 <div className="rounded-lg border p-4">
@@ -291,8 +291,8 @@ export function AiAudit(_props: ScreenProps) {
                   </ul>
                 </div>
 
-                <div className="rounded-lg border border-violet-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">AI interpretation — how it reasoned</p>
+                <div className="rounded-lg border border-brand-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">AI interpretation — how it reasoned</p>
                   <p className="mt-1.5 text-sm leading-relaxed">{selectedDetail.interpretation}</p>
                 </div>
 
@@ -363,7 +363,7 @@ export function AiAudit(_props: ScreenProps) {
                     />
                     <button
                       onClick={() => addNote(selected)}
-                      className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 sm:w-28"
+                      className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-end rounded-lg border bg-white px-3 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 sm:w-28"
                     >
                       <NotebookPen className="size-3.5" aria-hidden /> Add note
                     </button>
@@ -379,10 +379,10 @@ export function AiAudit(_props: ScreenProps) {
                     onClick={() => markReviewed(selected)}
                     disabled={selectedStatus === "reviewed"}
                     className={cn(
-                      "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
+                      "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600",
                       selectedStatus === "reviewed"
                         ? "cursor-not-allowed border bg-slate-50 text-slate-400"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-brand-600 text-white hover:bg-brand-700"
                     )}
                   >
                     Mark reviewed
@@ -432,7 +432,7 @@ export function AiAudit(_props: ScreenProps) {
 
       <p className="mt-4 text-xs text-muted-foreground">
         Entries with user feedback or coverage below 40% deserve the closest look. Need the workspace view? Open{" "}
-        <button onClick={() => navigate("admin/businesses")} className="font-medium text-blue-600 underline-offset-2 hover:underline">
+        <button onClick={() => navigate("admin/businesses")} className="font-medium text-brand-600 underline-offset-2 hover:underline">
           Businesses
         </button>
         .

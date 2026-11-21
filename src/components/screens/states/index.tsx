@@ -33,7 +33,6 @@ import {
   ServerOff,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { InfoBanner, KeyValue, PageHeader, SectionCard } from "@/components/shared/layout";
 import { ProvenanceBadge } from "@/components/shared/badges";
+import { NelloviaLogo } from "@/components/brand/logo";
 import { useBizz } from "@/lib/store";
 import { getBusiness } from "@/lib/data/businesses";
 import type { ReactNode } from "react";
@@ -63,13 +63,8 @@ function SystemStateChip() {
 function BareLogo() {
   const navigate = useBizz((s) => s.navigate);
   return (
-    <button onClick={() => navigate("landing")} aria-label="bizzGrowth home" className="inline-flex items-center gap-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white">
-        <TrendingUp className="size-4" aria-hidden />
-      </span>
-      <span className="text-[15px] font-bold tracking-tight text-slate-900">
-        bizz<span className="text-blue-600">Growth</span>
-      </span>
+    <button onClick={() => navigate("landing")} aria-label="Nellovia home" className="inline-flex items-center rounded-lg">
+      <NelloviaLogo />
     </button>
   );
 }
@@ -177,18 +172,18 @@ function NoDataScreen() {
     <div className="mx-auto w-full max-w-4xl">
       <PageHeader
         title="Let's get your first signal"
-        description={`You haven't added enough information yet to understand performance in ${business.name}. That is expected for a new workspace — bizzGrowth works from the very first number you add, and grows sharper as coverage grows.`}
+        description={`You haven't added enough information yet to understand performance in ${business.name}. That is expected for a new workspace — Nellovia works from the very first number you add, and grows sharper as coverage grows.`}
         badge={<SystemStateChip />}
       />
 
       <SectionCard
-        title="What bizzGrowth can tell you at each level of data"
+        title="What Nellovia can tell you at each level of data"
         description="The product is useful from day one — each level answers a bigger question."
       >
         <ol className="space-y-4">
           {levels.map((l, i) => (
             <li key={l.level} className="flex gap-3">
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700" aria-hidden>
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700" aria-hidden>
                 {i + 1}
               </span>
               <div>
@@ -322,11 +317,11 @@ function InsufficientScreen() {
           </p>
         </SectionCard>
 
-        <SectionCard title="What would unlock the answer" className="border-violet-200">
+        <SectionCard title="What would unlock the answer" className="border-brand-200">
           <div className="space-y-4">
-            <div className="flex items-start gap-2.5 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-600" aria-hidden />
-              <p className="text-sm leading-relaxed text-violet-900">
+            <div className="flex items-start gap-2.5 rounded-xl border border-brand-200 bg-brand-50/60 p-3">
+              <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
+              <p className="text-sm leading-relaxed text-brand-900">
                 With either addition, this diagnosis upgrades from &ldquo;what changed&rdquo; to a root cause with stated confidence —
                 and the recommendation engine can act on it.
               </p>
@@ -342,7 +337,7 @@ function InsufficientScreen() {
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {unlocks.map((u) => (
           <Card key={u.label} className="flex flex-col p-5">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
               <u.icon className="size-4.5" aria-hidden />
             </div>
             <h3 className="mt-3 text-sm font-semibold">{u.label}</h3>
@@ -421,7 +416,7 @@ function SyncingScreen() {
               <CheckCircle2 className="size-5" aria-hidden />
             </span>
           ) : (
-            <Loader2 className="size-6 animate-spin text-blue-600" aria-hidden />
+            <Loader2 className="size-6 animate-spin text-brand-600" aria-hidden />
           )}
           <div className="flex-1">
             <div className="flex items-baseline justify-between">
@@ -443,7 +438,7 @@ function SyncingScreen() {
                   {isDone ? (
                     <CheckCircle2 className="size-4.5 text-emerald-600" aria-label={`${src.name} complete`} />
                   ) : (
-                    <Loader2 className="size-4.5 animate-spin text-blue-600" aria-label={`${src.name} syncing`} />
+                    <Loader2 className="size-4.5 animate-spin text-brand-600" aria-label={`${src.name} syncing`} />
                   )}
                 </span>
                 <div>
@@ -631,7 +626,7 @@ function DisconnectedScreen() {
               <KeyValue label="Source">Shopify (Ecommerce) — korahome-store.myshopify.com</KeyValue>
               <KeyValue label="Disconnected">Today at 14:03</KeyValue>
               <KeyValue label="Reason">
-                Authorization expired — the access token issued to bizzGrowth timed out during the 14:00 sync attempt.
+                Authorization expired — the access token issued to Nellovia timed out during the 14:00 sync attempt.
               </KeyValue>
             </div>
           </div>
@@ -736,7 +731,7 @@ function PermissionDeniedScreen() {
                   <p className="text-sm font-medium">{p.who}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{p.note}</p>
                 </div>
-                <Badge variant="outline" className="shrink-0 border-blue-200 bg-blue-50 font-normal text-blue-700">
+                <Badge variant="outline" className="shrink-0 border-brand-200 bg-brand-50 font-normal text-brand-700">
                   {p.role}
                 </Badge>
               </li>
@@ -859,7 +854,7 @@ function SessionExpiredScreen() {
         </div>
         <h1 className="mt-5 text-xl font-bold tracking-tight sm:text-2xl">Your session expired for security</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          For your protection, bizzGrowth signs you out after a period of inactivity. Nothing was lost — your workspace and data
+          For your protection, Nellovia signs you out after a period of inactivity. Nothing was lost — your workspace and data
           are exactly as you left them.
         </p>
         <div className="mt-6 flex justify-center">
@@ -943,7 +938,7 @@ function ServiceErrorScreen() {
         </div>
         <h1 className="mt-5 text-xl font-bold tracking-tight sm:text-2xl">Service unavailable</h1>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          bizzGrowth couldn&apos;t reach its analysis service. This is a technical problem on our side, not an issue with your
+          Nellovia couldn&apos;t reach its analysis service. This is a technical problem on our side, not an issue with your
           data — nothing was lost and nothing needs fixing on your end.
         </p>
 

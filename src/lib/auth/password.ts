@@ -1,4 +1,4 @@
-// Server-only: password hashing for bizzGrowth accounts.
+// Server-only: password hashing for Nellovia accounts.
 import bcrypt from "bcryptjs";
 
 // Existing Neon users were hashed with bcrypt cost 12 ($2b$12$...), so new

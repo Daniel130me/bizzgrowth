@@ -4,6 +4,7 @@
 // Lists all 114 required screens with number, name, category, status and an
 // Open button that navigates to a working example route for each.
 
+import TestBusinessesScreen from "./test-businesses";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -13,19 +14,22 @@ import {
   Search,
   SearchX,
   ShoppingBag,
-  TrendingUp,
   Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { NelloviaLogo } from "@/components/brand/logo";
 import { SCREENS } from "../registry";
 import type { ScreenMeta } from "../registry";
 import { useBizz } from "@/lib/store";
 
 // Registry id → a working example route for reviewers (per screen-family contract).
 const EXAMPLE_ROUTES: Record<string, string> = {
+  "diagnosis/tab": "diagnosis/what-to-do",
+  "diagnosis/challenge": "diagnosis/why/ch-main",
+  "first-diagnosis/tab": "first-diagnosis/why",
   metric: "metric/revenue",
   "performance/channel": "performance/marketing/instagram",
   "insights/diagnosis": "insights/ins-sh-1",
@@ -79,13 +83,8 @@ const DEMOS = [
 function PrototypeLogo() {
   const navigate = useBizz((s) => s.navigate);
   return (
-    <button onClick={() => navigate("landing")} aria-label="bizzGrowth home" className="inline-flex items-center gap-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white">
-        <TrendingUp className="size-4" aria-hidden />
-      </span>
-      <span className="text-[15px] font-bold tracking-tight text-slate-900">
-        bizz<span className="text-blue-600">Growth</span>
-      </span>
+    <button onClick={() => navigate("landing")} aria-label="Nellovia home" className="inline-flex items-center rounded-lg">
+      <NelloviaLogo />
     </button>
   );
 }
@@ -131,7 +130,7 @@ export default function PrototypeIndexScreen() {
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <PrototypeLogo />
-            <Badge variant="outline" className="hidden bg-violet-50 font-normal text-violet-700 sm:inline-flex">
+            <Badge variant="outline" className="hidden bg-brand-50 font-normal text-brand-700 sm:inline-flex">
               <FlaskConical className="mr-1 size-3" aria-hidden /> Reviewer index
             </Badge>
           </div>
@@ -145,8 +144,8 @@ export default function PrototypeIndexScreen() {
         {/* Hero */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <FlaskConical className="size-5 text-violet-600" aria-hidden />
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">bizzGrowth Prototype Map</h1>
+            <FlaskConical className="size-5 text-brand-600" aria-hidden />
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Nellovia Prototype Map</h1>
           </div>
           <p className="text-sm text-muted-foreground">
             {total} screens/views/states · reviewer index — not a production feature. Every row opens a working example of that
@@ -172,7 +171,7 @@ export default function PrototypeIndexScreen() {
             {DEMOS.map((d) => (
               <Card key={d.id} className="flex flex-col p-5">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
                     <d.icon className="size-4.5" aria-hidden />
                   </span>
                   <div>
@@ -298,4 +297,4 @@ export default function PrototypeIndexScreen() {
 }
 
 // TEMP SHIM (task 2-j runtime verification) — will be restored byte-exact.
-export const views = { "prototype-index": PrototypeIndexScreen };
+export const views = { "prototype-index": PrototypeIndexScreen, "test-businesses": TestBusinessesScreen };

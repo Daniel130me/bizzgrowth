@@ -97,7 +97,7 @@ export function RolesPermissions() {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {COLUMNS.map((c) => (
-          <div key={c} className={"rounded-xl border p-4" + (c === "owner" ? " border-violet-200 bg-violet-50/40" : "")}>
+          <div key={c} className={"rounded-xl border p-4" + (c === "owner" ? " border-brand-200 bg-brand-50/40" : "")}>
             <h3 className="text-sm font-semibold">{ROLE_LABEL[c]}</h3>
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{ROLE_CAPABILITIES[c]}</p>
           </div>

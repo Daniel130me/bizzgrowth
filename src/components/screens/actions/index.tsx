@@ -11,8 +11,10 @@ import { ExperimentTracking } from "./experiment-tracking";
 import { OutcomeDetail } from "./outcome";
 import { Timeline } from "./timeline";
 import { ChangeAdd } from "./change-add";
+import { CheckInScreen } from "./check-in";
 
 export const views: ViewMap = {
+  "check-in/:id": CheckInScreen,
   actions: ActionCentre,
   "recommendations/:id": RecommendationDetail,
   "action-start/:id": ActionStart,

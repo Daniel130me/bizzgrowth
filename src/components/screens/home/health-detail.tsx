@@ -75,7 +75,7 @@ export default function HealthDetail(_props: ScreenProps) {
 
         <SectionCard title="How to read these scores">
           <div className="flex items-start gap-3">
-            <Info className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden />
+            <Info className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden />
             <div className="text-sm text-muted-foreground">
               <p>
                 Scores are explainable summaries of the signals below — not gamified numbers. Each dimension is scored 0–100 from
@@ -112,7 +112,7 @@ export default function HealthDetail(_props: ScreenProps) {
               </div>
               <Progress value={h.score} className={cn("mt-3", scoreBar(h.score))} />
               <p className="mt-2.5 line-clamp-2 text-sm text-muted-foreground">{h.summary}</p>
-              <span className="mt-3 inline-flex items-center gap-0.5 text-xs font-medium text-blue-700">
+              <span className="mt-3 inline-flex items-center gap-0.5 text-xs font-medium text-brand-700">
                 Why this score <ChevronRight className="size-3.5" aria-hidden />
               </span>
             </Card>

@@ -8,12 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import {
   AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   Lightbulb,
   Sparkles,
   TrendingUp,
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { fmtDate } from "@/lib/format";
 import type { ActionRecord, AlertItem, Goodness, Insight, Recommendation } from "@/lib/types";
 import { ConfidenceBadge, ExecutionTypeBadge, ImpactBadge, ProvenanceBadge, SeverityBadge, StatusBadge, TrendBadge } from "./badges";
 
@@ -62,7 +64,7 @@ export function MetricCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => e.key === "Enter" && onClick()}
-        className={cn("cursor-pointer p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:ring-2 focus-visible:ring-ring", className)}
+        className={cn("cursor-pointer p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:ring-2 focus-visible:ring-ring", className)}
       >
         {inner}
       </Card>
@@ -74,7 +76,7 @@ export function MetricCard({
 // ---------- Intelligence cards ----------
 
 const TYPE_STYLE = {
-  problem: { icon: <AlertTriangle className="size-4" aria-hidden />, cls: "border-violet-200 bg-violet-50/50", chip: "text-violet-700 bg-violet-100" },
+  problem: { icon: <AlertTriangle className="size-4" aria-hidden />, cls: "border-brand-200 bg-brand-50/50", chip: "text-brand-700 bg-brand-100" },
   opportunity: { icon: <Lightbulb className="size-4" aria-hidden />, cls: "border-amber-200 bg-amber-50/60", chip: "text-amber-700 bg-amber-100" },
   improvement: { icon: <TrendingUp className="size-4" aria-hidden />, cls: "border-emerald-200 bg-emerald-50/50", chip: "text-emerald-700 bg-emerald-100" },
   watch: { icon: <Eye className="size-4" aria-hidden />, cls: "border-slate-200 bg-slate-50", chip: "text-slate-600 bg-slate-200/70" },
@@ -82,7 +84,11 @@ const TYPE_STYLE = {
 
 const IMPORTANCE_LABEL = { critical: "Critical", high: "High importance", medium: "Medium importance", low: "Low importance" } as const;
 
-export function InsightCard({ insight, onOpen }: { insight: Insight; onOpen: () => void }) {
+/**
+ * `cta` names what the card opens (on the owner's diagnosis page an insight isn't "a diagnosis");
+ * `status` says where the owner already put it (e.g. "On this week's list").
+ */
+export function InsightCard({ insight, onOpen, cta = "View diagnosis", status }: { insight: Insight; onOpen: () => void; cta?: string; status?: string }) {
   const s = TYPE_STYLE[insight.type];
   return (
     <Card
@@ -99,17 +105,22 @@ export function InsightCard({ insight, onOpen }: { insight: Insight; onOpen: () 
             {insight.type}
           </span>
           <span className="text-[11px] font-medium text-muted-foreground">{IMPORTANCE_LABEL[insight.importance]}</span>
-          <span className="ml-auto text-[11px] text-muted-foreground">{insight.date}</span>
+          <span className="ml-auto text-[11px] text-muted-foreground">{/^\d{4}-\d{2}-\d{2}$/.test(insight.date) ? fmtDate(insight.date) : insight.date}</span>
         </div>
       </CardHeader>
       <CardContent className="pb-3">
         <h3 className="text-[15px] font-semibold leading-snug">{insight.title}</h3>
         <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{insight.summary}</p>
+        {status ? (
+          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+            <CheckCircle2 className="size-3" aria-hidden /> {status}
+          </p>
+        ) : null}
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2 border-t bg-white/50 py-2.5">
         <ConfidenceBadge level={insight.confidenceLevel} value={insight.confidence} />
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 group-hover:underline">
-          View diagnosis <ArrowRight className="size-3.5" aria-hidden />
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 group-hover:underline">
+          {cta} <ArrowRight className="size-3.5" aria-hidden />
         </span>
       </CardFooter>
     </Card>
@@ -121,8 +132,8 @@ export function RecommendationCard({ rec, onOpen, onStart, right }: { rec: Recom
     <Card className="p-0">
       <CardContent className="pt-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Sparkles className="size-4 text-violet-600" aria-hidden />
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Recommendation</span>
+          <Sparkles className="size-4 text-brand-600" aria-hidden />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">Recommendation</span>
           <ConfidenceBadge level={rec.confidence >= 75 ? "high" : rec.confidence >= 50 ? "medium" : "low"} value={rec.confidence} />
           <ImpactBadge impact={rec.impact} />
           <StatusBadge status={rec.status} />
@@ -132,7 +143,7 @@ export function RecommendationCard({ rec, onOpen, onStart, right }: { rec: Recom
           tabIndex={0}
           onClick={onOpen}
           onKeyDown={(e) => e.key === "Enter" && onOpen()}
-          className="mt-2 cursor-pointer text-[15px] font-semibold leading-snug hover:text-blue-700 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-2 cursor-pointer text-[15px] font-semibold leading-snug hover:text-brand-700 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
         >
           {rec.title}
         </h3>

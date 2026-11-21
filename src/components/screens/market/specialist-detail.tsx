@@ -3,10 +3,7 @@
 //
 // A full Fiverr-style profile: headline, badges, track record, skills,
 // showcase and rates — plus the hiring CTA. The owner picks one of their
-// OPEN tasks and the specialist responds with an indicative bid. In this
-// pilot the invited roster specialist replies automatically with a bid
-// derived from their profile; the screen says so plainly instead of
-// pretending a real human typed it.
+// OPEN tasks and the specialist can review the brief and submit a bid.
 
 import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, Plus } from "lucide-react";
@@ -22,7 +19,6 @@ import type { ScreenProps } from "../view-types";
 
 export function SpecialistDetail({ params }: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
-  const businessId = useBizz((s) => s.businessId);
 
   // ---- Profile ----
   const [specialist, setSpecialist] = useState<SpecialistDTO | null>(null);
@@ -59,7 +55,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
       setTasksLoading(true);
       setTasksError(null);
       try {
-        const res = await fetch(`/api/market/tasks?workspaceId=${encodeURIComponent(businessId)}`);
+        const res = await fetch("/api/market/tasks");
         const data = (await res.json()) as { ok?: boolean; tasks?: TaskDTO[]; error?: string };
         if (!data?.ok || !Array.isArray(data.tasks)) {
           throw new Error(data?.error ?? "Could not load your tasks.");
@@ -72,7 +68,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
       }
     }
     void load();
-  }, [businessId, tasksReload]);
+  }, [tasksReload]);
 
   const openTasks = useMemo(
     () =>
@@ -100,7 +96,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
       if (!data?.ok) throw new Error(data?.error ?? "Please try again.");
       if ((data.invited ?? 0) > 0) {
         toast.success("Invitation sent", {
-          description: `${specialist.name} will respond with an indicative bid shortly.`,
+          description: `${specialist.name} can now review the brief and submit a bid.`,
         });
         setInvitedTaskIds((ids) => (ids.includes(task.id) ? ids : [...ids, task.id]));
       } else {
@@ -164,7 +160,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
 
             <div className="flex flex-wrap items-center gap-2">
               {specialist.badges.map((b) => (
-                <Badge key={b} className="border-transparent bg-violet-50 font-normal text-violet-700">
+                <Badge key={b} className="border-transparent bg-brand-50 font-normal text-brand-700">
                   {b}
                 </Badge>
               ))}
@@ -241,7 +237,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
           <div id="invite" className="scroll-mt-4">
             <SectionCard
               title="Invite to bid"
-              description="Pick one of your open tasks and this specialist will respond with an indicative bid."
+              description="Pick one of your open tasks. The specialist can review the brief and submit their own proposal."
             >
               {tasksLoading ? (
                 <LoadingState label="Loading your tasks" rows={2} />
@@ -286,10 +282,7 @@ export function SpecialistDetail({ params }: ScreenProps) {
                       );
                     })}
                   </div>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Pilot marketplace: invited roster specialists respond automatically with indicative bids derived
-                    from their profile.
-                  </p>
+                  <p className="mt-3 text-xs text-muted-foreground">The invitation does not commit either party. You choose whether to accept the submitted bid.</p>
                 </div>
               )}
             </SectionCard>

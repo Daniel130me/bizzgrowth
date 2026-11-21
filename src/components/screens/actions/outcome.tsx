@@ -10,11 +10,12 @@ import { ExperimentProgressChart } from "@/components/shared/charts";
 import { ConfidenceBadge, ProvenanceBadge, StatusBadge } from "@/components/shared/badges";
 import { Breadcrumbs, PageHeader, SectionCard } from "@/components/shared/layout";
 import { EmptyState, ErrorState } from "@/components/shared/states";
-import { useBizz } from "@/lib/store";
+import { useBizz, useCoachStep } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Goodness } from "@/lib/types";
 import type { ScreenProps } from "../view-types";
 import { metricFormatterFor, metricLabelFor, useCombinedExperiments } from "./helpers";
+import { OWN_WORKSPACE } from "./your-actions";
 
 function GoodnessPill({ goodness }: { goodness: Goodness }) {
   const map = {
@@ -48,8 +49,11 @@ export function OutcomeDetail({ params }: ScreenProps) {
   const businessId = useBizz((s) => s.businessId);
   const experiments = useCombinedExperiments(businessId);
   const [decision, setDecision] = useState<string | null>(null);
+  const extendCoachStep = useBizz((s) => s.extendCoachStep);
+  const addTimelineEvent = useBizz((s) => s.addTimelineEvent);
 
   const exp = experiments.find((e) => e.id === params.id);
+  const coachStep = useCoachStep(exp?.coachStepId);
 
   if (!exp) {
     return (
@@ -68,7 +72,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
       <div>
         <Breadcrumbs
           items={[
-            { label: "Action Centre", onClick: () => navigate("actions") },
+            { label: businessId === OWN_WORKSPACE ? "Actions" : "Action Centre", onClick: () => navigate("actions") },
             { label: "Experiments", onClick: () => navigate(`experiments/${exp.id}`) },
             { label: "Outcome" },
           ]}
@@ -88,6 +92,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
               target={exp.targetValue}
               label={metricLabelFor(exp)}
               formatter={metricFormatterFor(exp)}
+              axisFormatter={exp.unit ? (v: number) => `${v}` : undefined}
             />
           </SectionCard>
         </div>
@@ -97,6 +102,21 @@ export function OutcomeDetail({ params }: ScreenProps) {
 
   const recordDecision = (kind: "kept" | "reverted" | "extended") => {
     setDecision(kind);
+    if (coachStep) {
+      // A real experiment: the decision goes on the owner's timeline.
+      if (kind === "extended") {
+        extendCoachStep(coachStep.id, 7);
+        return;
+      }
+      addTimelineEvent({
+        date: new Date().toISOString().slice(0, 10),
+        type: "outcome",
+        title: kind === "kept" ? `Kept: ${exp.title}` : `Stopped: ${exp.title}`,
+        description: kind === "kept" ? "You decided to keep doing this." : "You decided to go back to how it was before.",
+        source: "Your decision",
+        provenance: "user-supplied",
+      });
+    }
     if (kind === "kept") toast.success("Change kept — timeline updated");
     if (kind === "reverted") toast("Change reverted", { description: "Future analyses will treat this change as undone." });
     if (kind === "extended")
@@ -107,7 +127,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
     <div>
       <Breadcrumbs
         items={[
-          { label: "Action Centre", onClick: () => navigate("actions") },
+          { label: businessId === OWN_WORKSPACE ? "Actions" : "Action Centre", onClick: () => navigate("actions") },
           { label: "Experiments", onClick: () => navigate(`experiments/${exp.id}`) },
           { label: "Outcome" },
         ]}
@@ -124,8 +144,8 @@ export function OutcomeDetail({ params }: ScreenProps) {
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Before</p>
             <p className="mt-1 text-2xl font-semibold tnum">{o.before}</p>
           </div>
-          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-blue-700">After</p>
+          <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-brand-700">After</p>
             <p className="mt-1 text-2xl font-semibold tnum">{o.after}</p>
           </div>
           <div
@@ -155,6 +175,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
       </SectionCard>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        {o.secondary.length > 0 ? (
         <SectionCard title="Secondary metrics" description="Supporting measures over the same window.">
           <Table>
             <TableHeader>
@@ -179,6 +200,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
             </TableBody>
           </Table>
         </SectionCard>
+        ) : null}
 
         <div className="space-y-4">
           <SectionCard title="Other changes during the period">
@@ -200,7 +222,11 @@ export function OutcomeDetail({ params }: ScreenProps) {
               <span className="text-sm text-muted-foreground">How strongly timing and data support a link.</span>
             </div>
             <p className="mt-3 text-sm leading-relaxed">
-              The timing suggests the intervention may have contributed, although other changes occurred in the same window.
+              {coachStep
+                ? o.attribution === "low"
+                  ? "Other things changed in the same window, or the count was rough — so treat this as an early sign, not proof."
+                  : "Nothing else changed that you know of, so this step is the most likely reason — still an early sign with a small number of people."
+                : "The timing suggests the intervention may have contributed, although other changes occurred in the same window."}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Confidence is not proof of causation — it describes how well the evidence supports a connection.
@@ -211,7 +237,7 @@ export function OutcomeDetail({ params }: ScreenProps) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <SectionCard title="AI interpretation" action={<ProvenanceBadge provenance="ai-interpretation" />}>
-          <blockquote className="border-l-2 border-violet-300 pl-3 text-sm leading-relaxed text-slate-700">
+          <blockquote className="border-l-2 border-brand-300 pl-3 text-sm leading-relaxed text-slate-700">
             {o.interpretation}
           </blockquote>
         </SectionCard>
@@ -239,8 +265,8 @@ export function OutcomeDetail({ params }: ScreenProps) {
             <Hourglass className="mr-2 size-4" aria-hidden />
             Run longer
           </Button>
-          <Button variant="ghost" onClick={() => navigate(`experiment-setup/${exp.actionId ?? exp.id}`)}>
-            Run another experiment
+          <Button variant="ghost" onClick={() => navigate(coachStep ? "home" : `experiment-setup/${exp.actionId ?? exp.id}`)}>
+            {coachStep ? "See my next step" : "Run another experiment"}
           </Button>
         </div>
         {decision === "kept" && (

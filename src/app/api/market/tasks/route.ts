@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toTaskDTO } from "@/lib/market";
+import { marketErrorResponse, requireMarketSession, requireWorkspace } from "@/lib/market-auth";
 
 export const runtime = "nodejs";
 
@@ -14,33 +15,33 @@ function clean(v: unknown, max: number): string {
 /** GET /api/market/tasks?workspaceId=… — tasks posted by one workspace. */
 export async function GET(req: NextRequest) {
   try {
+    const session = await requireMarketSession(req, { action: "tasks:list", limit: 90 });
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId")?.trim();
-    if (!workspaceId) {
-      return NextResponse.json({ ok: false, error: "workspaceId is required." }, { status: 400 });
-    }
+    const requestedWorkspaceId = searchParams.get("workspaceId")?.trim();
+    const workspaceId = requireWorkspace(session, requestedWorkspaceId || undefined);
     const rows = await db.marketTask.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
+      take: 100,
       include: { _count: { select: { bids: true } } },
     });
     return NextResponse.json({ ok: true, tasks: rows.map(toTaskDTO) });
   } catch (error) {
-    console.error("[api/market/tasks] GET error:", error);
-    return NextResponse.json({ ok: false, error: "Could not load tasks." }, { status: 500 });
+    return marketErrorResponse(error, "tasks:list");
   }
 }
 
 /** POST /api/market/tasks — post a task (from a recommendation or by hand). */
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireMarketSession(req, { mutation: true, action: "tasks:create", limit: 20 });
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ ok: false, error: "Invalid request body." }, { status: 400 });
     }
 
-    const workspaceId = clean(body.workspaceId, 80);
-    const businessName = clean(body.businessName, 120);
+    const workspaceId = requireWorkspace(session, clean(body.workspaceId, 80) || undefined);
+    const businessName = session.workspaceName || clean(body.businessName, 120) || "Business";
     const title = clean(body.title, 120);
     const description = clean(body.description, 2000);
     const category = clean(body.category, 30);
@@ -58,11 +59,11 @@ export async function POST(req: NextRequest) {
     const budgetMin = Number.isFinite(budgetMinRaw) && budgetMinRaw > 0 ? Math.round(budgetMinRaw) : null;
     const budgetMax = Number.isFinite(budgetMaxRaw) && budgetMaxRaw > 0 ? Math.round(budgetMaxRaw) : null;
 
-    if (!workspaceId) return NextResponse.json({ ok: false, error: "workspaceId is required." }, { status: 400 });
     if (title.length < 8) return NextResponse.json({ ok: false, error: "Give the task a clear title (at least 8 characters)." }, { status: 400 });
     if (description.length < 30) return NextResponse.json({ ok: false, error: "Describe the work in at least 30 characters — specialists bid on this." }, { status: 400 });
     if (!CATEGORIES.includes(category)) return NextResponse.json({ ok: false, error: "Pick a valid category." }, { status: 400 });
     if (!URGENCIES.includes(urgency)) return NextResponse.json({ ok: false, error: "Pick a valid timeframe." }, { status: 400 });
+    if (!["manual", "recommendation"].includes(source)) return NextResponse.json({ ok: false, error: "Invalid task source." }, { status: 400 });
     if (budgetMin && budgetMax && budgetMin > budgetMax) {
       return NextResponse.json({ ok: false, error: "Minimum budget cannot exceed maximum." }, { status: 400 });
     }
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
     const task = await db.marketTask.create({
       data: {
         workspaceId,
-        businessName: businessName || "Business",
+        businessName,
         title,
         description,
         category,
@@ -88,7 +89,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, task: toTaskDTO(task) }, { status: 201 });
   } catch (error) {
-    console.error("[api/market/tasks] POST error:", error);
-    return NextResponse.json({ ok: false, error: "Could not post the task." }, { status: 500 });
+    return marketErrorResponse(error, "tasks:create");
   }
 }

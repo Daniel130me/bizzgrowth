@@ -5,6 +5,7 @@ import { Mail, MonitorSmartphone } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { InfoBanner, PageHeader, SectionCard } from "@/components/shared/layout";
 import { useBizz } from "@/lib/store";
+import { CheckInFrequency } from "@/components/shared/coach";
 
 const CATEGORIES: { key: string; description: string }[] = [
   { key: "Critical alerts", description: "Connection failures and urgent metric warnings that need attention." },
@@ -31,6 +32,14 @@ export function NotificationPrefs() {
         title="Notification Preferences"
         description="Choose how each category reaches you. Changes save automatically."
       />
+
+      <SectionCard
+        title="Check-ins on your next step"
+        description="Short check-ins (about 30 seconds) ask what happened outside the app, so your diagnosis keeps learning. You choose how often."
+        className="mb-5"
+      >
+        <CheckInFrequency />
+      </SectionCard>
 
       <InfoBanner tone="info" title="Alerts vs notifications">
         Critical alerts always appear in the Alerts Centre inside the app, regardless of these settings. These

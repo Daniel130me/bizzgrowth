@@ -24,7 +24,6 @@ interface TaskCreated {
 export function TaskPost({ params }: ScreenProps) {
   void params;
   const navigate = useBizz((s) => s.navigate);
-  const businessId = useBizz((s) => s.businessId);
   const businessName = useBizz((s) => s.settings.businessName);
   const prefill = useBizz((s) => s.taskPrefill);
   const setTaskPrefill = useBizz((s) => s.setTaskPrefill);
@@ -96,7 +95,6 @@ export function TaskPost({ params }: ScreenProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          workspaceId: businessId,
           businessName,
           title: title.trim(),
           description: description.trim(),

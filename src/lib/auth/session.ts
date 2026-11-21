@@ -1,4 +1,4 @@
-// Server-only: login sessions for bizzGrowth.
+// Server-only: login sessions for Nellovia.
 //
 // The browser holds a random token in an httpOnly cookie; the DB row in
 // "AuthSession" (prisma/sql/002_auth_session.sql) holds only its SHA-256 hash.
@@ -10,6 +10,7 @@ import { cookies, headers } from "next/headers";
 import type { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+// The cookie name keeps the old "bizz_" prefix on purpose: renaming it would sign everyone out.
 export const SESSION_COOKIE = "bizz_session";
 const REMEMBER_DAYS = 30;
 const SHORT_HOURS = 12;

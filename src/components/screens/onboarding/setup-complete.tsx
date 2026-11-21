@@ -63,7 +63,7 @@ export default function SetupComplete(_props: ScreenProps) {
             </li>
           ))}
           <li className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 size-4.5 shrink-0 text-blue-600" aria-hidden />
+            <CheckCircle2 className="mt-0.5 size-4.5 shrink-0 text-brand-600" aria-hidden />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">Checkup coverage</p>
@@ -77,33 +77,33 @@ export default function SetupComplete(_props: ScreenProps) {
           </li>
         </ul>
 
-        <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-blue-900">Add data your way — optional, anytime</p>
+        <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50/50 p-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-900">Add data your way — optional, anytime</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <button
               type="button"
               onClick={() => navigate("manual-entry")}
-              className="group flex flex-col items-start rounded-lg border border-blue-100 bg-white p-3 text-left transition-colors hover:border-blue-300"
+              className="group flex flex-col items-start rounded-lg border border-brand-100 bg-white p-3 text-left transition-colors hover:border-brand-300"
             >
-              <PenLine className="size-4 text-blue-700" aria-hidden />
+              <PenLine className="size-4 text-brand-700" aria-hidden />
               <span className="mt-1.5 text-sm font-medium">Type your totals</span>
               <span className="text-[11px] leading-snug text-muted-foreground">Monthly figures, exact or estimated</span>
             </button>
             <button
               type="button"
               onClick={() => navigate("csv-upload")}
-              className="group flex flex-col items-start rounded-lg border border-blue-100 bg-white p-3 text-left transition-colors hover:border-blue-300"
+              className="group flex flex-col items-start rounded-lg border border-brand-100 bg-white p-3 text-left transition-colors hover:border-brand-300"
             >
-              <FileSpreadsheet className="size-4 text-blue-700" aria-hidden />
+              <FileSpreadsheet className="size-4 text-brand-700" aria-hidden />
               <span className="mt-1.5 text-sm font-medium">Upload a file</span>
               <span className="text-[11px] leading-snug text-muted-foreground">Bring a CSV export from your tool</span>
             </button>
             <button
               type="button"
               onClick={() => navigate("integrations")}
-              className="group flex flex-col items-start rounded-lg border border-blue-100 bg-white p-3 text-left transition-colors hover:border-blue-300"
+              className="group flex flex-col items-start rounded-lg border border-brand-100 bg-white p-3 text-left transition-colors hover:border-brand-300"
             >
-              <Plug className="size-4 text-blue-700" aria-hidden />
+              <Plug className="size-4 text-brand-700" aria-hidden />
               <span className="mt-1.5 text-sm font-medium">Connect a service</span>
               <span className="text-[11px] leading-snug text-muted-foreground">Meta, Google, Shopify, Paystack — read-only</span>
             </button>
@@ -116,18 +116,18 @@ export default function SetupComplete(_props: ScreenProps) {
             <ArrowRight className="size-4" aria-hidden />
           </Button>
           <Button variant="outline" className="w-full sm:w-auto" onClick={openSampleBusiness}>
-            <Sparkles className="size-4 text-violet-600" aria-hidden />
+            <Sparkles className="size-4 text-brand-600" aria-hidden />
             Explore sample business
           </Button>
         </div>
       </Card>
 
-      <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-violet-800">
+      <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
           <Sparkles className="size-4" aria-hidden />
           What happens next
         </p>
-        <p className="mt-1 text-sm leading-relaxed text-violet-900/90">
+        <p className="mt-1 text-sm leading-relaxed text-brand-900/90">
           The Business Overview opens with your first diagnosis already active. Nothing sample or simulated appears there —
           when you add totals, upload data or connect a service, your own numbers take its place.
         </p>

@@ -1,4 +1,4 @@
-// bizzGrowth coherent demo dataset — ONE shared source of truth.
+// Nellovia coherent demo dataset — ONE shared source of truth.
 // Every screen must read from here so the same fact never contradicts itself.
 // NOTE: demo businesses (SwiftHaul / KoraHome) are SAMPLES. A user's own
 // workspace is built honestly by buildUserBusiness() — never from these.

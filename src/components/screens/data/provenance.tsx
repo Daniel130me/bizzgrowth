@@ -44,8 +44,8 @@ function FactRow({ fact, active }: { fact: ProvenanceFact; active?: boolean }) {
     <button
       onClick={() => navigate(`provenance/${fact.id}`)}
       aria-label={`Open fact: ${fact.label}`}
-      className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border p-3.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 ${
-        active ? "border-blue-300 bg-blue-50/40" : ""
+      className={`flex w-full flex-wrap items-center justify-between gap-2 rounded-xl border p-3.5 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/40 ${
+        active ? "border-brand-300 bg-brand-50/40" : ""
       }`}
     >
       <div className="min-w-0">
@@ -170,7 +170,7 @@ function ProvenanceFactScreen({ params }: { params: Record<string, string> }) {
                   {route ? (
                     <button
                       onClick={() => navigate(route)}
-                      className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+                      className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
                       aria-label={`Open ${dep}`}
                     >
                       Open <ArrowRight className="size-3" aria-hidden />

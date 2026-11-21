@@ -14,6 +14,24 @@ import {
 } from "@/lib/checkup";
 import { computeStake, currencySymbol, isBroadMarket, parseAmount, parseCloseRate, plainify, ratioText, stakeLinesForPrompt } from "@/lib/checkup-math";
 import { collectAllowedNumbers, dropUngroundedSentences, ungroundedNumbers, type AllowedNumbers } from "@/lib/grounding";
+import { NEXT_STEP_RULES, NEXT_STEP_SCHEMA, cleanNextStep, templateNextStep, type NextStep } from "@/lib/coach";
+import { HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
+import { businessWords, type BusinessWords } from "@/lib/business-words";
+import {
+  detailLines,
+  factsForChallenge,
+  outsideNote,
+  planOrder,
+  stageOfText,
+  templateOutsideDiagnosis,
+  templateOutsideStep,
+  type ChallengeDetails,
+  type ChallengePlan,
+  type ChallengeStage,
+  type ChallengeStatus,
+} from "@/lib/challenges";
+import { getSession } from "@/lib/auth/session";
+import { measuredContext } from "@/lib/connectors/summary";
 
 export const runtime = "nodejs";
 
@@ -23,7 +41,7 @@ export const runtime = "nodejs";
  * numbers fairly, (3) show what fixing it is worth — from THEIR estimates,
  * computed in code, never invented — and (4) hand them help they can use today.
  */
-const SYSTEM = `You are the senior growth analyst inside bizzGrowth. A small-business owner — often in Nigeria, often with no website — has just finished a short checkup. Write their FIRST DIAGNOSIS. It must make them think "this understands my business better than I expected", and give them something they can use today.
+const SYSTEM = `You are Nellovia, the owner's AI business consultant inside the Nellovia app. A small-business owner — often in Nigeria, often with no website — has just finished a short checkup. Write their FIRST DIAGNOSIS. It must make them think "this understands my business better than I expected", and give them something they can use today.
 
 You only know what they told you (the facts below) plus COMPUTED figures worked out in code from their own estimates.
 
@@ -45,12 +63,18 @@ WHAT MAKES IT WORTH PAYING FOR
 4. HELP THEY CAN USE TODAY — ready-to-use words in the owner's own voice: short, plain, friendly, ready to paste into WhatsApp, with [name] where a name goes. In the offer you may suggest prices inside their own typical job range; use a placeholder like [time] for anything else you do not know.
 
 VOICE
-- Speak to the owner as "you". Warm, direct and confident — like a trusted consultant who has seen many businesses like theirs. Acknowledge what works before the gap.
+- Speak to the owner as "you". Warm, direct and confident — like a trusted consultant. Acknowledge what works before the gap.
 - Never blame or scold ("you never…", "you fail to…", "you're losing them because you…"). Describe what happens and the opportunity: "People who go quiet after a price hear nothing more, so they drift away."
 - Everyday words a market trader understands. NEVER use: signed, sign up, leads, prospects, conversion, convert, funnel, pipeline, CTR, traffic, visitors, acquisition, retention, churn, ROI, KPI, metrics, B2B, B2C, leverage, optimise.
 - Do not assume they use spreadsheets, apps, a CRM or a website — a notebook or WhatsApp is fine.
 - Do not mention their country unless it matters to the advice.
 - Every sentence must be specific to THIS business. If a sentence would fit any business, rewrite it.
+
+${I_VOICE}
+
+${HONESTY_RULES}
+
+5. ONE NEXT STEP — end with the single thing to do first, as an experiment (a small test that checks whether you read the cause right) or a recommendation (a proven fix). If CHECK-IN RESULTS are listed, build on them: never suggest again a step that was tried and ruled out, and say what it taught you.
 
 Return ONLY valid JSON, no markdown:
 {
@@ -68,8 +92,11 @@ Return ONLY valid JSON, no markdown:
     { "kind": "script", "title": "<= 60 chars", "when": "<= 80 chars", "body": "what to say, 2-4 short sentences" },
     { "kind": "offer", "title": "<= 60 chars", "when": "<= 80 chars", "body": "a simple layout, one option per line" }
   ],
+  "nextStep": ${NEXT_STEP_SCHEMA},
   "confidence": 60
 }
+${NEXT_STEP_RULES}
+- THE CHALLENGE TO DIAGNOSE, when given, is what this diagnosis is about: the headline speaks to it, in their terms. Use everything else they told you as background. Their OTHER CHALLENGES are already on their list for later — never diagnose them here, mention one only if it explains this one.
 - tools: exactly 3, one of each kind, matched to focusStage:
   convert → a message for people who went quiet after hearing the price; what to say when someone says it is too expensive; three options instead of one price (small / standard / full, and paying in parts).
   found → a message asking a happy customer to pass your name on; a one-line way to say what you do and for whom; a simple thank-you for referrals.
@@ -180,7 +207,7 @@ const NO_FOLLOW_RE = /\b(don't|do not|dont|never|rarely|no|not)\b.*\b(check|foll
 /* Ready-to-use help — the template set (also fills gaps in model output) */
 /* ------------------------------------------------------------------ */
 
-function templateTools(stage: FocusStage): DiagnosisTool[] {
+function templateTools(stage: FocusStage, w: BusinessWords): DiagnosisTool[] {
   switch (stage) {
     case "found":
       return [
@@ -188,19 +215,23 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
           kind: "message",
           title: "Ask a happy customer to pass your name on",
           when: "Send to your 3 happiest recent customers this week",
-          body: "Hi [name], I really enjoyed working with you. If you know anyone who needs something similar, I'd be grateful if you passed my number on — I'll take good care of them. Thank you!",
+          body: w.goods
+            ? "Hi [name], thank you for ordering from me — I hope you enjoyed it. If you know anyone who'd like something similar, I'd be grateful if you passed my number on. Thank you!"
+            : "Hi [name], I really enjoyed working with you. If you know anyone who needs something similar, I'd be grateful if you passed my number on — I'll take good care of them. Thank you!",
         },
         {
           kind: "script",
           title: "Say what you do in one line",
           when: "Use it every time someone asks what you do",
-          body: "I help [the kind of customer you serve best] get [the result they want] — quickly and without stress. Most of my work comes from people my customers recommend.",
+          body: w.goods
+            ? "I sell [what you sell] for [the kind of customer you serve best] — [what makes yours different]. Most of my customers come from people who already buy from me."
+            : "I help [the kind of customer you serve best] get [the result they want] — quickly and without stress. Most of my work comes from people my customers recommend.",
         },
         {
           kind: "offer",
           title: "A simple thank-you for referrals",
-          when: "Mention it once to every customer after a job",
-          body: "Anyone who sends me a new customer gets [a small thank-you — a discount on their next job, or a free extra].\nTell customers once, by message, right after the job is done.",
+          when: `Mention it once to every customer after their ${w.sale}`,
+          body: `Anyone who sends me a new customer gets [a small thank-you — something off their next ${w.sale}, or a free extra].\nTell customers once, by message, right after their ${w.sale}.`,
         },
       ];
     case "enquire":
@@ -209,7 +240,9 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
           kind: "message",
           title: "Make it easy to get in touch",
           when: "Put it where people already see you — status, shop sign, flyers",
-          body: "Need [what you do]? Send me a message with what you need and roughly when — I reply the same day with options and prices.",
+          body: w.goods
+            ? "Looking for [what you sell]? Send me a message with what you'd like and when you need it — I reply the same day with options and prices."
+            : "Need [what you do]? Send me a message with what you need and roughly when — I reply the same day with options and prices.",
         },
         {
           kind: "script",
@@ -228,19 +261,23 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
       return [
         {
           kind: "message",
-          title: "Raise prices for new work",
+          title: w.goods ? "Raise prices for new orders" : "Raise prices for new work",
           when: "Send to new enquiries and regular customers",
-          body: "Hi [name], a quick note: from [date], my prices for new work will be [new price]. Anything booked before then stays at today's price — so if you've been planning something, now is a good time.",
+          body: w.goods
+            ? "Hi [name], a quick note: from [date], my prices will be [new price]. Anything ordered before then stays at today's price — so if you've been planning an order, now is a good time."
+            : "Hi [name], a quick note: from [date], my prices for new work will be [new price]. Anything booked before then stays at today's price — so if you've been planning something, now is a good time.",
         },
         {
           kind: "script",
-          title: "Say \"next month\" without losing the customer",
+          title: "Say \"not yet\" without losing the customer",
           when: "When you're fully booked",
-          body: "I'd love to do this, and I want to give it proper attention. My next free slot is [date] — shall I hold it for you?",
+          body: w.goods
+            ? "I'd love to make this for you, and I want it to be right. The earliest I can have it ready is [date] — shall I put you down for it?"
+            : "I'd love to do this, and I want to give it proper attention. My next free slot is [date] — shall I hold it for you?",
         },
         {
           kind: "offer",
-          title: "Charge more for urgent work",
+          title: w.goods ? "Charge more for rush orders" : "Charge more for urgent work",
           when: "Offer it whenever someone needs it fast",
           body: "Standard — ready in [normal time] — [price]\nPriority — ready in [faster time] — [price + extra]",
         },
@@ -251,19 +288,23 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
           kind: "message",
           title: "Check in with past customers",
           when: "Send to 5 past customers this week",
-          body: "Hi [name], it's been a while since we worked together — I hope everything is still going well. If there's anything you need now, I'd be glad to help.",
+          body: w.goods
+            ? "Hi [name], it's been a while since your last order — I hope you enjoyed it. If there's anything you'd like now, I'd be glad to help."
+            : "Hi [name], it's been a while since we worked together — I hope everything is still going well. If there's anything you need now, I'd be glad to help.",
         },
         {
           kind: "script",
           title: "Ask for a referral at the right moment",
           when: "Right after a customer says they're happy",
-          body: "I'm really glad you're happy with it. Who else do you know who might need something like this? I'd take good care of them.",
+          body: "I'm really glad you're happy with it. Who else do you know who might like something like this? I'd take good care of them.",
         },
         {
           kind: "offer",
           title: "A follow-on offer for past customers",
           when: "Send with your check-in message",
-          body: "For past customers this month: [a useful next service] with [a small discount or free extra].",
+          body: w.goods
+            ? "For past customers this month: [something they'd like next] with [a small discount or free extra]."
+            : "For past customers this month: [a useful next service] with [a small discount or free extra].",
         },
       ];
     case "convert":
@@ -273,7 +314,9 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
           kind: "message",
           title: "For people who went quiet after your price",
           when: "Send to the last 3 people who didn't reply",
-          body: "Hi [name], thanks again for asking about the work. I know paying it all at once can feel like a lot — I can split it into 2 or 3 payments, or start with a simpler version and add more later. Would either of those work for you?",
+          body: w.goods
+            ? "Hi [name], thanks again for asking. If the price was the worry, I can suggest a smaller or simpler option that fits your budget — or hold your order with a deposit. Would either of those help?"
+            : "Hi [name], thanks again for asking about the work. I know paying it all at once can feel like a lot — I can split it into 2 or 3 payments, or start with a simpler version and add more later. Would either of those work for you?",
         },
         {
           kind: "script",
@@ -284,14 +327,16 @@ function templateTools(stage: FocusStage): DiagnosisTool[] {
         {
           kind: "offer",
           title: "Give three options instead of one price",
-          when: "Use it on your very next quote",
-          body: "Basic — the essentials, done well — [lower price]\nStandard — what most customers choose — [your usual price]\nFull — everything, plus extra support — [higher price]\nPay in 2 or 3 parts if that helps.",
+          when: `Use it the next time someone asks for a ${w.quote}`,
+          body: w.goods
+            ? "Small — [what's included] — [lower price]\nRegular — what most customers choose — [your usual price]\nLarge or special — [what's extra] — [higher price]"
+            : "Basic — the essentials, done well — [lower price]\nStandard — what most customers choose — [your usual price]\nFull — everything, plus extra support — [higher price]\nPay in 2 or 3 parts if that helps.",
         },
       ];
   }
 }
 
-function templateSteps(stage: FocusStage, facts: BusinessFacts): string[] {
+function templateSteps(stage: FocusStage, facts: BusinessFacts, w: BusinessWords): string[] {
   switch (stage) {
     case "found":
       return [
@@ -302,33 +347,36 @@ function templateSteps(stage: FocusStage, facts: BusinessFacts): string[] {
     case "enquire":
       return ["Make your number and next step obvious everywhere people see you", "Reply to every enquiry the same day", "Count how many people get in touch each week"];
     case "deliver":
-      return ["Write down where your hours go for one week", "Raise prices for new work", "Hand one repeated task to someone else or a template"];
+      return ["Write down where your hours go for one week", w.goods ? "Raise prices for new orders" : "Raise prices for new work", "Hand one repeated task to someone else or a template"];
     case "return":
-      return ["Message 5 past customers to check in", "Ask happy customers who else might need you", "Offer past customers a simple follow-on service"];
+      return ["Message 5 past customers to check in", "Ask happy customers who else might like what you offer", w.goods ? "Offer past customers something new to try" : "Offer past customers a simple follow-on service"];
     case "convert":
     default:
       return [
         PRICE_RE.test(facts.bottleneck ?? "") ? "Message the last 3 people who went quiet after your price" : "Follow up once with everyone who goes quiet",
-        "Put three options on your next quote instead of one price",
+        w.goods ? "Offer three sizes or options instead of one price" : "Put three options on your next quote instead of one price",
         "Note what each person says when they don't go ahead",
       ];
   }
 }
 
-function templateDiagnosis(facts: BusinessFacts, cur: string): DiagnosisContent {
-  const stage = inferStage(facts);
+function templateDiagnosis(facts: BusinessFacts, cur: string, tried: string[] = [], stageOverride?: FocusStage): DiagnosisContent {
+  const stage = stageOverride ?? inferStage(facts);
+  const w = businessWords(facts);
   const ratio = parseCloseRate(facts.closeRate);
   const channels = facts.channels.length ? facts.channels.join(", ").toLowerCase() : "the places people find you";
   const referrals = /referr|word of mouth|recommend|friend/i.test(channels);
   const priceIssue = PRICE_RE.test(facts.bottleneck ?? "");
   const broad = isBroadMarket(facts.customers) || isBroadMarket(facts.whatTheySell);
   const noFollowUp = NO_FOLLOW_RE.test(`${facts.followUp ?? ""} ${facts.bottleneck ?? ""}`);
+  // "your work" for a service, "what you sell" for goods — said the way the owner would.
+  const Offer = w.offer[0].toUpperCase() + w.offer.slice(1);
 
   const headlineByStage: Record<FocusStage, string> = {
     convert: priceIssue
-      ? "People like your work — the price conversation is where you lose them"
-      : "People ask about your work — most of them drift away before they pay",
-    found: "Your work sells once people find you — too few of the right people find you yet",
+      ? `People like ${w.offer} — the price is where you lose them`
+      : `People ask about ${w.offer} — most of them drift away before they pay`,
+    found: `${Offer} sells once people find you — too few of the right people find you yet`,
     enquire: "People know about you, but too few of them get in touch",
     deliver: "You have more demand than time — your prices and process are the lever now",
     return: "Your next growth is in customers who already trust you",
@@ -336,19 +384,27 @@ function templateDiagnosis(facts: BusinessFacts, cur: string): DiagnosisContent 
 
   let insight: string;
   if (broad && priceIssue) {
-    insight = "You serve almost anyone, so people compare your price with the cheapest option they know — not with what you would actually do for them.";
+    insight = "You serve almost anyone, so people compare your price with the cheapest option they know — not with what you would actually give them.";
   } else if (noFollowUp && stage === "convert") {
     insight = "People who go quiet after hearing a price are often still deciding — and right now nobody nudges them, so the quiet ones never come back.";
   } else if (referrals && stage === "found") {
-    insight = "All your work comes through people who already know you. That is great for trust, but it caps how many new people ever hear about you.";
+    insight = `Most of your ${w.sale}s come through people who already know you. That is great for trust, but it caps how many new people ever hear about you.`;
   } else if (ratio && ratio.won / ratio.of >= 0.3 && stage === "convert") {
     insight = `Winning ${ratioText(ratio)} people who ask is a decent base — the gain is in the ones who were almost ready and simply drifted off.`;
   } else {
-    insight = "The fastest growth usually comes from fixing the step where people already drop off — not from finding more people.";
+    // The default must agree with the stage (a "getting found" read can't say "not from finding more people").
+    const defaults: Record<FocusStage, string> = {
+      convert: "The fastest growth usually comes from fixing the step where people already drop off — not from finding more people.",
+      found: "People who find you tend to buy — the gap is how few of the right people hear about you each week.",
+      enquire: "Interest that never turns into a message or a visit is invisible — a clear, easy way to reach you catches it.",
+      deliver: "When you're already stretched, more customers can make things worse — price and process are the levers now.",
+      return: "Past customers already trust you — a reason and a reminder to come back is the cheapest growth there is.",
+    };
+    insight = defaults[stage];
   }
 
   const working = referrals
-    ? "People recommend you — that only happens when the work is good."
+    ? `People recommend you — that only happens when ${w.offer} is good.`
     : ratio && ratio.won / ratio.of >= 0.4
       ? `You already win ${ratioText(ratio)} people who ask — a solid base.`
       : "You know exactly where it feels stuck — that is the first step to fixing it.";
@@ -357,21 +413,23 @@ function templateDiagnosis(facts: BusinessFacts, cur: string): DiagnosisContent 
   if (priceIssue) said.push("people often go quiet once they hear the price");
   else if (facts.bottleneck) said.push(`growth feels stuck at "${facts.bottleneck}"`);
   if (ratio) said.push(`about ${ratioText(ratio)} people who ask go on to pay`);
-  if (facts.channels.length) said.push(`most work comes through ${channels}`);
+  if (facts.channels.length) said.push(`most customers come through ${channels}`);
   const story = said.length
-    ? `You told us ${said.slice(0, 2).join(", and ")}. That points to ${FOCUS_STAGES.find((s) => s.id === stage)?.label.toLowerCase() ?? "one step"} as the place to focus first.`
-    : `You told us most of your work comes through ${channels}. That points to one clear place to focus first.`;
+    ? `You told me ${said.slice(0, 2).join(", and ")}. That points to ${FOCUS_STAGES.find((s) => s.id === stage)?.label.toLowerCase() ?? "one step"} as the place to focus first.`
+    : `You told me most of your customers come through ${channels}. That points to one clear place to focus first.`;
 
   const stake = computeStake(facts, cur, stage);
 
   const meaningByStage: Record<FocusStage, string> = {
     convert: priceIssue
-      ? "People are interested enough to ask, so finding customers is not your main problem. The drop happens when a single price lands without anything to compare it to, and with no easy way to say yes. Options, payment in parts and one friendly follow-up usually change that."
-      : "People already find you and ask, so demand is not your main problem. Most of the lost growth happens after the first conversation — slow replies, quotes with no follow-up, or an unclear next step.",
-    found: `When most work comes through ${channels}, new business depends on how often other people mention you. That is steady but hard to grow on purpose, so quiet months are hard to predict.`,
+      ? "People are interested enough to ask, so finding customers is not your main problem. The drop happens when a single price lands without anything to compare it to, and with no easy way to say yes. Options, a smaller starting choice and one friendly follow-up usually change that."
+      : "People already find you and ask, so demand is not your main problem. Most of the lost growth happens after the first conversation — slow replies, prices with no follow-up, or an unclear next step.",
+    found: `When most customers come through ${channels}, new business depends on how often other people mention you. That is steady but hard to grow on purpose, so quiet months are hard to predict.`,
     enquire: "Interest that never turns into a message or a call is invisible, so it is easy to miss. A clear way to reach you and a simple next step usually close this gap.",
-    deliver: "When you are already stretched, more enquiries can hurt: slower replies, rushed work and missed chances. The fix is usually price, time or process rather than marketing.",
-    return: "Past customers already trust you, so they are the easiest source of new work. Without a simple habit of staying in touch, that trust fades quietly.",
+    deliver: w.goods
+      ? "When you are already stretched, more orders can hurt: slower replies, rushed orders and missed chances. The fix is usually price, time or process rather than marketing."
+      : "When you are already stretched, more enquiries can hurt: slower replies, rushed work and missed chances. The fix is usually price, time or process rather than marketing.",
+    return: "Past customers already trust you, so they are the easiest source of new sales. Without a simple habit of staying in touch, that trust fades quietly.",
   };
 
   return {
@@ -386,22 +444,50 @@ function templateDiagnosis(facts: BusinessFacts, cur: string): DiagnosisContent 
       : "Fixing the step where people already drop off grows the business without spending more to find new customers.",
     nextInvestigation:
       stage === "convert"
-        ? "Start with the people who already said no or went quiet — they know you, they wanted the work, and one friendly message costs nothing."
+        ? `Start with the people who already said no or went quiet — they know you, they wanted ${w.offer}, and one friendly message costs nothing.`
         : stage === "found"
           ? "Start with your happiest customers — one message asking them to pass your name on is the cheapest new customer you will ever get."
           : "Start with the one change below that takes the least time — then watch what happens over the next two weeks.",
-    steps: templateSteps(stage, facts),
-    tools: templateTools(stage),
+    steps: templateSteps(stage, facts, w),
+    tools: templateTools(stage, w),
     stake,
     deltas: directionDeltas(facts),
     confidence: facts.bottleneck || facts.closeRate ? 58 : 48,
     focusStage: stage,
+    nextStep: templateNextStep(stage, facts, tried),
   };
+}
+
+/**
+ * When the app moved the first focus (e.g. "getting more people to ask" before "winning them"),
+ * a first step that plainly works on another stage is swapped for the ready-made one for the
+ * agreed focus — the order the owner was shown must be the order they're coached in.
+ */
+function onAgreedFocus(step: NextStep, strictStage: FocusStage | null, fallback: () => NextStep): NextStep {
+  if (!strictStage) return step;
+  const said = stageOfText(`${step.title} ${step.why}`);
+  return said && said !== "outside" && said !== strictStage ? fallback() : step;
+}
+
+/** A model next step with an untraceable figure falls back to the ready-made one. */
+function groundedNextStep(raw: unknown, fallback: NextStep, allowed: AllowedNumbers, ownerText: string): NextStep {
+  const step = cleanNextStep(raw, fallback, (t, cap) => cleanText(t, cap, ownerText));
+  if (step === fallback) return fallback;
+  const text = [step.title, step.why, ...step.how, step.measure ?? "", step.countHow ?? ""].join(" ");
+  return ungroundedNumbers(text, allowed).length === 0 ? step : fallback;
 }
 
 /* ------------------------------------------------------------------ */
 /* Model output → clean, validated diagnosis                            */
 /* ------------------------------------------------------------------ */
+
+/** Extra rules when the challenge is something the app can't see (cash flow, staff, rent, costs…). */
+const OUTSIDE_RULES = `THIS CHALLENGE IS OUTSIDE WHAT Nellovia CAN MEASURE (it happens away from the app — e.g. cash flow, staff, rent, costs, suppliers, equipment).
+- Be honest about that once, plainly, in "meaning": the app can't see it, so any number is one they count themselves.
+- Still be genuinely useful: practical, low-risk help that fits THIS business. Where it touches their customers or sales, say how.
+- No "What fixing it is worth" claims. nextStep: a "recommendation" they can count themselves (unit "count"), never a promise.
+- tools: only ones that truly help with this (a message to send, what to say); otherwise fewer is fine.
+- focusStage: the stage it touches most ("deliver" if none).`;
 
 interface ModelDiagnosis {
   headline?: string;
@@ -415,6 +501,48 @@ interface ModelDiagnosis {
   focusStage?: string;
   steps?: unknown;
   tools?: unknown;
+  nextStep?: unknown;
+}
+
+interface ChallengeInput {
+  id: string;
+  title: string;
+  main: boolean;
+  stage: ChallengeStage;
+  status: ChallengeStatus;
+  source: "onboarding" | "reported" | "ask" | "check-in";
+  details?: ChallengeDetails;
+}
+
+const STAGE_IDS: ChallengeStage[] = [...FOCUS_STAGES.map((s) => s.id), "outside"];
+
+function cleanChallenge(raw: unknown): ChallengeInput | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" ? o.id.slice(0, 60) : "";
+  const title = typeof o.title === "string" ? o.title.replace(/\s+/g, " ").trim().slice(0, 170) : "";
+  if (!id || title.length < 2) return null;
+  const stage = STAGE_IDS.includes(o.stage as ChallengeStage) ? (o.stage as ChallengeStage) : stageOfText(title) ?? "found";
+  const status = (["working", "up-next", "solved", "stopped", "no-longer"] as const).find((s) => s === o.status) ?? "up-next";
+  const source = (["onboarding", "reported", "ask", "check-in"] as const).find((s) => s === o.source) ?? "reported";
+  const d = o.details && typeof o.details === "object" ? (o.details as ChallengeDetails) : undefined;
+  const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 300) : undefined);
+  const details: ChallengeDetails | undefined = d
+    ? {
+        what: text(d.what),
+        since: text(d.since),
+        often: text(d.often),
+        tried: text(d.tried),
+        theory: text(d.theory),
+        extra: Array.isArray(d.extra)
+          ? d.extra
+              .filter((e) => e && typeof e.question === "string" && typeof e.answer === "string")
+              .map((e) => ({ key: String(e.key ?? "").slice(0, 30), question: e.question.slice(0, 200), answer: e.answer.slice(0, 300) }))
+              .slice(0, 2)
+          : undefined,
+      }
+    : undefined;
+  return { id, title, stage, status, source, main: o.main === true, details };
 }
 
 const GIVES_UP = /insufficient|not enough (information|data|signal)|cannot (tell|determine)|can't (tell|determine)|unable to (diagnose|determine)/i;
@@ -423,7 +551,7 @@ function cleanText(v: unknown, cap: number, ownerText: string): string {
   return toSecondPerson(plainify(String(v ?? "").replace(/\s+/g, " ").trim(), ownerText)).slice(0, cap);
 }
 
-function cleanTools(raw: unknown, stage: FocusStage, ownerText: string): DiagnosisTool[] {
+function cleanTools(raw: unknown, stage: FocusStage, ownerText: string, w: BusinessWords, fill = true): DiagnosisTool[] {
   const kinds: DiagnosisTool["kind"][] = ["message", "script", "offer"];
   const fromModel: DiagnosisTool[] = [];
   if (Array.isArray(raw)) {
@@ -437,8 +565,10 @@ function cleanTools(raw: unknown, stage: FocusStage, ownerText: string): Diagnos
       fromModel.push({ kind, title, body, ...(o.when ? { when: cleanText(o.when, 100, ownerText) } : {}) });
     }
   }
+  // Outside what the app measures: only the help the model wrote for it (no stage templates).
+  if (!fill) return kinds.map((k) => fromModel.find((t) => t.kind === k)).filter((t): t is DiagnosisTool => Boolean(t));
   // One of each kind; any kind the model missed comes from the template set.
-  const template = templateTools(stage);
+  const template = templateTools(stage, w);
   return kinds
     .map((k) => fromModel.find((t) => t.kind === k) ?? template.find((t) => t.kind === k))
     .filter((t): t is DiagnosisTool => Boolean(t));
@@ -471,12 +601,53 @@ export async function POST(request: NextRequest) {
       currency?: string;
       facts?: BusinessFacts;
       transcript?: { role?: string; text?: string }[];
+      /** What earlier check-ins taught us (oldest first). */
+      learnings?: string[];
+      /** Titles of steps already tried — never suggested again. */
+      tried?: string[];
+      /** The challenge to diagnose (default: the checkup's "where it feels stuck"). */
+      challenge?: unknown;
+      /** Their other challenges — for the order, and so this diagnosis stays on its own challenge. */
+      others?: unknown[];
+      /** First diagnosis with several challenges: choose which one comes first, and why. */
+      chooseFocus?: boolean;
+      /** Two steps didn't move it: look for a different cause. */
+      rethink?: boolean;
     };
 
-    const facts = body.facts;
-    if (!facts || !facts.trends) {
+    const rawFacts = body.facts;
+    if (!rawFacts || !rawFacts.trends) {
       return NextResponse.json({ ok: false, error: "Missing checkup facts" }, { status: 400 });
     }
+
+    // Which challenge this diagnosis is about. With several and none started yet,
+    // the app chooses which comes first from the owner's own answers (one that
+    // blocks the others first, otherwise the one they said feels hardest).
+    const asked = cleanChallenge(body.challenge);
+    const all = [
+      ...(asked ? [asked] : []),
+      ...(Array.isArray(body.others) ? body.others : []).map(cleanChallenge).filter((c): c is ChallengeInput => c !== null && c.id !== asked?.id),
+    ].slice(0, 10);
+    let target = asked;
+    let plan: ChallengePlan | null = null;
+    if (body.chooseFocus && asked) {
+      const open = all.filter((c) => c.status === "working" || c.status === "up-next");
+      if (open.length > 1) {
+        plan = planOrder(rawFacts, open, asked.id);
+        target = open.find((c) => c.id === plan!.focusId) ?? asked;
+      }
+    }
+    const otherOpen = all.filter((c) => c.id !== target?.id && (c.status === "working" || c.status === "up-next"));
+    const outside = target?.stage === "outside";
+    // When the app moved the first focus away from the problem the owner named, the diagnosis
+    // must follow that order (it may not wander back to the other problem). Otherwise the
+    // challenge's place in the journey is a strong hint the model may overrule from its answers.
+    const strictStage: FocusStage | null = target && !outside && plan && plan.focusId === target.id && plan.focusId !== asked?.id ? (target.stage as FocusStage) : null;
+    const stageHint: FocusStage | null = target && !outside ? (target.stage as FocusStage) : null;
+    // "What it's worth" is worked out from people who ask — it doesn't fit capacity or things the app can't see.
+    const noStake = outside || stageHint === "deliver";
+    // The facts as they apply to this challenge (its words as "where it feels stuck", its own view of the cause).
+    const facts: BusinessFacts = target ? factsForChallenge(rawFacts, target, target.status === "working" && target.source === "onboarding") : rawFacts;
 
     const name = (body.workspaceName ?? "Your business").slice(0, 120);
     const cur = currencySymbol(body.currency);
@@ -489,7 +660,12 @@ export async function POST(request: NextRequest) {
           .slice(0, 4000)
       : "";
 
-    const computed = stakeLinesForPrompt(facts, cur);
+    const learnings = Array.isArray(body.learnings)
+      ? body.learnings.filter((l): l is string => typeof l === "string" && l.trim().length > 0).map((l) => l.slice(0, 240)).slice(-8)
+      : [];
+    const tried = Array.isArray(body.tried) ? body.tried.filter((t): t is string => typeof t === "string").slice(0, 12) : [];
+    // Nothing to work out in money for things the app can't measure (or for capacity).
+    const computed = noStake ? [] : stakeLinesForPrompt(facts, cur);
     const userPayload = {
       business: { name, country, currency: cur, type: facts.businessType },
       whatTheySell: facts.whatTheySell,
@@ -511,14 +687,38 @@ export async function POST(request: NextRequest) {
       statedTrends: facts.trends,
       recentChanges: facts.recentChanges,
     };
+    const session = await getSession().catch(() => null);
+    const connected = session?.workspaceName === name
+      ? await measuredContext(session.userId, session.workspaceId)
+      : "";
     const prompt = [
+      target
+        ? `THIS DIAGNOSIS IS ABOUT ONE CHALLENGE: "${target.title}" (in the owner's words). The headline must name THIS problem in their terms.${
+            strictStage
+              ? ` focusStage must be "${strictStage}". Rule 1c's exception does not apply — the owner already agreed to work on this one now.`
+              : stageHint
+                ? ` focusStage is most likely "${stageHint}" — choose another only if what they told you about THIS challenge clearly points elsewhere.`
+                : ""
+          }\n`
+        : "",
       "FACTS FROM THE CHECKUP (the owner's own answers):",
       JSON.stringify(userPayload, null, 2),
       "",
       computed.length
         ? `COMPUTED FROM THEIR OWN ESTIMATES (you may quote these exactly; do not change them or add other numbers):\n${computed.map((c) => `- ${c}`).join("\n")}`
         : "COMPUTED: none — they did not give enough numbers. Use no figures at all.",
+      connected ? `\n${connected}` : "",
       ownerText ? `\nTHE OWNER'S OWN WORDS IN THE CHECKUP (for tone and specifics):\n${ownerText}` : "",
+      learnings.length ? `\nCHECK-IN RESULTS SO FAR (oldest first — what they tried and what happened):\n${learnings.map((l) => `- ${l}`).join("\n")}` : "",
+      tried.length ? `\nSTEPS ALREADY TRIED (do not suggest these again): ${tried.join("; ")}` : "",
+      target ? `\nTHE CHALLENGE TO DIAGNOSE (in the owner's words): "${target.title}"` : "",
+      target && detailLines(target.details).length ? `WHAT THEY TOLD US ABOUT THIS CHALLENGE:\n${detailLines(target.details).join("\n")}` : "",
+      plan && otherOpen.length ? `WHY THIS ONE COMES FIRST (decided from their own answers — the diagnosis must agree with it): ${plan.whyFirst}` : "",
+      otherOpen.length ? `THEIR OTHER CHALLENGES (already on their list for later — do NOT diagnose them):\n${otherOpen.map((c) => `- ${c.title}`).join("\n")}` : "",
+      outside ? `\n${OUTSIDE_RULES}` : "",
+      body.rethink
+        ? "\nTWO STEPS HAVE NOT MOVED THIS CHALLENGE (see STEPS ALREADY TRIED and CHECK-IN RESULTS). Say so plainly and kindly in the story, and look for a DIFFERENT cause than those steps assumed — never more of the same."
+        : "",
     ].join("\n");
 
     // The only figures the diagnosis may use: the owner's answers and the computed lines.
@@ -536,12 +736,36 @@ export async function POST(request: NextRequest) {
       if (!raw) break; // every provider failed — no point retrying
       parsed = extractJson<ModelDiagnosis>(raw);
       reason = rejectReason(parsed, allowed);
+      if (!reason && strictStage && parsed?.focusStage !== strictStage) {
+        reason = `it is about a different problem — this diagnosis must be about "${target!.title}" (focusStage "${strictStage}")`;
+      }
+      const norm = (x: string) => x.toLowerCase().replace(/…\s*$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+      const echoes = (h: string) => {
+        const t = norm(target!.title);
+        const w = norm(target!.details?.what ?? "");
+        const n = norm(h);
+        return n === t || (t.length > 20 && n.startsWith(t)) || (w.length > 0 && (n === w || (w.length > 20 && n.startsWith(w))));
+      };
+      if (!reason && target && parsed?.headline && echoes(String(parsed.headline))) {
+        reason = "the headline only repeats the challenge — say what is really going on, in their terms";
+      }
     }
 
+    // Why this challenge comes first: the app's reason, traced to their answers (a model's
+    // rewording has turned the reason upside down before, so it is never used for this).
+    const planOut = (): ChallengePlan | null => plan;
+    const fallbackDiagnosis = (): DiagnosisContent => {
+      if (outside && target) return { ...templateOutsideDiagnosis(target), meaning: outsideNote(target.title) };
+      // The ready-made read for THIS challenge's place in the journey (not one inferred from other answers).
+      const t = templateDiagnosis(facts, cur, tried, stageHint ?? undefined);
+      return noStake || t.focusStage === "deliver" ? { ...t, stake: null } : t;
+    };
+
     // Untraceable figures after a retry: drop those sentences rather than the whole read.
+    // (Still about another problem after a retry: the ready-made read for this challenge instead.)
     const onlyFigures = Boolean(reason && reason.startsWith("it used figures"));
     if (!parsed || (reason && !onlyFigures)) {
-      return NextResponse.json({ ok: true, diagnosis: { ...templateDiagnosis(facts, cur), checked: true }, degraded: true });
+      return NextResponse.json({ ok: true, diagnosis: { ...fallbackDiagnosis(), checked: true }, plan: planOut(), degraded: true });
     }
     const grounded = (s: unknown) => (onlyFigures ? dropUngroundedSentences(String(s ?? ""), allowed) : String(s ?? ""));
 
@@ -552,12 +776,13 @@ export async function POST(request: NextRequest) {
           .map((x) => cleanText(x, 120, ownerText))
           .slice(0, 3)
       : [];
-    const template = templateDiagnosis(facts, cur);
+    const template = fallbackDiagnosis();
     // A tool whose words carry an untraceable figure is swapped for the stage template.
-    const tools = cleanTools(parsed.tools, stage, ownerText).map((t) =>
-      ungroundedNumbers(t.body, allowed, { priceRange }).length === 0 && ungroundedNumbers(t.title, allowed).length === 0
+    const words = businessWords(facts);
+    const tools = cleanTools(parsed.tools, stage, ownerText, words, !outside).map((t) =>
+      outside || (ungroundedNumbers(t.body, allowed, { priceRange }).length === 0 && ungroundedNumbers(t.title, allowed).length === 0)
         ? t
-        : templateTools(stage).find((x) => x.kind === t.kind) ?? t,
+        : templateTools(stage, words).find((x) => x.kind === t.kind) ?? t,
     );
 
     // Figures and stage-matched tools are deterministic; the words are the model's.
@@ -574,13 +799,19 @@ export async function POST(request: NextRequest) {
       nextInvestigation: cleanText(grounded(parsed.nextInvestigation ?? ""), 500, ownerText) || template.nextInvestigation,
       confidence: clampPercent(parsed.confidence, 40, 72, 58),
       focusStage: stage,
-      steps: steps.length >= 2 ? steps : templateSteps(stage, facts),
-      tools,
-      stake: computeStake(facts, cur, stage),
+      steps: steps.length >= 2 ? steps : outside ? template.steps : templateSteps(stage, facts, words),
+      // Outside what the app measures: help with an untraceable figure is dropped, not swapped for a stage template.
+      tools: outside ? tools.filter((t) => ungroundedNumbers(`${t.title} ${t.body}`, allowed, { priceRange }).length === 0) : tools,
+      stake: noStake || stage === "deliver" ? null : computeStake(facts, cur, stage),
+      nextStep: onAgreedFocus(
+        groundedNextStep(parsed.nextStep, outside && target ? templateOutsideStep(target.title) : templateNextStep(stage, facts, tried), allowed, ownerText),
+        strictStage,
+        () => templateNextStep(strictStage ?? stage, facts, tried),
+      ),
       checked: true,
     };
 
-    return NextResponse.json({ ok: true, diagnosis, degraded: false });
+    return NextResponse.json({ ok: true, diagnosis, plan: planOut(), degraded: false });
   } catch (error) {
     console.error("[api/checkup/diagnosis] error:", error);
     return NextResponse.json({ ok: false, error: "Diagnosis generation failed" }, { status: 500 });

@@ -24,7 +24,7 @@ export function PrivacySettings() {
     <div className="mx-auto w-full max-w-3xl">
       <PageHeader
         title="Privacy & Data Permissions"
-        description="What bizzGrowth reads from your connected sources, how long data is kept, and how AI uses it."
+        description="What Nellovia reads from your connected sources, how long data is kept, and how AI uses it."
       />
 
       <SectionCard
@@ -70,7 +70,7 @@ export function PrivacySettings() {
         </p>
       </SectionCard>
 
-      <SectionCard title="How AI uses your data" action={<Brain className="size-4 text-violet-500" aria-hidden />}>
+      <SectionCard title="How AI uses your data" action={<Brain className="size-4 text-brand-600" aria-hidden />}>
         <p className="text-sm leading-relaxed text-muted-foreground">
           Your data is used to generate diagnoses for your workspace only — it is never used to train models that serve
           other businesses. Where a conclusion is an interpretation rather than a measurement, it is always labelled

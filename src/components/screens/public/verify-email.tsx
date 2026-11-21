@@ -33,8 +33,8 @@ export default function VerifyEmailScreen() {
   return (
     <AuthShell title="Verify your email" description="One quick step before setup.">
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-12 items-center justify-center rounded-full bg-blue-50">
-          <MailCheck className="size-6 text-blue-600" aria-hidden />
+        <span className="flex size-12 items-center justify-center rounded-full bg-brand-50">
+          <MailCheck className="size-6 text-brand-600" aria-hidden />
         </span>
         <p className="mt-4 text-sm text-slate-600">
           We sent a verification link to <span className="font-semibold text-slate-900">{email}</span>.

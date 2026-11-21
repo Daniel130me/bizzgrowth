@@ -17,7 +17,7 @@ const TYPES = [
   { id: "Feedback", priority: "Low", cls: "bg-slate-100 text-slate-600 border-slate-200" },
   { id: "Bug", priority: "High", cls: "bg-amber-50 text-amber-700 border-amber-200" },
   { id: "Data concern", priority: "High", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  { id: "AI diagnosis concern", priority: "Medium", cls: "bg-violet-50 text-violet-700 border-violet-200" },
+  { id: "AI diagnosis concern", priority: "Medium", cls: "bg-brand-50 text-brand-700 border-brand-200" },
 ] as const;
 
 type TypeId = (typeof TYPES)[number]["id"];

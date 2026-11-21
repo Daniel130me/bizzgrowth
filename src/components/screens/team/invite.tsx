@@ -133,7 +133,7 @@ export function InviteMember() {
                   htmlFor={`role-${r}`}
                   className={
                     "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors " +
-                    (role === r ? "border-blue-300 bg-blue-50/50" : "hover:bg-slate-50")
+                    (role === r ? "border-brand-300 bg-brand-50/50" : "hover:bg-slate-50")
                   }
                 >
                   <RadioGroupItem id={`role-${r}`} value={r} className="mt-0.5" />

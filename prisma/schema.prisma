@@ -25,6 +25,10 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  specialist         Specialist?
+  marketplaceReviews MarketReview[]       @relation("MarketplaceReviewer")
+  marketNotifications MarketNotification[]
 }
 
 model Post {
@@ -43,24 +47,38 @@ model Post {
 
 model Specialist {
   id            String       @id @default(cuid())
+  userId        String?      @unique
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   name          String
-  headline      String // one-line proficiency statement, e.g. "Meta ads for Lagos retailers"
-  category      String // marketing | sales | content | design | web | ops | finance | data | people | legal
-  skills        String // JSON string[]
-  hourlyRate    Int // NGN per hour (indicative — final price comes from their bid)
-  rating        Float
-  reviews       Int
-  completedJobs Int
-  responseTime  String // e.g. "Within 2 hours"
-  location      String
-  languages     String // JSON string[]
-  bio           String
-  portfolio     String // JSON { title: string; blurb: string }[]
-  badges        String // JSON string[] e.g. ["Top rated"]
-  available     String // e.g. "Available now" / "From Monday 14 Oct"
-  verified      Boolean      @default(true)
+  headline      String       @default("") // one-line proficiency statement, e.g. "Meta ads for Lagos retailers"
+  category      String       @default("") // marketing | sales | content | design | web | ops | finance | data | people | legal
+  skills        String       @default("[]") // JSON string[]; kept for backwards compatibility with the seeded roster
+  hourlyRate    Int          @default(0) // NGN per hour (indicative — final price comes from their bid)
+  rating        Float        @default(0)
+  reviews       Int          @default(0)
+  completedJobs Int          @default(0)
+  responseTime  String       @default("Within 1 business day")
+  location      String       @default("")
+  languages     String       @default("[]") // JSON string[]
+  bio           String       @default("")
+  portfolio     String       @default("[]") // JSON { title: string; blurb: string }[]
+  badges        String       @default("[]") // JSON string[] e.g. ["Top rated"]
+  available     String       @default("Unavailable")
+  verified      Boolean      @default(false)
+  status        String       @default("draft") // draft | submitted | approved | rejected | suspended
+  onboardingStep Int         @default(1)
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewNote    String?
   createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   bids          MarketBid[]
+  invitations   MarketInvitation[]
+  engagements   MarketEngagement[]
+  reviewsReceived MarketReview[] @relation("SpecialistReviews")
+
+  @@index([status, category, verified])
+  @@index([category, rating])
 }
 
 // Demand side: a piece of work posted by an owner — usually from an AI
@@ -80,26 +98,130 @@ model MarketTask {
   source       String      @default("manual") // recommendation | manual
   sourceRef    String? // recommendation id when AI-sourced
   sourceTitle  String? // recommendation title for context
-  status       String      @default("open") // open | awarded | closed
-  awardedBidId String?
+  status       String      @default("open") // open | awarded | in-progress | delivered | completed | cancelled | disputed | closed
+  awardedBidId String?     @unique
+  awardedBid   MarketBid?  @relation("AwardedBid", fields: [awardedBidId], references: [id], onDelete: SetNull)
   matchNote    String? // AI matchmaker summary persisted for the record
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-  bids         MarketBid[]
+  bids         MarketBid[] @relation("TaskBids")
+  invitations  MarketInvitation[]
+  engagement   MarketEngagement?
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, status, createdAt])
 }
 
 model MarketBid {
   id           String     @id @default(cuid())
   taskId       String
-  task         MarketTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task         MarketTask @relation("TaskBids", fields: [taskId], references: [id], onDelete: Cascade)
   specialistId String
   specialist   Specialist @relation(fields: [specialistId], references: [id])
   amount       Int // NGN total for the task
   days         Int // promised delivery in days
   coverNote    String
-  inviteSource String     @default("ai-match") // ai-match | manual
-  status       String     @default("pending") // pending | accepted | declined
+  inviteSource String     @default("specialist") // specialist | ai-match | manual
+  status       String     @default("pending") // pending | accepted | declined | withdrawn
   createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  withdrawnAt  DateTime?
+  awardedFor   MarketTask? @relation("AwardedBid")
+  engagement   MarketEngagement?
+
+  @@unique([taskId, specialistId])
+  @@index([taskId, status, createdAt])
+  @@index([specialistId, status, createdAt])
+}
+
+model MarketInvitation {
+  id            String     @id @default(cuid())
+  taskId        String
+  task          MarketTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  specialistId  String
+  specialist    Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  source        String     @default("manual") // manual | ai-match
+  status        String     @default("pending") // pending | accepted | declined | expired
+  message       String?
+  expiresAt     DateTime?
+  respondedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([taskId, specialistId])
+  @@index([specialistId, status, createdAt])
+  @@index([taskId, status])
+}
+
+model MarketEngagement {
+  id             String        @id @default(cuid())
+  taskId         String        @unique
+  task           MarketTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  bidId          String        @unique
+  bid            MarketBid     @relation(fields: [bidId], references: [id], onDelete: Restrict)
+  specialistId   String
+  specialist     Specialist    @relation(fields: [specialistId], references: [id], onDelete: Restrict)
+  workspaceId    String
+  status         String        @default("awarded") // awarded | accepted | in-progress | delivered | completed | cancelled | disputed
+  agreedAmount   Int
+  deliveryDays   Int
+  scope          String
+  paymentStatus  String        @default("external") // external | pending | paid | released | refunded
+  startedAt      DateTime?
+  deliveredAt    DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  disputeReason  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  messages       MarketMessage[]
+  reviews        MarketReview[]
+
+  @@index([workspaceId, status, updatedAt])
+  @@index([specialistId, status, updatedAt])
+}
+
+model MarketMessage {
+  id            String           @id @default(cuid())
+  engagementId  String
+  engagement    MarketEngagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  senderUserId  String
+  senderRole    String // owner | specialist | system
+  body          String
+  createdAt     DateTime         @default(now())
+
+  @@index([engagementId, createdAt])
+}
+
+model MarketReview {
+  id                   String           @id @default(cuid())
+  engagementId         String
+  engagement           MarketEngagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  reviewerUserId       String
+  reviewer             User             @relation("MarketplaceReviewer", fields: [reviewerUserId], references: [id], onDelete: Cascade)
+  revieweeSpecialistId String
+  revieweeSpecialist   Specialist       @relation("SpecialistReviews", fields: [revieweeSpecialistId], references: [id], onDelete: Cascade)
+  rating               Int
+  comment              String
+  createdAt            DateTime         @default(now())
+
+  @@unique([engagementId, reviewerUserId])
+  @@index([revieweeSpecialistId, createdAt])
+}
+
+model MarketNotification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
 }
 
 // ---------- Chat conversation log ----------
@@ -143,4 +265,81 @@ model ChatMessage {
 
   @@unique([conversationId, seq])
   @@index([conversationId])
+}
+
+// ---------- Third-party data connections ----------
+// Created additively by prisma/sql/003_connections.sql (never `db push`).
+// Read and written with raw SQL in src/lib/connectors/store.ts, like
+// AuthSession, so no client regeneration is needed. userId references
+// "User"("id") with ON DELETE CASCADE in the SQL (not modelled as a relation
+// because the User model here is only a partial copy of the Neon table).
+// Tokens are AES-256-GCM encrypted (key: CONNECTIONS_ENCRYPTION_KEY).
+
+model ConnectorCredential {
+  id              String       @id
+  userId          String
+  provider        String
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  tokenExpiresAt  DateTime?
+  scopes          String       @default("")
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  connections     Connection[]
+
+  @@unique([userId, provider])
+}
+
+model Connection {
+  id                   String              @id
+  userId               String
+  workspaceId          String?
+  credentialId         String
+  credential           ConnectorCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  provider             String // connector id, e.g. "google"
+  product              String // "search-console" | "analytics"
+  externalAccountId    String? // e.g. "sc-domain:example.com" or "properties/123456"
+  externalAccountLabel String?
+  config               Json? // Product-specific, non-secret mapping (for example Sheet columns)
+  scopes               String        @default("") // space-separated, as granted
+  status               String        @default("pending") // pending | syncing | connected | error
+  progress             Json? // { step, total, label } while a sync runs
+  error                String? // plain-language reason when status = error
+  errorCode            String? // e.g. invalid_grant, api_disabled, no_access
+  lastSyncAt           DateTime?
+  syncStartedAt        DateTime?
+  dataFrom             DateTime?     @db.Date
+  dataTo               DateTime?     @db.Date
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @default(now())
+  metrics              MetricDaily[]
+
+  @@unique([userId, provider, product])
+  @@index([credentialId])
+  @@index([status, lastSyncAt])
+}
+
+model MetricDaily {
+  connectionId   String
+  connection     Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  metric         String // e.g. clicks, impressions, sessions, keyEvents
+  dimension      String     @default("") // "" = the day's total | query | page | channel | window
+  dimensionValue String     @default("")
+  date           DateTime   @db.Date
+  value          Float
+  updatedAt      DateTime   @default(now())
+
+  @@id([connectionId, metric, dimension, dimensionValue, date])
+  @@index([connectionId, date])
+}
+
+model IntegrationInterest {
+  id        String   @id
+  userId    String
+  platform  String // catalogue id, e.g. "paystack"
+  createdAt DateTime @default(now())
+
+  @@unique([userId, platform])
+  @@index([platform])
 }

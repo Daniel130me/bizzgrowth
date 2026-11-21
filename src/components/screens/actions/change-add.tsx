@@ -18,10 +18,13 @@ export function ChangeAdd() {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const recs = recommendationsFor(businessId);
+  const addTimelineEvent = useBizz((s) => s.addTimelineEvent);
+  const experiments = useBizz((s) => s.experiments);
+  const updateExperiment = useBizz((s) => s.updateExperiment);
 
   const [what, setWhat] = useState("");
   const [category, setCategory] = useState("");
-  const [date, setDate] = useState("2026-09-30");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
   const [notes, setNotes] = useState("");
@@ -31,7 +34,21 @@ export function ChangeAdd() {
 
   const submit = () => {
     if (!valid) return;
-    toast.success("Change recorded — your timeline and experiment attribution now account for it.");
+    const change = before.trim() || after.trim() ? `${before.trim() || "?"} → ${after.trim() || "?"}` : "";
+    addTimelineEvent({
+      date,
+      type: "external",
+      title: what.trim(),
+      description: [category, change, notes.trim()].filter(Boolean).join(" · "),
+      source: "Recorded by you",
+      provenance: "user-supplied",
+    });
+    // A running experiment keeps the change in view, so its result is read honestly.
+    for (const e of experiments.filter((x) => x.businessId === businessId && x.status !== "complete")) {
+      const kept = e.otherChanges.filter((c) => !/nothing reported yet|nothing else changed/i.test(c));
+      updateExperiment(e.id, { otherChanges: [...kept, what.trim()] });
+    }
+    toast.success("Change recorded — your timeline and experiment results now account for it.");
     navigate("timeline");
   };
 

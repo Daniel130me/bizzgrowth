@@ -2,6 +2,7 @@
 // The pending connection id is the ONLY piece of state passed between
 // connect → syncing → source-settings, per the build contract.
 
+// Keeps the old "bizz-" prefix on purpose: renaming a storage key would lose what was saved under it.
 const PENDING_CONNECTION_KEY = "bizz-pending-connection";
 
 export function setPendingConnection(id: string) {

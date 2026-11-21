@@ -1,5 +1,7 @@
 "use client";
 // Screen 38 — Action Centre: recommendations → tracked actions → measurement.
+// The owner's own workspace shows their real steps (your-actions.tsx); the
+// sample businesses keep this demo of recommendations, actions and experiments.
 
 import { useMemo, useState } from "react";
 import { CalendarClock, FlaskConical, Plus } from "lucide-react";
@@ -22,6 +24,7 @@ import {
   useCombinedExperiments,
   type ActionCategory,
 } from "./helpers";
+import { OWN_WORKSPACE, YourActions } from "./your-actions";
 
 function CategoryChip({ category }: { category: ActionCategory }) {
   return (
@@ -41,7 +44,7 @@ function ActionList({ items, onOpen }: { items: ActionRecord[]; onOpen: (path: s
             <CategoryChip category={categoryForRecId(a.recommendationId)} />
             {a.recommendationId ? (
               <button
-                className="text-xs text-muted-foreground underline-offset-2 hover:text-blue-700 hover:underline"
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-brand-700 hover:underline"
                 onClick={() => onOpen(`recommendations/${a.recommendationId}`)}
               >
                 From recommendation {a.recommendationId}
@@ -58,6 +61,11 @@ function ActionList({ items, onOpen }: { items: ActionRecord[]; onOpen: (path: s
 }
 
 export function ActionCentre() {
+  const businessId = useBizz((s) => s.businessId);
+  return businessId === OWN_WORKSPACE ? <YourActions /> : <SampleActionCentre />;
+}
+
+function SampleActionCentre() {
   const navigate = useBizz((s) => s.navigate);
   const businessId = useBizz((s) => s.businessId);
   const userWorkspace = useBizz((s) => s.userWorkspace);
@@ -220,7 +228,7 @@ export function ActionCentre() {
                     className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <FlaskConical className="size-4 shrink-0 text-violet-600" aria-hidden />
+                      <FlaskConical className="size-4 shrink-0 text-brand-600" aria-hidden />
                       <span className="truncate text-sm font-medium">{e.title}</span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">

@@ -43,7 +43,7 @@ export default function ResetPasswordScreen() {
           Didn&apos;t request this?{" "}
           <button
             onClick={() => navigate("signin")}
-            className="font-medium text-blue-700 underline-offset-2 hover:underline"
+            className="font-medium text-brand-700 underline-offset-2 hover:underline"
           >
             Back to sign in
           </button>

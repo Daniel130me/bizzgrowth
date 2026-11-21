@@ -16,6 +16,13 @@ export function navigate(path: string) {
   window.location.hash = `#/${clean}`;
 }
 
+/** Like navigate, without a new history entry — for a tab or view on the same page, so Back leaves the page. */
+export function replaceRoute(path: string) {
+  if (typeof window === "undefined") return;
+  const clean = path.replace(/^#\/?/, "");
+  window.location.replace(`#/${clean}`);
+}
+
 /** Subscribe to hash changes. Returns current path (may be empty pre-hydration). */
 export function useHashRoute(): { path: string; ready: boolean } {
   const [path, setPath] = useState("");

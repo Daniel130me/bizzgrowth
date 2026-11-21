@@ -223,7 +223,7 @@ export function ExperimentSetup({ params }: ScreenProps) {
                     key={m}
                     className={cn(
                       "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
-                      checked ? "border-blue-300 bg-blue-50 text-blue-800" : "bg-white text-slate-600 hover:border-slate-300",
+                      checked ? "border-brand-300 bg-brand-50 text-brand-800" : "bg-white text-slate-600 hover:border-slate-300",
                     )}
                   >
                     <Checkbox

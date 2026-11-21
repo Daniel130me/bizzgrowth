@@ -42,7 +42,7 @@ export function FunnelView({
                   <span
                     className={cn(
                       "absolute inset-y-0 left-0 rounded-lg transition-all",
-                      isBottleneck ? "bg-amber-400/80" : i === steps.length - 1 ? "bg-emerald-500/80" : "bg-blue-500/80",
+                      isBottleneck ? "bg-amber-400/80" : i === steps.length - 1 ? "bg-emerald-500/80" : "bg-brand-500/80",
                       "group-hover:brightness-95"
                     )}
                     style={{ width: `${width}%` }}
@@ -87,7 +87,7 @@ export function FunnelView({
               onClick={() => onSelect?.(s, i)}
               className={cn(
                 "flex flex-col items-center justify-center rounded-xl border px-4 py-3 transition-colors",
-                isBottleneck ? "border-amber-300 bg-amber-50" : "border-blue-200 bg-blue-50/60 hover:bg-blue-50"
+                isBottleneck ? "border-amber-300 bg-amber-50" : "border-brand-200 bg-brand-50/60 hover:bg-brand-50"
               )}
               style={{ width: `${width}%` }}
               aria-label={`${s.label}: ${fmtNum(s.value)}`}

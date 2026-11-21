@@ -16,6 +16,7 @@ import { ProvenanceLegend } from "@/components/shared/evidence";
 import type { ScreenProps } from "../view-types";
 import { useBizz } from "@/lib/store";
 import type { BusinessFacts, CheckupFact, TrendDirection } from "@/lib/checkup";
+import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import type { Provenance } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +91,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
   const navigate = useBizz((s) => s.navigate);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const checkupFacts = useBizz((s) => s.checkup.facts);
+  const hasDiagnosis = useBizz((s) => Boolean(s.checkup.diagnosis));
   const updateCheckupFacts = useBizz((s) => s.updateCheckupFacts);
   const businessName = userWorkspace?.name ?? "Your business";
   const country = userWorkspace?.country ?? "Nigeria";
@@ -171,7 +173,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <p className="text-xs font-semibold uppercase tracking-wide text-violet-600">Business Brain — first pass</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Business Brain — first pass</p>
       <h1 className="mt-1.5 text-2xl font-bold tracking-tight sm:text-3xl">What we understand about your business</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {checkupFacts
@@ -180,12 +182,12 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
       </p>
 
       {editing ? (
-        <p className="mt-4 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800" role="status">
+        <p className="mt-4 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-800" role="status">
           Editing — change anything that is wrong. Corrected facts are marked as supplied by you.
         </p>
       ) : null}
 
-      <Card className={cn("p-0", editing ? "mt-3 border-violet-300 ring-2 ring-violet-100" : "mt-6")}>
+      <Card className={cn("p-0", editing ? "mt-3 border-brand-300 ring-2 ring-brand-100" : "mt-6")}>
         <ul>
           {/* Business row — name and country come from workspace setup; type is editable */}
           <li>
@@ -207,7 +209,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                           onClick={() => setDraftType(t)}
                           className={cn(
                             "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                            draftType === t ? "bg-white text-violet-700 shadow-sm" : "text-slate-600 hover:text-slate-900",
+                            draftType === t ? "bg-white text-brand-700 shadow-sm" : "text-slate-600 hover:text-slate-900",
                           )}
                         >
                           {t === "service" ? "Service business" : "Ecommerce"}
@@ -257,8 +259,8 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                                 className={cn(
                                   "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
                                   draftTrends[key] === t
-                                    ? "border-violet-500 bg-violet-600 text-white"
-                                    : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:text-violet-700",
+                                    ? "border-brand-500 bg-brand-600 text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700",
                                 )}
                               >
                                 {t}
@@ -299,7 +301,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                     <button
                       type="button"
                       onClick={() => startEditing(i)}
-                      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-violet-700 opacity-100 transition-opacity hover:bg-violet-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-brand-700 opacity-100 transition-opacity hover:bg-brand-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                       aria-label={`Edit ${f.section}`}
                     >
                       <Pencil className="size-3" aria-hidden />
@@ -318,7 +320,7 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
         {editing ? (
           <>
-            <Button className="w-full bg-violet-600 hover:bg-violet-700 sm:w-auto" onClick={save}>
+            <Button className="w-full bg-brand-600 hover:bg-brand-700 sm:w-auto" onClick={save}>
               <Check className="size-4" aria-hidden />
               Save corrections
             </Button>
@@ -335,7 +337,8 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                 Edit
               </Button>
             ) : null}
-            <Button className="w-full sm:w-auto" onClick={() => navigate("first-diagnosis")}>
+            {/* Back to the diagnosis page it came from; in setup, on to the first-time reveal. */}
+            <Button className="w-full sm:w-auto" onClick={() => navigate(diagnosisReturnRoute(hasDiagnosis ? "diagnosis" : "first-diagnosis"))}>
               Looks right, continue
               <ArrowRight className="size-4" aria-hidden />
             </Button>

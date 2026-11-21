@@ -20,8 +20,8 @@ import { ArrowRight, FileText, FolderOpen } from "lucide-react";
 import type { ScreenProps } from "../view-types";
 
 const KIND_CLS: Record<string, string> = {
-  Weekly: "border-blue-200 bg-blue-50 text-blue-700",
-  Monthly: "border-violet-200 bg-violet-50 text-violet-700",
+  Weekly: "border-brand-200 bg-brand-50 text-brand-700",
+  Monthly: "border-teal-200 bg-teal-50 text-teal-700",
 };
 
 export function ReportsArchive({ params: _params }: ScreenProps) {
@@ -125,7 +125,7 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
                 isOwnerWorkspace && facts ? (
                   <Button
                     size="sm"
-                    className="bg-violet-600 hover:bg-violet-700"
+                    className="bg-brand-600 hover:bg-brand-700"
                     disabled={generating}
                     onClick={() => void generateBrief()}
                   >

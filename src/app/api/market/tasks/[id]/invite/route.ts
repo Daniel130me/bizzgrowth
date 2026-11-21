@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generateBidFor, matchTask, toBidDTO, toSpecialistDTO, type BidDTO, type SpecialistDTO } from "@/lib/market";
+import { matchTask, toSpecialistDTO, type SpecialistDTO } from "@/lib/market";
+import { marketErrorResponse, notifyUser, requireMarketSession, requireOwnedTask } from "@/lib/market-auth";
 
 export const runtime = "nodejs";
 
@@ -10,17 +11,14 @@ export const runtime = "nodejs";
  * Body:
  *   { mode: "ai" }                     → match with the AI matchmaker and invite the top fits
  *   { specialistIds: ["…"] }           → invite specific roster specialists (e.g. from a profile page)
- *
- * Pilot behaviour (displayed honestly in the UI): invited roster specialists
- * respond automatically with indicative bids derived from their own profile.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const session = await requireMarketSession(req, { mutation: true, action: "tasks:invite", limit: 30 });
     const body = await req.json().catch(() => ({}));
 
-    const task = await db.marketTask.findUnique({ where: { id } });
-    if (!task) return NextResponse.json({ ok: false, error: "Task not found." }, { status: 404 });
+    const task = await requireOwnedTask(id, session);
     if (task.status !== "open") {
       return NextResponse.json({ ok: false, error: "This task is no longer open for bids." }, { status: 409 });
     }
@@ -48,42 +46,51 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       invitees = match.matches.map((m) => m.specialist);
     } else if (Array.isArray(body?.specialistIds) && body.specialistIds.length > 0) {
       const ids = body.specialistIds.filter((v: unknown): v is string => typeof v === "string").slice(0, 6);
-      invitees = (await db.specialist.findMany({ where: { id: { in: ids } } })).map(toSpecialistDTO);
+      invitees = (
+        await db.specialist.findMany({
+          where: { id: { in: ids }, status: "approved", verified: true },
+        })
+      ).map(toSpecialistDTO);
     } else {
       return NextResponse.json({ ok: false, error: "Provide mode:\"ai\" or specialistIds." }, { status: 400 });
     }
 
-    const existing = await db.marketBid.findMany({
-      where: { taskId: task.id, status: { in: ["pending", "accepted"] } },
+    const uniqueInvitees = [...new Map(invitees.map((specialist) => [specialist.id, specialist])).values()];
+    const created = await db.marketInvitation.createManyAndReturn({
+      data: uniqueInvitees.map((specialist) => ({
+        taskId: task.id,
+        specialistId: specialist.id,
+        source: body?.mode === "ai" ? "ai-match" : "manual",
+        status: "pending",
+        expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      })),
+      skipDuplicates: true,
       select: { specialistId: true },
     });
-    const alreadyInvited = new Set(existing.map((b) => b.specialistId));
 
-    const created: BidDTO[] = [];
-    for (const s of invitees) {
-      if (alreadyInvited.has(s.id)) continue;
-      const bid = generateBidFor(s, task);
-      const row = await db.marketBid.create({
-        data: {
-          taskId: task.id,
-          specialistId: s.id,
-          amount: bid.amount,
-          days: bid.days,
-          coverNote: bid.coverNote,
-          inviteSource: body?.mode === "ai" ? "ai-match" : "manual",
-          status: "pending",
-        },
-      });
-      created.push(toBidDTO(row, s));
-    }
+    const accounts = await db.specialist.findMany({
+      where: { id: { in: created.map((invitation) => invitation.specialistId) } },
+      select: { id: true, userId: true },
+    });
+    await Promise.all(
+      accounts.map((specialist) =>
+        notifyUser({
+          userId: specialist.userId,
+          type: "market-invitation",
+          title: "New task invitation",
+          body: `${task.businessName} invited you to bid on “${task.title}”.`,
+          entityType: "task",
+          entityId: task.id,
+        }),
+      ),
+    );
 
     if (created.length === 0) {
-      return NextResponse.json({ ok: true, invited: 0, bids: [], message: "Those specialists have already bid on this task." });
+      return NextResponse.json({ ok: true, invited: 0, message: "Those specialists were already invited." });
     }
 
-    return NextResponse.json({ ok: true, invited: created.length, bids: created }, { status: 201 });
+    return NextResponse.json({ ok: true, invited: created.length }, { status: 201 });
   } catch (error) {
-    console.error("[api/market/tasks/:id/invite] POST error:", error);
-    return NextResponse.json({ ok: false, error: "Could not send the invitations." }, { status: 500 });
+    return marketErrorResponse(error, "tasks:invite");
   }
 }

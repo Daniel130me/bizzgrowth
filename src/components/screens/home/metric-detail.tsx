@@ -280,7 +280,7 @@ export default function MetricDetail({ params }: ScreenProps) {
           <KeyValue label="Source">{snap.source}</KeyValue>
           <KeyValue label="Data coverage">
             <span className="tnum">{business.dataCoverage.overall}%</span>
-            <Button variant="ghost" size="sm" className="ml-2 h-7 text-blue-700" onClick={() => navigate("data")}>
+            <Button variant="ghost" size="sm" className="ml-2 h-7 text-brand-700" onClick={() => navigate("data")}>
               View data centre
             </Button>
           </KeyValue>

@@ -1,6 +1,6 @@
 // Honest business object for USER-CREATED workspaces.
 //
-// bizzGrowth rule: a real owner's workspace NEVER inherits sample numbers.
+// Nellovia rule: a real owner's workspace NEVER inherits sample numbers.
 // Everything measured comes from what the owner actually gave us — the checkup
 // conversation and any manual entries. Where we have nothing, we say so.
 import type { Business, BusinessType, MonthlyPoint } from "../types";

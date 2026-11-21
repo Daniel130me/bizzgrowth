@@ -51,9 +51,9 @@ export function LegalLayout({
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <div className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{kicker}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">{kicker}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Effective {updated} · bizzGrowth (private beta)</p>
+        <p className="mt-2 text-sm text-muted-foreground">Effective {updated} · Nellovia (private beta)</p>
         <p className="mt-5 text-base leading-relaxed text-slate-600">{intro}</p>
       </div>
       <div className="mt-10 flex gap-10">
@@ -67,7 +67,7 @@ export function LegalLayout({
                 className={cn(
                   "-ml-px block w-full border-l-2 py-1.5 pl-4 text-left text-sm transition-colors",
                   active === s.id
-                    ? "border-blue-600 font-medium text-blue-700"
+                    ? "border-brand-600 font-medium text-brand-700"
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800",
                 )}
               >

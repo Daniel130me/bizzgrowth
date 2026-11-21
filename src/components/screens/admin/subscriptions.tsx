@@ -19,7 +19,7 @@ function SummaryCard({ label, value, subnote, tone }: { label: string; value: st
       <span
         className={cn(
           "mt-1 text-2xl font-bold tracking-tight",
-          tone === "warn" ? "text-amber-600" : tone === "info" ? "text-blue-600" : "text-slate-900"
+          tone === "warn" ? "text-amber-600" : tone === "info" ? "text-brand-600" : "text-slate-900"
         )}
       >
         {value}
@@ -110,7 +110,7 @@ export function SubscriptionsAdmin(_props: ScreenProps) {
                     <button
                       onClick={() => remind(s.business, s.state)}
                       aria-label={`Send payment reminder to ${s.business}`}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border bg-white px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border bg-white px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
                     >
                       <BellRing className="size-3.5" aria-hidden /> Send reminder
                     </button>
@@ -124,7 +124,7 @@ export function SubscriptionsAdmin(_props: ScreenProps) {
 
       <p className="mt-4 text-xs text-muted-foreground">
         Need the customer view of billing? Open{" "}
-        <button onClick={() => navigate("admin/businesses")} className="font-medium text-blue-600 underline-offset-2 hover:underline">
+        <button onClick={() => navigate("admin/businesses")} className="font-medium text-brand-600 underline-offset-2 hover:underline">
           Businesses
         </button>{" "}
         and select the workspace to see plan, status and usage together.

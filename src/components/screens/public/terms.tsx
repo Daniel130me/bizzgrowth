@@ -11,7 +11,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          By creating an account or using bizzGrowth you agree to these terms. If you use bizzGrowth on behalf of a
+          By creating an account or using Nellovia you agree to these terms. If you use Nellovia on behalf of a
           business, you confirm that you are authorised to bind that business to them.
         </p>
         <p>
@@ -23,11 +23,11 @@ const SECTIONS: LegalSection[] = [
   },
   {
     id: "service",
-    title: "What bizzGrowth provides",
+    title: "What Nellovia provides",
     body: (
       <>
         <p>
-          bizzGrowth is an AI business growth operating system. It combines information you provide with data you
+          Nellovia is an AI business growth operating system. It combines information you provide with data you
           connect to produce an understanding of your business, diagnoses of what is driving results, recommended
           actions and measurement tools.
         </p>
@@ -64,7 +64,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          You own your business data. You grant bizzGrowth a limited licence to process it for one purpose: operating
+          You own your business data. You grant Nellovia a limited licence to process it for one purpose: operating
           the service for your workspace — producing diagnoses, briefs, reports and outcome measurements.
         </p>
         <ul>
@@ -107,7 +107,7 @@ const SECTIONS: LegalSection[] = [
           guarantee of results.
         </p>
         <p>
-          You remain responsible for the decisions you take. bizzGrowth reports the outcome of actions with
+          You remain responsible for the decisions you take. Nellovia reports the outcome of actions with
           attribution confidence and never presents a result as guaranteed cause and effect — we ask that you apply
           the same discipline to major decisions, validating with your own judgement and advisors.
         </p>
@@ -136,7 +136,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          To the fullest extent permitted by law, bizzGrowth is provided without warranties of any kind, express or
+          To the fullest extent permitted by law, Nellovia is provided without warranties of any kind, express or
           implied, including fitness for a particular purpose.
         </p>
         <p>
@@ -158,7 +158,7 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>
           We may update these terms as the product evolves. Material changes will be communicated in-product or by
-          email before they take effect. Continuing to use bizzGrowth after changes take effect means you accept the
+          email before they take effect. Continuing to use Nellovia after changes take effect means you accept the
           updated terms.
         </p>
       </>
@@ -170,7 +170,7 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          Questions about these terms: <strong>legal@bizzgrowth.ng</strong> · bizzGrowth, Victoria Island, Lagos,
+          Questions about these terms: <strong>legal@bizzgrowth.ng</strong> · Nellovia, Victoria Island, Lagos,
           Nigeria.
         </p>
         <p>
@@ -188,7 +188,7 @@ export default function TermsScreen() {
       kicker="Legal"
       title="Terms of Service"
       updated="30 September 2026"
-      intro="These terms govern your use of bizzGrowth during the private beta. They cover what the service does, what happens to your data, and where the limits of our responsibility sit."
+      intro="These terms govern your use of Nellovia during the private beta. They cover what the service does, what happens to your data, and where the limits of our responsibility sit."
       sections={SECTIONS}
     />
   );
