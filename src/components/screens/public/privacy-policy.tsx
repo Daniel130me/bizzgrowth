@@ -20,6 +20,10 @@ const SECTIONS: LegalSection[] = [
             account or accept a team invitation.
           </li>
           <li>
+            <strong>Early-access requests.</strong> Your name, email address and the business or specialist details
+            you submit for the waiting list. A request does not create an account.
+          </li>
+          <li>
             <strong>Business data you provide.</strong> Aggregate figures you enter yourself — monthly marketing
             spend, enquiries, customers, revenue and similar totals — plus notes from your onboarding conversation.
           </li>
@@ -46,6 +50,7 @@ const SECTIONS: LegalSection[] = [
           <li>To produce your business understanding, diagnoses, recommendations and weekly or monthly briefs.</li>
           <li>To show how your results change over time and measure the outcome of actions you take.</li>
           <li>To communicate with you — briefs, alerts, team invitations and account notices.</li>
+          <li>To manage the early-access list and share relevant updates about getting started.</li>
           <li>To improve diagnosis quality during the private beta.</li>
         </ul>
         <p>

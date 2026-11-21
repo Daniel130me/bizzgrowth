@@ -67,7 +67,7 @@ function loadGroup(group: ScreenGroup): Promise<ViewMap> {
   return request;
 }
 
-const PUBLIC_ROUTES = new Set(["landing", "pricing", "signup", "verify-email", "signin", "forgot-password", "reset-password", "accept-invite", "privacy-policy", "terms"]);
+const PUBLIC_ROUTES = new Set(["landing", "pricing", "signup", "verify-email", "signin", "forgot-password", "reset-password", "accept-invite", "privacy-policy", "terms", "waiting-list"]);
 const ONBOARDING_ROUTES = new Set(["welcome", "create-workspace", "checkup-intro", "onboarding-chat", "journey-confirm", "business-understanding", "first-diagnosis", "first-diagnosis-evidence", "improve-diagnosis", "setup-complete"]);
 const STANDALONE_ROUTES = new Set(["state/404", "state/session-expired", "prototype-index"]);
 

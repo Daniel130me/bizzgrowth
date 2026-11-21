@@ -406,6 +406,7 @@ const ADMIN_NAV = [
   { id: "admin/ai-audit", label: "AI audit", icon: Sparkles },
   { id: "admin/ai-gateway", label: "AI gateway", icon: Zap },
   { id: "admin/ai-providers", label: "AI providers", icon: KeyRound },
+  { id: "admin/waitlist", label: "Waiting list", icon: ListChecks },
   { id: "admin/support", label: "Support inbox", icon: LifeBuoy },
 ];
 
@@ -532,6 +533,7 @@ export function PublicLayout({ children, route }: { children: React.ReactNode; r
           {!isAuth && (
             <nav aria-label="Public" className="hidden items-center gap-1 md:flex">
               <Button variant="ghost" size="sm" onClick={() => navigate("pricing")}>Pricing</Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate("waiting-list")}>Waiting list</Button>
               <Button variant="ghost" size="sm" onClick={() => navigate("privacy-policy")}>Privacy</Button>
               <Button variant="ghost" size="sm" onClick={() => navigate("terms")}>Terms</Button>
             </nav>
@@ -550,6 +552,7 @@ export function PublicLayout({ children, route }: { children: React.ReactNode; r
           </div>
           <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-4 text-xs">
             <button className="hover:text-foreground hover:underline" onClick={() => navigate("pricing")}>Pricing</button>
+            <button className="hover:text-foreground hover:underline" onClick={() => navigate("waiting-list")}>Waiting list</button>
             <button className="hover:text-foreground hover:underline" onClick={() => navigate("privacy-policy")}>Privacy policy</button>
             <button className="hover:text-foreground hover:underline" onClick={() => navigate("terms")}>Terms of service</button>
             <button className="hover:text-foreground hover:underline" onClick={() => navigate("accept-invite")}>Accept invitation</button>

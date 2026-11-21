@@ -43,6 +43,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 8, id: "accept-invite", route: "accept-invite", name: "Accept Team Invitation", category: "Authentication", group: "public" },
   { num: 9, id: "privacy-policy", route: "privacy-policy", name: "Privacy Policy", category: "Public", group: "public" },
   { num: 10, id: "terms", route: "terms", name: "Terms of Service", category: "Public", group: "public" },
+  { num: 134, id: "waiting-list", route: "waiting-list", name: "Early-Access Waiting List", category: "Public", group: "public" },
   // B. First-time setup and diagnosis
   { num: 11, id: "welcome", route: "welcome", name: "Welcome / Choose How to Start", category: "Onboarding", group: "onboarding" },
   { num: 12, id: "create-workspace", route: "create-workspace", name: "Create Business Workspace", category: "Onboarding", group: "onboarding" },
@@ -193,6 +194,7 @@ export const SCREENS: ScreenMeta[] = [
   { num: 124, id: "admin/specialists", route: "admin/specialists", name: "Specialist Application Review", category: "Admin", group: "admin" },
   { num: 125, id: "admin/ai-providers", route: "admin/ai-providers", name: "AI Provider Management", category: "Admin", group: "admin" },
   { num: 126, id: "admin/ai-gateway", route: "admin/ai-gateway", name: "AI Gateway Status", category: "Admin", group: "admin" },
+  { num: 135, id: "admin/waitlist", route: "admin/waitlist", name: "Early-Access Waiting List", category: "Admin", group: "admin" },
 ];
 
 export const SCREENS_WITH_MAP = SCREENS;

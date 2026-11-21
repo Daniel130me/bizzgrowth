@@ -260,6 +260,13 @@ export default function LandingScreen() {
               Explore a sample business
             </Button>
           </div>
+          <button
+            type="button"
+            className="mt-4 text-sm font-medium text-brand-700 underline decoration-brand-300 underline-offset-4 hover:text-brand-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-600 focus-visible:ring-offset-2"
+            onClick={() => navigate("waiting-list")}
+          >
+            Not ready to sign up? Join the waiting list
+          </button>
           <ul className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500">
             <li className="flex items-center gap-1.5">
               <ShieldCheck className="size-3.5 text-brand-600" aria-hidden />

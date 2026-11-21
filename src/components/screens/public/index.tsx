@@ -11,6 +11,7 @@ import ResetPasswordScreen from "./reset-password";
 import AcceptInviteScreen from "./accept-invite";
 import PrivacyPolicyScreen from "./privacy-policy";
 import TermsScreen from "./terms";
+import WaitingListScreen from "./waiting-list";
 
 export const views: ViewMap = {
   landing: LandingScreen,
@@ -23,4 +24,5 @@ export const views: ViewMap = {
   "accept-invite": AcceptInviteScreen,
   "privacy-policy": PrivacyPolicyScreen,
   terms: TermsScreen,
+  "waiting-list": WaitingListScreen,
 };
