@@ -8,11 +8,40 @@ import {
   encryptAiCredential,
 } from "@/lib/ai-provider-secrets";
 
-export const MANAGED_AI_PROVIDER_IDS = ["z.ai", "openai", "groq", "openrouter", "gemini"] as const;
+export const MANAGED_AI_PROVIDER_IDS = ["z.ai", "z.ai-free", "openai", "groq", "openrouter", "gemini", "cerebras", "mistral"] as const;
 export type ManagedAiProviderId = (typeof MANAGED_AI_PROVIDER_IDS)[number];
 
 const PROVIDER_SET = new Set<string>(MANAGED_AI_PROVIDER_IDS);
 const CACHE_TTL_MS = 30_000;
+
+/**
+ * The administrator's failover order lives in a reserved "AiProviderConfig"
+ * row (its "model" column holds "z.ai,openai,…") so no schema change is
+ * needed. It is never a real provider: every per-provider read filters to
+ * MANAGED_AI_PROVIDER_IDS. No row = the environment/built-in order.
+ */
+const ORDER_ROW = "_gateway_order";
+
+/** Valid ids in the given order, deduped, with any missing providers appended. */
+export function normalizeAiProviderOrder(ids: readonly string[]): ManagedAiProviderId[] {
+  const seen = new Set<ManagedAiProviderId>();
+  for (const id of ids) {
+    const clean = id.trim().toLowerCase();
+    if (isManagedAiProvider(clean)) seen.add(clean);
+  }
+  for (const id of MANAGED_AI_PROVIDER_IDS) seen.add(id);
+  return [...seen];
+}
+
+function storedOrder(rows: ProviderRow[]): ManagedAiProviderId[] | null {
+  const raw = rows.find((row) => row.provider === ORDER_ROW)?.model?.trim();
+  return raw ? normalizeAiProviderOrder(raw.split(",")) : null;
+}
+
+/** Order used when the administrator has not set one (AI_GATEWAY_ORDER, else built-in). */
+export function defaultAiProviderOrder(): ManagedAiProviderId[] {
+  return normalizeAiProviderOrder((process.env.AI_GATEWAY_ORDER ?? "").split(","));
+}
 
 type ProviderRow = {
   provider: string;
@@ -63,6 +92,7 @@ export interface AdminAiProviderConfig {
 
 type RuntimeCache = {
   expiresAt: number;
+  order: ManagedAiProviderId[] | null;
   providers: Map<ManagedAiProviderId, RuntimeAiProviderConfig>;
 };
 
@@ -111,7 +141,7 @@ function runtimeFromRows(rows: { providers: ProviderRow[]; credentials: Credenti
       credentials,
     });
   }
-  return { expiresAt: Date.now() + CACHE_TTL_MS, providers };
+  return { expiresAt: Date.now() + CACHE_TTL_MS, order: storedOrder(rows.providers), providers };
 }
 
 /**
@@ -133,14 +163,24 @@ export function runtimeAiProviderConfig(provider: ManagedAiProviderId): RuntimeA
   return runtimeCache?.providers.get(provider) ?? { enabled: true, model: null, credentials: [] };
 }
 
+/** The administrator's failover order, or null to use the environment/profile orders. */
+export function runtimeAiProviderOrder(): ManagedAiProviderId[] | null {
+  return runtimeCache?.order ?? null;
+}
+
 export async function listAdminAiProviderConfig(): Promise<{
   encryptionReady: boolean;
+  /** Administrator-set failover order, or null when the default applies. */
+  order: ManagedAiProviderId[] | null;
+  defaultOrder: ManagedAiProviderId[];
   providers: AdminAiProviderConfig[];
 }> {
   const rows = await readRows();
   const providerRows = new Map(rows.providers.map((row) => [row.provider, row]));
   return {
     encryptionReady: aiCredentialEncryptionReady(),
+    order: storedOrder(rows.providers),
+    defaultOrder: defaultAiProviderOrder(),
     providers: MANAGED_AI_PROVIDER_IDS.map((provider) => {
       const configured = providerRows.get(provider);
       return {
@@ -180,6 +220,28 @@ export async function updateAiProviderSetting(input: {
       INSERT INTO "AiProviderAuditEvent" ("id", "adminUserId", "action", "provider", "metadata")
       VALUES (${randomUUID()}, ${input.adminUserId}, 'provider.updated', ${input.provider},
               ${JSON.stringify({ enabled: input.enabled, model })}::jsonb)`,
+  ]);
+  await refreshRuntimeAiProviderConfig(true);
+}
+
+/** Save the failover order (every provider, highest priority first), or null to reset to the default. */
+export async function setAiProviderOrder(input: {
+  order: ManagedAiProviderId[] | null;
+  adminUserId: string;
+}): Promise<void> {
+  const order = input.order ? normalizeAiProviderOrder(input.order) : null;
+  await db.$transaction([
+    order
+      ? db.$executeRaw`
+          INSERT INTO "AiProviderConfig" ("provider", "enabled", "model", "updatedBy")
+          VALUES (${ORDER_ROW}, TRUE, ${order.join(",")}, ${input.adminUserId})
+          ON CONFLICT ("provider") DO UPDATE
+          SET "model" = EXCLUDED."model", "updatedBy" = EXCLUDED."updatedBy", "updatedAt" = NOW()`
+      : db.$executeRaw`DELETE FROM "AiProviderConfig" WHERE "provider" = ${ORDER_ROW}`,
+    db.$executeRaw`
+      INSERT INTO "AiProviderAuditEvent" ("id", "adminUserId", "action", "provider", "metadata")
+      VALUES (${randomUUID()}, ${input.adminUserId}, ${order ? "order.updated" : "order.reset"}, ${ORDER_ROW},
+              ${JSON.stringify({ order })}::jsonb)`,
   ]);
   await refreshRuntimeAiProviderConfig(true);
 }

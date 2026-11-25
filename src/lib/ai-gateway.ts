@@ -19,7 +19,8 @@
 // Optionally prefix a key with a label so contributors can be identified:
 //   GROQ_API_KEY_2=ada:gsk_abc…          → shown as "ada"
 // Unlabelled keys are shown as "groq#1", "groq#2", … in configuration order.
-// Same prefixes for ZAI_, OPENAI_, OPENROUTER_ and GEMINI_. Duplicates are ignored.
+// Same prefixes for ZAI_, ZAI_FREE_, OPENAI_, OPENROUTER_, GEMINI_, CEREBRAS_ and MISTRAL_.
+// Duplicates are ignored.
 //
 // Rotation: within a provider, healthy keys are used least-recently-used
 // first, so load spreads across all of them. A 429 / quota answer cools down
@@ -43,6 +44,7 @@ import { providerRequestOptions, type GatewayReasoningEffort } from "@/lib/ai-ga
 import {
   refreshRuntimeAiProviderConfig,
   runtimeAiProviderConfig,
+  runtimeAiProviderOrder,
   type ManagedAiProviderId,
 } from "@/lib/ai-provider-config";
 
@@ -67,6 +69,18 @@ const PROVIDER_DEFS: ProviderDef[] = [
     baseUrl: "https://api.z.ai/api/paas/v4/chat/completions",
     envKeys: "ZAI_API_KEY",
     envModel: "ZAI_MODEL",
+    defaultModel: "glm-4.7-flash",
+  },
+  {
+    // A second z.ai entry with its own keys and model, so keys on an account
+    // with no balance can run the free GLM-4.7 Flash while the paid key stays
+    // on GLM-5.3 under "z.ai". Each sits separately in the failover order.
+    id: "z.ai-free",
+    label: "z.ai free",
+    kind: "openai-compatible",
+    baseUrl: "https://api.z.ai/api/paas/v4/chat/completions",
+    envKeys: "ZAI_FREE_API_KEY",
+    envModel: "ZAI_FREE_MODEL",
     defaultModel: "glm-4.7-flash",
   },
   {
@@ -105,9 +119,29 @@ const PROVIDER_DEFS: ProviderDef[] = [
     envModel: "GEMINI_MODEL",
     defaultModel: "gemini-2.0-flash",
   },
+  {
+    // Free tier (about 1M tokens/day as of Nov 2026); very fast inference.
+    id: "cerebras",
+    label: "Cerebras",
+    kind: "openai-compatible",
+    baseUrl: "https://api.cerebras.ai/v1/chat/completions",
+    envKeys: "CEREBRAS_API_KEY",
+    envModel: "CEREBRAS_MODEL",
+    defaultModel: "gpt-oss-120b",
+  },
+  {
+    // Free "Experiment" tier, rate-limited (about 1 request/second).
+    id: "mistral",
+    label: "Mistral",
+    kind: "openai-compatible",
+    baseUrl: "https://api.mistral.ai/v1/chat/completions",
+    envKeys: "MISTRAL_API_KEY",
+    envModel: "MISTRAL_MODEL",
+    defaultModel: "mistral-medium-latest",
+  },
 ];
 
-const DEFAULT_ORDER: GatewayProviderId[] = ["z.ai", "openai", "groq", "openrouter", "gemini"];
+const DEFAULT_ORDER: GatewayProviderId[] = ["z.ai", "openai", "groq", "openrouter", "gemini", "z.ai-free", "cerebras", "mistral"];
 
 /**
  * Call profiles. "default" keeps AI_GATEWAY_ORDER for every existing feature.
@@ -126,8 +160,8 @@ export type GatewayProfile = "default" | "fast" | "quality";
 const PROFILE_ORDER: Record<Exclude<GatewayProfile, "default">, { env: string; fallback: GatewayProviderId[] }> = {
   // Measured on this project's keys (Nov 2026): Groq ~1.3s, OpenRouter ~1.7s,
   // z.ai ~2.2s on a short prompt; Gemini flash-lite was returning 503 "high demand".
-  fast: { env: "AI_GATEWAY_FAST_ORDER", fallback: ["groq", "openrouter", "z.ai", "openai", "gemini"] },
-  quality: { env: "AI_GATEWAY_QUALITY_ORDER", fallback: ["groq", "openrouter", "openai", "z.ai", "gemini"] },
+  fast: { env: "AI_GATEWAY_FAST_ORDER", fallback: ["groq", "openrouter", "z.ai", "openai", "gemini", "z.ai-free"] },
+  quality: { env: "AI_GATEWAY_QUALITY_ORDER", fallback: ["groq", "openrouter", "openai", "z.ai", "gemini", "z.ai-free"] },
 };
 
 function envInt(name: string, fallback: number): number {
@@ -168,14 +202,17 @@ function isQuotaExhausted(error: unknown): boolean {
   const status = (error as { status?: number })?.status;
   if (status === 402) return true;
   const msg = error instanceof Error ? error.message.toLowerCase() : "";
-  return /insufficient_quota|exceeded your current quota|insufficient credits|out of credits/.test(msg);
+  // z.ai answers an empty balance with HTTP 429 + code 1113 ("Insufficient
+  // balance or no resource package") — without this it was parked for only
+  // ~20 s like a rate limit and retried on every turn.
+  return /insufficient_quota|exceeded your current quota|insufficient credits|out of credits|insufficient balance|no resource package|"code":\s*"?1113\b/.test(msg);
 }
 
 /** Strip anything that looks like a credential out of an error message. */
 function redact(message: string, apiKey?: string): string {
   let out = message;
   if (apiKey && apiKey.length >= 6) out = out.split(apiKey).join("[key]");
-  return out.replace(/\b(sk-[a-z0-9-]*|gsk_|AIza|xai-)[A-Za-z0-9_\-*.]{6,}/gi, "[redacted]");
+  return out.replace(/\b(sk-[a-z0-9-]*|gsk_|csk-|AIza|xai-)[A-Za-z0-9_\-*.]{6,}/gi, "[redacted]");
 }
 
 // ---------- Key configuration ----------
@@ -403,6 +440,11 @@ interface Route {
 }
 
 function parseOrder(profile: GatewayProfile = "default"): GatewayProviderId[] {
+  // An order set by the administrator wins for every profile: what the admin
+  // screen shows is what every AI request tries. Reset it there to return to
+  // AI_GATEWAY_ORDER and the tuned fast/quality orders.
+  const adminOrder = runtimeAiProviderOrder();
+  if (adminOrder) return adminOrder;
   const spec = profile === "default" ? null : PROFILE_ORDER[profile];
   const raw = spec ? process.env[spec.env] : process.env.AI_GATEWAY_ORDER;
   const base = spec ? spec.fallback : DEFAULT_ORDER;

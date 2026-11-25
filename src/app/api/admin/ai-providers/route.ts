@@ -5,7 +5,10 @@ import {
   deleteAiProviderCredential,
   isManagedAiProvider,
   listAdminAiProviderConfig,
+  MANAGED_AI_PROVIDER_IDS,
   setAiProviderCredentialEnabled,
+  setAiProviderOrder,
+  type ManagedAiProviderId,
   updateAiProviderSetting,
 } from "@/lib/ai-provider-config";
 import { aiCredentialEncryptionReady } from "@/lib/ai-provider-secrets";
@@ -62,11 +65,32 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Update provider enablement and its optional model override. */
+/**
+ * Update provider enablement and its optional model override, or, with an
+ * `order` field, the failover order (every provider once, first = tried
+ * first; `order: null` resets to the default order).
+ */
 export async function PUT(request: NextRequest) {
   try {
     const session = await requireAdmin(request, true);
     const body = await request.json().catch(() => null);
+    if (body && typeof body === "object" && "order" in body) {
+      const order: unknown = body.order;
+      if (order === null) {
+        await setAiProviderOrder({ order: null, adminUserId: session.userId });
+        return NextResponse.json({ ok: true });
+      }
+      if (
+        !Array.isArray(order) ||
+        order.length !== MANAGED_AI_PROVIDER_IDS.length ||
+        new Set(order).size !== order.length ||
+        !order.every((id) => typeof id === "string" && isManagedAiProvider(id))
+      ) {
+        throw new MarketHttpError(400, "List every AI provider exactly once.");
+      }
+      await setAiProviderOrder({ order: order as ManagedAiProviderId[], adminUserId: session.userId });
+      return NextResponse.json({ ok: true });
+    }
     const provider = cleanString(body?.provider, 30);
     const model = cleanString(body?.model, 120) || null;
     if (!isManagedAiProvider(provider)) throw new MarketHttpError(400, "Choose a supported AI provider.");

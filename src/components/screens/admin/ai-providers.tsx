@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, KeyRound, Loader2, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -24,16 +24,21 @@ import type { AdminAiCredential, AdminAiProviderConfig, ManagedAiProviderId } fr
 
 const PROVIDER_META: Record<ManagedAiProviderId, { label: string; defaultModel: string }> = {
   "z.ai": { label: "z.ai", defaultModel: "glm-4.7-flash" },
+  "z.ai-free": { label: "z.ai free", defaultModel: "glm-4.7-flash" },
   openai: { label: "OpenAI", defaultModel: "gpt-4o-mini" },
   groq: { label: "Groq", defaultModel: "llama-3.3-70b-versatile" },
   openrouter: { label: "OpenRouter", defaultModel: "google/gemini-2.0-flash-001" },
   gemini: { label: "Google Gemini", defaultModel: "gemini-2.0-flash" },
+  cerebras: { label: "Cerebras", defaultModel: "gpt-oss-120b" },
+  mistral: { label: "Mistral", defaultModel: "mistral-medium-latest" },
 };
 
 type ProviderResponse = {
   ok?: boolean;
   encryptionReady?: boolean;
   providers?: AdminAiProviderConfig[];
+  order?: ManagedAiProviderId[] | null;
+  defaultOrder?: ManagedAiProviderId[];
   error?: string;
 };
 
@@ -56,6 +61,10 @@ export function AiProviderManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [working, setWorking] = useState("");
+  // Failover order as shown (draft), what is saved, and whether the admin set it.
+  const [order, setOrder] = useState<ManagedAiProviderId[]>([]);
+  const [savedOrder, setSavedOrder] = useState<ManagedAiProviderId[]>([]);
+  const [customOrder, setCustomOrder] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ provider: ManagedAiProviderId; credential: AdminAiCredential } | null>(null);
 
   const load = useCallback(async () => {
@@ -67,6 +76,10 @@ export function AiProviderManagement() {
       setProviders(nextProviders);
       setEncryptionReady(json.encryptionReady === true);
       setModels(Object.fromEntries(nextProviders.map((provider) => [provider.provider, provider.model ?? ""])));
+      const effective = json.order ?? json.defaultOrder ?? nextProviders.map((provider) => provider.provider);
+      setOrder(effective);
+      setSavedOrder(effective);
+      setCustomOrder(Boolean(json.order));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "AI provider configuration could not be loaded.");
     } finally {
@@ -94,6 +107,39 @@ export function AiProviderManagement() {
       toast.success(`${PROVIDER_META[provider.provider].label} updated`);
     } catch (caught) {
       toast.error("Provider not updated", { description: caught instanceof Error ? caught.message : "Please try again." });
+    } finally {
+      setWorking("");
+    }
+  }
+
+  function moveProvider(index: number, delta: -1 | 1) {
+    setOrder((current) => {
+      const target = index + delta;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  async function saveOrder(reset = false) {
+    setWorking("order");
+    try {
+      await requestJson("/api/admin/ai-providers", {
+        method: "PUT",
+        body: JSON.stringify({ order: reset ? null : order }),
+      });
+      if (reset) {
+        await load();
+      } else {
+        setSavedOrder(order);
+        setCustomOrder(true);
+      }
+      toast.success(reset ? "Default order restored" : "Provider order saved", {
+        description: "New AI requests try providers in this order.",
+      });
+    } catch (caught) {
+      toast.error("Order not saved", { description: caught instanceof Error ? caught.message : "Please try again." });
     } finally {
       setWorking("");
     }
@@ -189,6 +235,63 @@ export function AiProviderManagement() {
         <ErrorState title="AI providers unavailable" description={error} onRetry={() => void load()} />
       ) : (
         <div className="space-y-4">
+          <SectionCard
+            title="Failover order"
+            description={
+              customOrder
+                ? "Your order. Every AI request tries the first available provider, then the next."
+                : "Default order. Move providers up or down, then save to set your own."
+            }
+            action={<Badge variant={customOrder ? "default" : "outline"}>{customOrder ? "Custom" : "Default"}</Badge>}
+          >
+            <ol className="space-y-2">
+              {order.map((id, index) => {
+                const provider = providers.find((item) => item.provider === id);
+                return (
+                  <li key={id} className="flex items-center gap-3 rounded-lg border p-3">
+                    <span className="w-5 text-center text-sm font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{PROVIDER_META[id].label}</p>
+                      {provider && !provider.enabled ? <p className="text-xs text-muted-foreground">Disabled, so skipped</p> : null}
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={index === 0 || Boolean(working)}
+                      aria-label={`Move ${PROVIDER_META[id].label} up`}
+                      onClick={() => moveProvider(index, -1)}
+                    >
+                      <ArrowUp className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      disabled={index === order.length - 1 || Boolean(working)}
+                      aria-label={`Move ${PROVIDER_META[id].label} down`}
+                      onClick={() => moveProvider(index, 1)}
+                    >
+                      <ArrowDown className="size-4" aria-hidden />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              {customOrder ? (
+                <Button variant="ghost" disabled={Boolean(working)} onClick={() => void saveOrder(true)}>
+                  <RotateCcw className="mr-1.5 size-4" aria-hidden /> Reset to default
+                </Button>
+              ) : null}
+              <Button
+                disabled={Boolean(working) || order.join() === savedOrder.join()}
+                onClick={() => void saveOrder()}
+              >
+                {working === "order" ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : null}
+                Save order
+              </Button>
+            </div>
+          </SectionCard>
+
           {providers.map((provider) => {
             const meta = PROVIDER_META[provider.provider];
             const providerWorking = working === `provider:${provider.provider}`;

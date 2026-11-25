@@ -347,6 +347,8 @@ model IntegrationInterest {
 // ---------- Administrator-managed AI provider credentials ----------
 // Applied additively by prisma/sql/008_ai_provider_config.sql. Secret values
 // are AES-256-GCM encrypted before storage and never returned to the browser.
+// The reserved row provider = "_gateway_order" is not a provider: its "model"
+// holds the admin-set failover order ("groq,openai,…"); see ai-provider-config.ts.
 
 model AiProviderConfig {
   provider    String                 @id

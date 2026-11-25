@@ -290,8 +290,12 @@ OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
 GEMINI_API_KEY=...
 GEMINI_MODEL=gemini-2.0-flash
+CEREBRAS_API_KEY=csk-...
+CEREBRAS_MODEL=gpt-oss-120b
+MISTRAL_API_KEY=...
+MISTRAL_MODEL=mistral-medium-latest
 # Optional priority order (default: z.ai first):
-AI_GATEWAY_ORDER=z.ai,openai,groq,openrouter,gemini`}
+AI_GATEWAY_ORDER=z.ai,openai,groq,openrouter,gemini,z.ai-free,cerebras,mistral`}
           </pre>
           <p>
             Several keys per provider are rotated least-recently-used first to spread load. A rate-limited key cools
