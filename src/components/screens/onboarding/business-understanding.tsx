@@ -36,6 +36,8 @@ const TREND_KEYS = [
 type Trends = BusinessFacts["trends"];
 
 const CORRECTED_SOURCE = "Corrected by you";
+/** Rows that hold several amounts in the owner's chat words ("Money due", "Also owed"…). */
+const MONEY_WORDS_RE = /^(money due|also owed|money in and out)/i;
 const isPerformance = (section: string) => /performance/i.test(section);
 
 function trendSummary(t: Trends) {
@@ -58,7 +60,10 @@ function applyEdits(base: BusinessFacts, rows: Fact[], type: BusinessFacts["busi
     const s = r.section.toLowerCase();
     // Specific checkup answers first — "Enquiries that become customers" must
     // update the close rate, never the "Customers" description.
-    if (/become customers|how many pay|enquiries that/.test(s)) next.closeRate = r.value;
+    // Cash now is one figure: an edit to it is an edit to their money picture.
+    if (/^cash now/.test(s)) {
+      if (next.money && r.value.trim()) next.money = { ...next.money, cashNow: r.value.trim() };
+    } else if (/become customers|how many pay|enquiries that/.test(s)) next.closeRate = r.value;
     else if (/give your price|how you give|price is given/.test(s)) next.pricePresentation = r.value;
     else if (/don't buy|dont buy|do not buy|don't go ahead/.test(s)) next.lostReason = r.value;
     else if (/room for more|more work|capacity/.test(s)) next.capacity = r.value;
@@ -81,7 +86,7 @@ function applyEdits(base: BusinessFacts, rows: Fact[], type: BusinessFacts["busi
   // Keep the original "Business" fact (workspace-sourced) first, then the edited rows.
   const businessFact = base.facts.find((f) => f.section === "Business");
   const updatedBusiness = businessFact
-    ? { ...businessFact, value: businessFact.value.replace(/\b(service|ecommerce)\b/, type) }
+    ? { ...businessFact, value: businessFact.value.replace(/— (?:a service business|a business that sells products|an? (?:service|ecommerce) business) in /, `— ${businessKindPhrase(type)} in `) }
     : null;
   next.facts = [...(updatedBusiness ? [updatedBusiness] : []), ...rows];
   return next;
@@ -294,6 +299,15 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                       ? "Separate items with commas"
                       : f.source}
                   </p>
+                  {checkupFacts?.money && MONEY_WORDS_RE.test(f.section) ? (
+                    <p className="mt-1 text-xs text-slate-600">
+                      This is what you said in the chat. To correct an amount or mark something paid,{" "}
+                      <button type="button" onClick={() => navigate("performance")} className="font-medium text-brand-700 underline-offset-2 hover:underline">
+                        use Your numbers
+                      </button>
+                      .
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
                   <ProvenanceBadge provenance={f.provenance} source={f.source} />

@@ -5,7 +5,8 @@
 // The model never does this maths: it quotes these lines, which show every
 // figure they came from, so the owner can check them.
 
-import type { MoneyFacts, MoneyPeriod } from "./checkup";
+import type { MoneyFacts, MoneyPeriod, MoneyUpdates } from "./checkup";
+import { amountFromOwner } from "./checkup-turn";
 import { formatMoney, formatMoneyRange, parseAmount, wordsToDigits, type Range } from "./checkup-math";
 
 /**
@@ -77,6 +78,7 @@ export function withHarassmentSafety(steps: string[], ownerText: string, answerT
 export function daysToFirstDue(money: MoneyFacts | null | undefined): number | null {
   let first: number | null = null;
   for (const d of money?.due ?? []) {
+    if (d.status === "paid") continue;
     const w = wordsToDigits(String(d.when ?? "").toLowerCase());
     let n: number | null = null;
     const within = w.match(/\b(?:in|within|next)\s+(\d+)\s+(day|week)s?\b/);
@@ -170,13 +172,21 @@ export function moneyLinesForPrompt(money: MoneyFacts | null | undefined, cur: s
   if (!money) return [];
   const lines: string[] = [];
 
-  // What is due, against the cash they have.
+  // What is still due (paid items are done), against the cash they have.
+  const paid = money.due.filter((d) => d.status === "paid").map((d) => d.what.trim());
   const due = money.due
+    .filter((d) => d.status !== "paid")
     .map((d) => ({ ...d, range: parseAmount(d.amount) }))
     .filter((d): d is typeof d & { range: Range } => d.range !== null);
+  if (paid.length) lines.push(`Already paid: ${paid.join("; ")}.`);
   if (due.length) {
     const total = sumRanges(due.map((d) => d.range));
-    const items = due.map((d) => `${d.what.trim()} ${formatMoneyRange(d.range, cur)}${d.when ? ` (${d.when.trim()})` : ""}`).join("; ");
+    const items = due
+      .map((d) => {
+        const when = [d.status === "plan" ? "on a plan they agreed" : "", d.when?.trim() ?? ""].filter(Boolean).join(", ");
+        return `${d.what.trim()} ${formatMoneyRange(d.range, cur)}${when ? ` (${when})` : ""}`;
+      })
+      .join("; ");
     lines.push(due.length > 1 ? `Due, from what they told you: ${items} — ${formatMoneyRange(total, cur)} in total.` : `Due, from what they told you: ${items}.`);
     const cash = parseAmount(money.cashNow);
     if (cash) {
@@ -234,4 +244,128 @@ export function moneyLinesForPrompt(money: MoneyFacts | null | undefined, cur: s
     lines.push(`They also said about ${formatMoneyRange(stated, cur)} a month — more than their own figures add up to (about ${formatMoneyRange(monthlyIn, cur)}). Worth asking which months that was.`);
   }
   return lines;
+}
+
+/* ------------------------------------------------------------------ */
+/* Money that changed since the checkup — told in a check-in           */
+/* ------------------------------------------------------------------ */
+
+// Words that say nothing about WHICH payment it is ("the supplier bill" = "supplier").
+const GENERIC_WORDS = new Set(["the", "my", "our", "a", "an", "for", "of", "to", "from", "and", "bill", "bills", "payment", "payments", "repayment", "due", "money", "fee", "fees", "owed", "balance"]);
+
+function nameWords(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !GENERIC_WORDS.has(w));
+}
+
+/** Which payment on their list a name means; -1 when none, or when two fit equally (never guess). */
+export function matchDue(what: string, due: { what: string }[]): number {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const exact = due.findIndex((d) => norm(d.what) === norm(what));
+  if (exact !== -1) return exact;
+  const want = nameWords(what);
+  if (!want.length) return -1;
+  // One name's words must all be in the other ("supplier" = "Supplier bill"); a shared
+  // word alone is not enough ("Brother's loan" is not the "Hair products loan").
+  const scores = due.map((d) => {
+    const have = nameWords(d.what);
+    const fits = have.length > 0 && (want.every((w) => have.includes(w)) || have.every((w) => want.includes(w)));
+    return fits ? want.filter((w) => have.includes(w)).length : 0;
+  });
+  const best = Math.max(0, ...scores);
+  if (best === 0 || scores.filter((s) => s === best).length > 1) return -1;
+  return scores.indexOf(best);
+}
+
+const PERIODS: MoneyPeriod[] = ["day", "week", "month", "year"];
+const str = (v: unknown, cap: number): string | undefined => (typeof v === "string" && v.trim() ? v.replace(/\s+/g, " ").trim().slice(0, cap) : undefined);
+
+/**
+ * What a check-in's model said changed in their money, kept only where it holds up:
+ * every amount is one the owner typed, a change to a payment names one on their list
+ * (a new one needs their amount), periods are real. Null when nothing is left.
+ */
+export function cleanMoneyUpdates(raw: unknown, money: MoneyFacts | null | undefined, ownerText: string): MoneyUpdates | null {
+  if (!money || !raw || typeof raw !== "object" || !ownerText.trim()) return null;
+  const r = raw as Record<string, unknown>;
+  const theirs = (v: unknown, cap = 60): string | undefined => {
+    const s = str(v, cap);
+    return s && /\d/.test(s) && amountFromOwner(s, ownerText) ? s : undefined;
+  };
+  const out: MoneyUpdates = {};
+
+  const due: NonNullable<MoneyUpdates["due"]> = [];
+  for (const item of Array.isArray(r.due) ? r.due.slice(0, 6) : []) {
+    if (!item || typeof item !== "object") continue;
+    const d = item as Record<string, unknown>;
+    const change = d.change;
+    if (change !== "paid" && change !== "plan" && change !== "new" && change !== "amount") continue;
+    const what = str(d.what, 60);
+    if (!what) continue;
+    const amount = theirs(d.amount);
+    const when = str(d.when, 60);
+    const note = str(d.note, 140);
+    const at = matchDue(what, money.due);
+    if (change === "new") {
+      // Already on the list: it is a change to that one, not a second copy.
+      if (at !== -1) {
+        if (amount || when) due.push({ what: money.due[at].what, change: "amount", amount, when, note });
+      } else if (amount) {
+        due.push({ what, change: "new", amount, when, note });
+      }
+      continue;
+    }
+    if (at === -1) continue;
+    if (change === "amount" && !amount && !when) continue;
+    if (str(d.amount, 60) && !amount && change !== "paid") continue; // an amount they never typed
+    due.push({ what: money.due[at].what, change, amount, when, note });
+  }
+  if (due.length) out.due = due;
+
+  const cash = theirs(r.cashNow);
+  if (cash) out.cashNow = cash;
+  const mi = r.moneyIn as Record<string, unknown> | null | undefined;
+  if (mi && typeof mi === "object") {
+    const amount = theirs(mi.amount);
+    const per = PERIODS.find((p) => p === mi.per);
+    if (amount && per) out.moneyIn = { amount, per };
+  }
+  const prices = str(r.pricesChanged, 160);
+  if (prices && /\b(price|prices|priced|charge|charging|raised|increased|reduced|lowered|cut)\b/i.test(ownerText)) out.pricesChanged = prices;
+
+  return Object.keys(out).length ? out : null;
+}
+
+/** Their money picture with checked changes applied. Nothing is ever deleted: a paid payment stays, marked paid. */
+export function applyMoneyUpdates(money: MoneyFacts, u: MoneyUpdates | null | undefined, at: string): MoneyFacts {
+  if (!u) return money;
+  const due = money.due.map((d) => ({ ...d }));
+  for (const c of u.due ?? []) {
+    if (c.change === "new") {
+      if (matchDue(c.what, due) === -1) due.push({ what: c.what, amount: c.amount, when: c.when, note: c.note, updatedAt: at });
+      continue;
+    }
+    const i = matchDue(c.what, due);
+    if (i === -1) continue;
+    const d = due[i];
+    due[i] = {
+      ...d,
+      ...(c.change === "paid" ? { status: "paid" as const } : c.change === "plan" ? { status: "plan" as const } : {}),
+      ...(c.amount && c.change !== "paid" ? { amount: c.amount } : {}),
+      ...(c.when && c.change !== "paid" ? { when: c.when } : {}),
+      ...(c.note ? { note: c.note } : {}),
+      updatedAt: at,
+    };
+  }
+  return {
+    ...money,
+    due,
+    ...(u.cashNow ? { cashNow: u.cashNow } : {}),
+    // A new sales figure keeps their open days (it is the same shop, a different week).
+    ...(u.moneyIn ? { moneyIn: { ...u.moneyIn, ...(money.moneyIn?.daysOpen && u.moneyIn.per === "day" ? { daysOpen: money.moneyIn.daysOpen } : {}) } } : {}),
+    ...(u.pricesChanged ? { pricesChanged: u.pricesChanged } : {}),
+  };
 }

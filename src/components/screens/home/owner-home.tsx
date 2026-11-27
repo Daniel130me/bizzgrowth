@@ -41,7 +41,7 @@ import { ChallengesStrip, SolvedSuggestion, StuckNotice, WorkOnThisButton } from
 import { templateNextStep } from "@/lib/coach";
 import { fmtDelta, fmtNum, fmtNaira } from "@/lib/format";
 import { ownerMonthsFromEntries, type OwnerMonth } from "@/lib/data/user-business";
-import type { BusinessFacts, DiagnosisContent, ImprovedDiagnosis, TranscriptTurn, TrendDirection } from "@/lib/checkup";
+import { improveHelps, type BusinessFacts, type DiagnosisContent, type ImprovedDiagnosis, type TranscriptTurn, type TrendDirection } from "@/lib/checkup";
 import type { ManualEntry } from "@/lib/types";
 import { tidyOwnerText } from "@/lib/checkup-math";
 import { loadPlanProgress, planIdFor } from "@/lib/plan-progress";
@@ -525,21 +525,24 @@ export default function OwnerHome(_props: ScreenProps) {
           title="Keep improving this workspace"
           description="Each path below uses only your own data."
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Card className="flex flex-col justify-between p-4">
-              <div>
-                <p className="flex items-center gap-1.5 text-sm font-semibold">
-                  <Target className="size-4 text-brand-600" aria-hidden /> Improve the diagnosis with channel counts
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Enter last month&apos;s enquiries and paying customers for each way people find you — we work out how many go on to pay from your own counts, so the
-                  numbers are real the moment you type them.
-                </p>
-              </div>
-              <Button size="sm" variant="outline" className="mt-3 w-fit" onClick={() => navigate("improve-diagnosis")}>
-                Enter channel counts <ArrowRight className="ml-1 size-3.5" aria-hidden />
-              </Button>
-            </Card>
+          <div className={`grid gap-3 ${improveHelps(facts, diagnosis, focus?.stage) ? "sm:grid-cols-2" : ""}`}>
+            {/* Only where channel counts can change the read (not money trouble, delivery, repeat customers…). */}
+            {improveHelps(facts, diagnosis, focus?.stage) ? (
+              <Card className="flex flex-col justify-between p-4">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold">
+                    <Target className="size-4 text-brand-600" aria-hidden /> Improve the diagnosis with channel counts
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Enter last month&apos;s enquiries and paying customers for each way people find you — we work out how many go on to pay from your own counts, so the
+                    numbers are real the moment you type them.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" className="mt-3 w-fit" onClick={() => navigate("improve-diagnosis")}>
+                  Enter channel counts <ArrowRight className="ml-1 size-3.5" aria-hidden />
+                </Button>
+              </Card>
+            ) : null}
             <Card className="flex flex-col justify-between p-4">
               <div>
                 <p className="flex items-center gap-1.5 text-sm font-semibold">

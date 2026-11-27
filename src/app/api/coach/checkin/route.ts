@@ -11,6 +11,7 @@ import {
   countAnswerText,
   factValueFor,
   numbersVerdict,
+  resultAlreadyTold,
   isYesNoMeasure,
   withCare,
   yesNoAnswer,
@@ -27,6 +28,7 @@ import { collectAllowedNumbers, ungroundedNumbers } from "@/lib/grounding";
 import { getSession } from "@/lib/auth/session";
 import { measuredContext } from "@/lib/connectors/summary";
 import { plainify } from "@/lib/checkup-math";
+import { cleanMoneyUpdates } from "@/lib/checkup-money";
 import { CLEAR_PROBLEM_RE, cleanNoticed, stageOfText, templateOutsideStep } from "@/lib/challenges";
 
 export const runtime = "nodejs";
@@ -49,6 +51,7 @@ HOW TO READ IT
 - Half-way check-ins: encourage them, offer at most one small tweak, and keep going.
 - If, in their own typed words, they mention a NEW problem holding the business back that is not on THEIR CHALLENGES list (a worker left, costs jumped, customers complaining about something new), set "newChallenge" — in their words, with its stage, and "sameAs" = the id of a listed challenge only if it is really the same problem. Otherwise null. Never for ordinary ups and downs of the step itself.
 - If the step did what it was for (they did it and got the result it aimed at), the verdict is "working" — even at a half-way check-in.
+- "moneyUpdates": only when THEIR MONEY SITUATION is listed above and their own words say it changed — a payment was paid off, a plan or part payment was agreed, they took on a new debt, or their cash in hand, what comes in from sales, or their prices changed. Name a payment exactly as it is listed. Amounts only exactly as they wrote them; never work one out. For a plan, "amount" is the instalment and "when" is how often or when it is due. Otherwise null.
 - Anything serious in their own words comes first in the reply (being harassed or threatened, exhaustion, wanting to give up): answer it as WHEN MONEY IS TIGHT OR THE OWNER IS STRUGGLING says, before the step. Then the reply may run to 5 short sentences.
 
 ${VOICE_RULES}
@@ -62,7 +65,8 @@ Return ONLY valid JSON, no markdown:
   "learned": "ONE sentence (<= 150 chars) on what this showed, for their diagnosis",
   "tweak": "one small adjustment (<= 120 chars), or null",
   "nextStep": ${NEXT_STEP_SCHEMA} or null,
-  "newChallenge": null or { "title": "<= 70 chars, their words", "stage": "found|enquire|convert|deliver|return|outside", "sameAs": "an id from THEIR CHALLENGES, or null", "why": "1 short sentence" }
+  "newChallenge": null or { "title": "<= 70 chars, their words", "stage": "found|enquire|convert|deliver|return|outside", "sameAs": "an id from THEIR CHALLENGES, or null", "why": "1 short sentence" },
+  "moneyUpdates": null or { "due": [{ "what": "the payment as listed, or a new one", "change": "paid|plan|new|amount", "amount": "their figure or null", "when": "their words or null", "note": "<= 120 chars, what changed, in their words" }] or null, "cashNow": "their figure or null", "moneyIn": { "amount": "their figure", "per": "day|week|month" } or null, "pricesChanged": "their words or null" }
 }
 ${NEXT_STEP_RULES}
 - nextStep: REQUIRED at the end of a step and when they didn't try it (a gentler version, or a different step). null for a half-way check-in where they should keep going. Never suggest a step that is listed as already tried.`;
@@ -160,9 +164,11 @@ export async function POST(request: NextRequest) {
   // What the answers say, read deterministically.
   const triedAnswer = got("tried") ?? "";
   const notTried = NOT_TRIED_RE.test(triedAnswer) && !/some|bit|differ/i.test(triedAnswer);
-  const after = got("count") ? countAnswerText(got("count")!, unit) : null;
+  // Their count — or the result they already typed earlier, so it isn't asked twice.
+  const countAnswer = got("count") ?? (notTried ? undefined : resultAlreadyTold(step, answers) ?? undefined);
+  const after = countAnswer ? countAnswerText(countAnswer, unit) : null;
   // A yes/no measure ("Did the supplier agree…?"): "yes" is the step working, "no" is no change yet.
-  const yn = isYesNoMeasure(step.measure) ? yesNoAnswer(got("count")) : null;
+  const yn = isYesNoMeasure(step.measure) ? yesNoAnswer(countAnswer) : null;
   const dir = yn === "yes" ? "up" : yn === "no" ? "same" : numbersVerdict(body.baseline, after, unit);
   const changesAnswer = got("changes");
   const otherChanges = changesAnswer && !NOTHING_CHANGED_RE.test(changesAnswer.trim()) ? [changesAnswer.trim().slice(0, 120)] : [];
@@ -243,9 +249,11 @@ export async function POST(request: NextRequest) {
   let degraded = true;
 
   const raw = await completeText(SYSTEM, prompt, { maxTokens: 1400, profile: "fast" });
-  const parsed = raw ? extractJson<{ reply?: string; verdict?: string; learned?: string; tweak?: string | null; nextStep?: unknown; newChallenge?: unknown }>(raw) : null;
+  const parsed = raw ? extractJson<{ reply?: string; verdict?: string; learned?: string; tweak?: string | null; nextStep?: unknown; newChallenge?: unknown; moneyUpdates?: unknown }>(raw) : null;
   // Only their own typed words can reveal a new problem (a tapped answer can't).
   const typedText = answers.filter((a) => a.typed).map((a) => a.answer).join("\n");
+  // Money that changed, in their own typed words only — every amount checked against what they wrote.
+  const moneyUpdates = parsed && facts?.money ? cleanMoneyUpdates(parsed.moneyUpdates, facts.money, typedText) : null;
   let newChallenge = parsed && typedText ? cleanNoticed(parsed.newChallenge, typedText, list) : null;
   // The model missed it, but they plainly typed that something went wrong ("the generator broke",
   // "my helper quit"): offer it anyway, in their own words — they can say "Not now".
@@ -291,6 +299,7 @@ export async function POST(request: NextRequest) {
     tweak,
     nextStep,
     newChallenge,
+    moneyUpdates,
   };
   return NextResponse.json({ ok: true, result, degraded });
 }

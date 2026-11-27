@@ -11,9 +11,13 @@ import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/shared/layout";
 import { ConfidenceBadge } from "@/components/shared/badges";
 import { ConfidencePanel, EvidencePanel, KnowThinkUnknown, ProvenanceLegend } from "@/components/shared/evidence";
-import { useBizz } from "@/lib/store";
+import { useBizz, useFocusChallenge } from "@/lib/store";
 import type { EvidenceItem } from "@/lib/types";
 import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
+import { improveHelps } from "@/lib/checkup";
+import { fmtDateShort } from "@/lib/format";
+import { missingNumbers, numberRows, sourceLabel } from "@/lib/number-log";
+
 import type { ScreenProps } from "../view-types";
 
 const FALLBACK_EVIDENCE: EvidenceItem[] = [
@@ -48,61 +52,59 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
   const facts = useBizz((s) => s.checkup.facts);
   const diagnosis = useBizz((s) => s.checkup.diagnosis);
   const improved = useBizz((s) => s.checkup.improved);
+  const numberLog = useBizz((s) => s.checkup.numberLog);
+  const focus = useFocusChallenge();
 
   const isPersonalized = Boolean(facts);
   const confidence = improved?.confidence ?? diagnosis?.confidence ?? 62;
 
-  // Evidence rows built from what the owner actually said during the checkup.
+  // Built only from what the owner really gave: their numbers (with where each came from),
+  // the directions they actually knew, the changes they mentioned. "Don't know" is never
+  // listed as something we know.
+  const rows = numberRows(facts, numberLog);
+  const knownTrends = facts
+    ? ([
+        ["Enquiries", facts.trends.enquiries],
+        ["Customers", facts.trends.customers],
+        ["Sales", facts.trends.revenue],
+      ] as const).filter(([, t]) => t !== "Don't know")
+    : [];
+  // A change that only repeats a figure already listed ("Rent of ₦3.6m is due…") says nothing new.
+  // (Their history counts too: "the supplier bill of ₦350k is overdue" is out of date once it's paid.)
+  const shownFigures = rows.flatMap((r) => [r.value, ...r.history.map((h) => h.value)]).join(" ");
+  const figuresIn = (t: string) => t.match(/[₦$€£₵]?\d[\d,.]*\s?(?:k|m|bn)?/gi) ?? [];
+  const recent = (facts?.recentChanges ?? [])
+    .filter((c) => {
+      const figs = figuresIn(c);
+      return !figs.length || !figs.every((f) => shownFigures.includes(f.trim()));
+    })
+    .slice(0, 2);
+  const sourceOf = (r: (typeof rows)[number]) => `${sourceLabel(r.source, r.history.length > 0)}${r.at ? ` · ${fmtDateShort(r.at)}` : ""}`;
+
+  const ownEvidence: EvidenceItem[] = [
+    ...rows.map((r): EvidenceItem => ({ label: r.label, value: r.value, provenance: "user-supplied", source: sourceOf(r) })),
+    ...(improved?.channelRows ?? []).map(
+      (r): EvidenceItem => ({ label: r.name, value: `${r.customers} of ${r.enquiries} who asked went on to buy`, provenance: "user-supplied", source: "Counts you entered" }),
+    ),
+    ...knownTrends.map(([label, t]): EvidenceItem => ({ label: `${label} lately`, value: `${t} (your sense)`, provenance: "estimated", source: "What you said in the checkup" })),
+    ...recent.map((c): EvidenceItem => ({ label: "Something that changed", value: c, provenance: "user-supplied", source: "Your checkup conversation" })),
+  ];
   const evidence: EvidenceItem[] = isPersonalized && facts
-    ? [
-        ...(improved
-          ? improved.channelRows.map(
-              (r): EvidenceItem => ({
-                label: `${r.name} conversion`,
-                value: `${r.conversion.toFixed(1)}% (${r.customers} of ${r.enquiries})`,
-                provenance: "user-supplied",
-                source: "Counts you entered",
-              }),
-            )
-          : ([
-              {
-                label: "Enquiries",
-                value: `${facts.trends.enquiries} (your estimate)`,
-                provenance: "estimated",
-                source: "Your directional estimate in the checkup",
-              },
-            ] satisfies EvidenceItem[])),
-        {
-          label: "Customers",
-          value: `${facts.trends.customers} (your estimate)`,
-          provenance: "estimated",
-          source: "Your directional estimate in the checkup",
-        },
-        {
-          label: "Revenue",
-          value: `${facts.trends.revenue} (your estimate)`,
-          provenance: "estimated",
-          source: "Your directional estimate in the checkup",
-        },
-        {
-          label: "Recent changes",
-          value: facts.recentChanges.slice(0, 2).join("; ") || "None reported",
-          provenance: "user-supplied",
-          source: "Your checkup conversation",
-        },
-      ]
+    ? ownEvidence.length
+      ? ownEvidence
+      : [{ label: "What you told me", value: facts.bottleneck || facts.whatTheySell || "Your checkup answers", provenance: "user-supplied", source: "Your checkup conversation" }]
     : FALLBACK_EVIDENCE;
 
+  const ownKnown = [
+    ...rows.map((r) => `${r.label}: ${r.value}`),
+    ...(improved?.channelRows ?? []).map((r) => `${r.name}: ${r.customers} of ${r.enquiries} went on to buy (you counted)`),
+    ...knownTrends.map(([label, t]) => `${label}: ${t.toLowerCase()} (your sense)`),
+    ...recent,
+  ];
   const known: string[] = isPersonalized && facts
-    ? [
-        `Enquiries: ${facts.trends.enquiries} (you reported)`,
-        `Customers: ${facts.trends.customers} (you reported)`,
-        `Revenue: ${facts.trends.revenue} (you reported)`,
-        ...facts.recentChanges.slice(0, 2).map((c) => `${c} (you reported)`),
-        ...(improved
-          ? improved.channelRows.map((r) => `${r.name}: ${r.conversion.toFixed(1)}% conversion (${r.customers}/${r.enquiries} — you entered)`)
-          : []),
-      ]
+    ? ownKnown.length
+      ? ownKnown
+      : [facts.bottleneck ? `Where it feels stuck: ${facts.bottleneck}` : "Your checkup answers"]
     : [
         "Marketing spend increased about 40% (you reported)",
         "Enquiries increased about 50% (277 vs 185)",
@@ -112,15 +114,24 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
 
   const think = improved?.meaning ?? diagnosis?.meaning ?? "The bottleneck likely occurs after enquiry generation — in response time, quoting, or follow-up — rather than in lead generation.";
 
+  // Everything here is what they told me — none of it is from their records yet. Said honestly.
+  const ownUnknown = [...missingNumbers(facts), "Figures from your records (till, bank or sales app) — everything here is from what you told me"];
   const unknown: string[] = isPersonalized && facts
-    ? [
-        ...facts.channels.slice(0, 2).map((c) => `${c} response time`),
-        ...(improved ? [] : facts.channels.slice(0, 2).map((c) => `${c} conversion counts`)),
-        "Lead quality",
-        "Pricing outcomes",
-        "Follow-up activity",
-      ]
+    ? ownUnknown
     : ["Lead quality", "Response time to enquiries", "Channel-level conversion", "Pricing outcomes", "Follow-up activity"];
+
+  // How much of what this read needs is really there — worked out, never a set number.
+  const coverage = isPersonalized && facts
+    ? Math.round((100 * (rows.length + knownTrends.length)) / Math.max(1, rows.length + knownTrends.length + ownUnknown.length))
+    : 45;
+  const helps = improveHelps(facts, diagnosis, focus?.stage) && !improved;
+  const sources = [
+    "Your checkup answers",
+    ...(rows.some((r) => r.source === "check-in" || r.history.some((h) => h.source === "check-in")) ? ["What you told me in check-ins"] : []),
+    ...(rows.some((r) => r.source === "you") ? ["Figures you corrected"] : []),
+    ...(knownTrends.length ? ["Which way things are going, in your words"] : []),
+    ...(improved ? ["Counts you entered"] : []),
+  ];
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -141,7 +152,7 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
           known={known}
           think={think}
           unknown={unknown}
-          onImprove={() => navigate("improve-diagnosis")}
+          onImprove={helps ? () => navigate("improve-diagnosis") : undefined}
         />
       </div>
 
@@ -158,24 +169,18 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
         <ConfidencePanel
           level={confidence >= 75 ? "high" : confidence >= 60 ? "medium" : "low"}
           value={confidence}
-          coverage={improved ? 70 : 45}
-          sources={
-            isPersonalized
-              ? ["Your checkup answers", "Trend directions you described", ...(improved ? ["Channel counts you entered"] : [])]
-              : ["Your checkup answers", "Direction estimates for spend, enquiries, customers and revenue"]
-          }
-          missing={
-            isPersonalized && improved
-              ? ["Response times", "Lead quality", "Pricing and discount outcomes", "Connected ad platform data"]
-              : ["Channel-level enquiry and customer counts", "Response times", "Lead quality", "Pricing and discount outcomes", "Follow-up activity"]
-          }
+          coverage={coverage}
+          sources={isPersonalized ? sources : ["Your checkup answers", "Direction estimates for spend, enquiries, customers and revenue"]}
+          missing={isPersonalized ? ownUnknown : ["Channel-level enquiry and customer counts", "Response times", "Lead quality", "Pricing and discount outcomes", "Follow-up activity"]}
         />
       </div>
 
       <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-        <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("improve-diagnosis")}>
-          Improve diagnosis
-        </Button>
+        {helps ? (
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => navigate("improve-diagnosis")}>
+            Add my enquiry numbers
+          </Button>
+        ) : null}
         <Button className="w-full sm:w-auto" onClick={() => navigate("setup-complete")}>
           Continue with current understanding
           <ArrowRight className="size-4" aria-hidden />

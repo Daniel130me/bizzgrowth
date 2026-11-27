@@ -481,7 +481,7 @@ export function JourneyFocus({ stage }: { stage: FocusStage }) {
  * money in covers the running costs — worked out in code from their own
  * figures, every line showing what it came from.
  */
-export function MoneyCard({ lines }: { lines: string[] }) {
+export function MoneyCard({ lines, onCorrect }: { lines: string[]; onCorrect?: () => void }) {
   if (!lines.length) return null;
   return (
     <section aria-label="Your money, worked out" className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm sm:p-6">
@@ -497,7 +497,18 @@ export function MoneyCard({ lines }: { lines: string[] }) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs text-slate-500">Only from what you told me — nothing is invented. If a figure is off, correct it and I'll work it out again.</p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500">Only from what you told me — nothing is invented. If a figure is off, correct it and I&apos;ll work it out again.</p>
+        {onCorrect ? (
+          <button
+            type="button"
+            onClick={onCorrect}
+            className="w-fit shrink-0 rounded text-xs font-semibold text-amber-800 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Correct a figure
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }

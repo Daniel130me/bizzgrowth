@@ -38,6 +38,8 @@ import {
   type NextStep,
 } from "./coach";
 import { computeStake, currencySymbol, shorten, tidyOwnerText } from "./checkup-math";
+import { applyMoneyUpdates, moneyLinesForPrompt } from "./checkup-money";
+import { logChanges, setNumber, type NumberEntry, type NumberInput, type NumberSource } from "./number-log";
 import {
   isOpen,
   outcomeFor,
@@ -98,6 +100,8 @@ export interface CheckupState {
   facts: BusinessFacts | null;
   diagnosis: DiagnosisContent | null;
   improved: ImprovedDiagnosis | null;
+  /** Every figure the owner gave, as it changed over time (see src/lib/number-log.ts). */
+  numberLog?: NumberEntry[];
 }
 
 const EMPTY_CHECKUP: CheckupState = { transcript: [], facts: null, diagnosis: null, improved: null };
@@ -252,7 +256,9 @@ interface BizzState {
   /** Owner corrections to the extracted facts — clears the now-stale diagnosis so it regenerates. */
   updateCheckupFacts: (facts: BusinessFacts) => void;
   /** Add answers to the facts and swap in an updated diagnosis in one step (no regeneration). */
-  patchCheckupFacts: (patch: Partial<BusinessFacts>, diagnosis?: DiagnosisContent) => void;
+  patchCheckupFacts: (patch: Partial<BusinessFacts>, diagnosis?: DiagnosisContent, source?: NumberSource) => void;
+  /** The owner corrects one of their numbers (or marks a payment paid) where it is shown. False when nothing changed. */
+  correctNumber: (key: string, input: NumberInput) => boolean;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   setAiInsights: (items: Insight[]) => void;
@@ -903,9 +909,16 @@ export const useBizz = create<BizzState>((set, get) => ({
       };
     };
     if (checkup.facts) {
-      const facts: BusinessFacts = { ...checkup.facts, ...(result.factUpdates as Partial<BusinessFacts>) };
-      const diagnosis = checkup.diagnosis && isFocusStep ? updateDiagnosis(checkup.diagnosis, facts) : checkup.diagnosis;
-      checkup = { ...checkup, facts, diagnosis };
+      const before = checkup.facts;
+      const money = before.money && result.moneyUpdates ? applyMoneyUpdates(before.money, result.moneyUpdates, now) : before.money;
+      const facts: BusinessFacts = { ...before, ...(result.factUpdates as Partial<BusinessFacts>), ...(money ? { money } : {}) };
+      let diagnosis = checkup.diagnosis && isFocusStep ? updateDiagnosis(checkup.diagnosis, facts) : checkup.diagnosis;
+      // What they owe and have changed: the money card is worked out again from the new figures.
+      if (diagnosis && money && money !== before.money) {
+        const lines = moneyLinesForPrompt(money, currencySymbol(s.userWorkspace?.currency));
+        diagnosis = { ...diagnosis, ...(lines.length ? { money: lines } : {}) };
+      }
+      checkup = { ...checkup, facts, diagnosis, numberLog: logChanges(checkup.numberLog, before, facts, "check-in", now) };
     }
 
     let challenges = s.challenges;
@@ -1419,19 +1432,43 @@ export const useBizz = create<BizzState>((set, get) => ({
       }
       challenges = renumber(list);
     }
-    const checkup: CheckupState = { transcript, facts, diagnosis: null, improved: null };
+    const checkup: CheckupState = { transcript, facts, diagnosis: null, improved: null, numberLog: logChanges(s.checkup.numberLog, s.checkup.facts, facts, "checkup", now) };
     set({ checkup, userWorkspace, challenges, challengePlanAt: null, coach: { ...s.coach, steps } });
     persistCheckup({ userWorkspace, checkup });
     persistChallenges(get());
     if (steps !== s.coach.steps) persistCoach(get());
   },
-  patchCheckupFacts: (patch, diagnosis) => {
+  correctNumber: (key, input) => {
+    const s = get();
+    const before = s.checkup.facts;
+    if (!before) return false;
+    const now = new Date().toISOString();
+    const facts = setNumber(before, key, input, now);
+    if (!facts) return false;
+    // The read's words stay; everything worked out in code is worked out again from the new figure.
+    const cur = currencySymbol(s.userWorkspace?.currency);
+    let diagnosis = s.checkup.diagnosis;
+    if (diagnosis && facts.money && facts.money !== before.money) {
+      const lines = moneyLinesForPrompt(facts.money, cur);
+      diagnosis = { ...diagnosis, money: lines.length ? lines : undefined };
+    }
+    if (diagnosis?.stake && (key === "closeRate" || key === "monthlyEnquiries" || key === "jobValue")) {
+      diagnosis = { ...diagnosis, stake: computeStake(facts, cur, diagnosis.focusStage ?? "convert") };
+    }
+    const checkup: CheckupState = { ...s.checkup, facts, diagnosis, numberLog: logChanges(s.checkup.numberLog, before, facts, "you", now) };
+    set({ checkup });
+    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+    return true;
+  },
+  patchCheckupFacts: (patch, diagnosis, source = "you") => {
     const s = get();
     if (!s.checkup.facts) return;
+    const facts = { ...s.checkup.facts, ...patch };
     const checkup: CheckupState = {
       ...s.checkup,
-      facts: { ...s.checkup.facts, ...patch },
+      facts,
       diagnosis: diagnosis ?? s.checkup.diagnosis,
+      numberLog: logChanges(s.checkup.numberLog, s.checkup.facts, facts, source, new Date().toISOString()),
     };
     set({ checkup });
     persistCheckup({ userWorkspace: s.userWorkspace, checkup });
@@ -1449,7 +1486,7 @@ export const useBizz = create<BizzState>((set, get) => ({
     const userWorkspace = s.userWorkspace && s.userWorkspace.type !== facts.businessType
       ? { ...s.userWorkspace, type: facts.businessType }
       : s.userWorkspace;
-    const checkup: CheckupState = { ...EMPTY_CHECKUP, transcript, facts, diagnosis: diagnosis ?? null };
+    const checkup: CheckupState = { ...EMPTY_CHECKUP, transcript, facts, diagnosis: diagnosis ?? null, numberLog: s.checkup.numberLog };
     // A checkup put back from a saved chat: its challenges are derived the same way as
     // on load (fixed ids, nothing written until the owner changes something).
     const challenges = s.challenges.some((c) => c.workspaceId === OWN) ? s.challenges : deriveChallenges(facts, diagnosis ?? null, s.coach);
@@ -1486,7 +1523,8 @@ export const useBizz = create<BizzState>((set, get) => ({
       const m = makeChallenge({ title: facts.bottleneck, source: "reported", status: "working", order: 0, details: { what: facts.bottleneck, theory: facts.ownerTheory }, chatDone: true }, facts);
       challenges = [...s.challenges, { ...m, focusedAt: new Date().toISOString() }];
     }
-    const checkup: CheckupState = { ...s.checkup, facts, diagnosis: null, improved: null };
+    const numberLog = logChanges(s.checkup.numberLog, prev, facts, "you", new Date().toISOString());
+    const checkup: CheckupState = { ...s.checkup, facts, diagnosis: null, improved: null, numberLog };
     set({ checkup, userWorkspace, challenges });
     persistCheckup({ userWorkspace, checkup });
     if (challenges !== s.challenges) persistChallenges(get());

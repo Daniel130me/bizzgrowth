@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { daysBeforeDeadline, daysToFirstDue, isMoneyTrouble, moneyClauses, moneyFindings, moneyFindingsBlock, moneyLinesForPrompt, speaksOfCosts, withHarassmentSafety } from "./checkup-money";
+import { applyMoneyUpdates, cleanMoneyUpdates, daysBeforeDeadline, daysToFirstDue, isMoneyTrouble, matchDue, moneyClauses, moneyFindings, moneyFindingsBlock, moneyLinesForPrompt, speaksOfCosts, withHarassmentSafety } from "./checkup-money";
 import { classifyQuestion } from "./checkup-turn";
 import { depthSlotsFor, requiredSlotsFor, type MoneyFacts } from "./checkup";
 
@@ -164,5 +164,86 @@ describe("a step's check-in comes before the first payment", () => {
     expect(daysBeforeDeadline(3, money)).toBe(3);
     expect(daysBeforeDeadline(14, { due: [{ what: "Rent", when: "tomorrow" }], costs: [] })).toBe(1);
     expect(daysBeforeDeadline(14, { due: [{ what: "Rent", when: "Overdue" }], costs: [] })).toBe(14);
+  });
+});
+
+describe("money that changed in a check-in", () => {
+  const money: MoneyFacts = {
+    due: [
+      { what: "Shop lease", amount: "₵9,000", when: "in two weeks" },
+      { what: "Supplier bill", amount: "₵1,200", when: "overdue" },
+      { what: "Hair products loan", amount: "₵800", when: "on day 5" },
+    ],
+    cashNow: "₵2,000",
+    moneyIn: { amount: "₵300–₵450", per: "day", daysOpen: 24 },
+    costs: [{ what: "Products", amount: "₵3,000", per: "month" }],
+  };
+  const typed = "The landlord agreed I pay ₵3,000 now and ₵1,000 every month. I paid off the supplier. This week we made ₵400 to ₵520 a day, and I raised my prices a little.";
+
+  test("only changes the owner typed, to payments on their list, are kept", () => {
+    const u = cleanMoneyUpdates(
+      {
+        due: [
+          { what: "Lease", change: "plan", amount: "₵1,000", when: "every month", note: "Paid ₵3,000 now, then ₵1,000 a month" },
+          { what: "supplier", change: "paid" },
+          { what: "Electricity", change: "paid" }, // not on their list, no amount: dropped
+          { what: "Bank loan", change: "new", amount: "₵5,000" }, // an amount they never typed: dropped
+        ],
+        cashNow: "₵4,500", // never said: dropped
+        moneyIn: { amount: "₵400 to ₵520", per: "day" },
+        pricesChanged: "Raised prices a little",
+      },
+      money,
+      typed,
+    );
+    expect(u?.due).toEqual([
+      { what: "Shop lease", change: "plan", amount: "₵1,000", when: "every month", note: "Paid ₵3,000 now, then ₵1,000 a month" },
+      { what: "Supplier bill", change: "paid", amount: undefined, when: undefined, note: undefined },
+    ]);
+    expect(u?.cashNow).toBeUndefined();
+    expect(u?.moneyIn).toEqual({ amount: "₵400 to ₵520", per: "day" });
+    expect(u?.pricesChanged).toBe("Raised prices a little");
+  });
+
+  test("a new debt needs the owner's own amount; one already listed is updated, not copied", () => {
+    const words = "My brother lent me ₵700 for the lease.";
+    expect(cleanMoneyUpdates({ due: [{ what: "Brother's loan", change: "new", amount: "₵700" }] }, money, words)?.due).toEqual([
+      { what: "Brother's loan", change: "new", amount: "₵700", when: undefined, note: undefined },
+    ]);
+    expect(cleanMoneyUpdates({ due: [{ what: "Supplier", change: "new", amount: "₵700" }] }, money, words)?.due?.[0].change).toBe("amount");
+    expect(cleanMoneyUpdates({ due: [{ what: "Brother's loan", change: "new" }] }, money, words)).toBeNull();
+  });
+
+  test("nothing changes without a money picture, typed words, or anything valid", () => {
+    expect(cleanMoneyUpdates({ cashNow: "₵100" }, undefined, "I have ₵100")).toBeNull();
+    expect(cleanMoneyUpdates({ cashNow: "₵100" }, money, "")).toBeNull();
+    expect(cleanMoneyUpdates({ moneyIn: { amount: "₵400", per: "fortnight" } }, money, "₵400")).toBeNull();
+    expect(cleanMoneyUpdates("nonsense", money, typed)).toBeNull();
+  });
+
+  test("two payments that fit a name equally are never guessed", () => {
+    const two = [{ what: "Car loan" }, { what: "Shop loan" }];
+    expect(matchDue("loan", two)).toBe(-1);
+    expect(matchDue("the car loan", two)).toBe(0);
+    expect(matchDue("rent", two)).toBe(-1);
+  });
+
+  test("applied: paid stays on the list marked paid, a plan takes the instalment, open days are kept", () => {
+    const u = cleanMoneyUpdates({ due: [{ what: "Lease", change: "plan", amount: "₵1,000", when: "every month" }, { what: "supplier", change: "paid" }], moneyIn: { amount: "₵400 to ₵520", per: "day" } }, money, typed);
+    const next = applyMoneyUpdates(money, u, "2026-12-01T10:00:00.000Z");
+    expect(next.due[0]).toMatchObject({ what: "Shop lease", amount: "₵1,000", when: "every month", status: "plan", updatedAt: "2026-12-01T10:00:00.000Z" });
+    expect(next.due[1]).toMatchObject({ what: "Supplier bill", amount: "₵1,200", status: "paid" });
+    expect(next.due).toHaveLength(3);
+    expect(next.moneyIn).toEqual({ amount: "₵400 to ₵520", per: "day", daysOpen: 24 });
+    expect(money.due[0].status).toBeUndefined(); // the original is untouched
+  });
+
+  test("the worked-out money leaves paid payments out of what is due", () => {
+    const next = applyMoneyUpdates(money, { due: [{ what: "Supplier bill", change: "paid" }] }, "2026-12-01T10:00:00.000Z");
+    const lines = moneyLinesForPrompt(next, "₵");
+    expect(lines[0]).toBe("Already paid: Supplier bill.");
+    expect(lines[1]).toBe("Due, from what they told you: Shop lease ₵9k (in two weeks); Hair products loan ₵800 (on day 5) — ₵9.8k in total.");
+    const plan = applyMoneyUpdates(money, { due: [{ what: "Shop lease", change: "plan", amount: "₵1,000", when: "every month" }] }, "x");
+    expect(moneyLinesForPrompt(plan, "₵")[0]).toContain("Shop lease ₵1k (on a plan they agreed, every month)");
   });
 });

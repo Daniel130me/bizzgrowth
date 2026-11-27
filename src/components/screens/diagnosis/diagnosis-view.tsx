@@ -34,7 +34,7 @@ import { STATUS_META, templateOutsideStep, type Challenge, type ChallengePlan } 
 import { challengePayload } from "@/lib/challenge-client";
 import { friendlyDate, templateNextStep } from "@/lib/coach";
 import { restoreFinishedCheckup } from "@/lib/checkup-restore";
-import { DIAGNOSIS_VERSION, type BusinessFacts, type DiagnosisContent, type FocusStage, type ImprovedDiagnosis } from "@/lib/checkup";
+import { DIAGNOSIS_VERSION, improveHelps, type BusinessFacts, type DiagnosisContent, type FocusStage, type ImprovedDiagnosis } from "@/lib/checkup";
 import { computeStake, currencySymbol, shorten } from "@/lib/checkup-math";
 import { attachDiagnosisToChat } from "@/lib/chat-log";
 import { loadHelpOpened, loadPlanProgress, planIdFor, saveHelpOpened, savePlanProgress } from "@/lib/plan-progress";
@@ -458,7 +458,7 @@ export function DiagnosisView({ mode, tabParam, challengeParam }: { mode: Mode; 
       activeStep={Boolean(activeStep)}
       improved={Boolean(improved)}
       onContinue={() => navigate("setup-complete")}
-      onImprove={() => navigate("improve-diagnosis")}
+      onImprove={improveHelps(facts, storedDiagnosis, focus?.stage) ? () => navigate("improve-diagnosis") : undefined}
       onEvidence={() => navigate("first-diagnosis-evidence")}
     />
   ) : null;
@@ -616,7 +616,7 @@ export function DiagnosisView({ mode, tabParam, challengeParam }: { mode: Mode; 
             {outside && viewed ? <OutsideNote title={viewed.title} /> : <JourneyFocus stage={stage} />}
 
             {/* Money trouble: the gap and money in vs out, worked out from their own figures. */}
-            {diagnosis.money?.length ? <MoneyCard lines={diagnosis.money} /> : null}
+            {diagnosis.money?.length ? <MoneyCard lines={diagnosis.money} onCorrect={isFocusView ? () => navigate("performance") : undefined} /> : null}
 
             <StakeCard key={`stake-${viewKey}`} diagnosis={diagnosis} facts={viewFacts} cur={cur} onAddNumbers={addNumbers} readOnly={!isFocusView} />
 
@@ -634,7 +634,7 @@ export function DiagnosisView({ mode, tabParam, challengeParam }: { mode: Mode; 
 
             <div className="flex flex-col gap-2 border-t border-slate-200 pt-5 sm:flex-row sm:items-center">
               <p className="text-sm text-slate-600 sm:mr-auto">Want to see everything this rests on?</p>
-              {isFocusView && !improved ? (
+              {isFocusView && !improved && improveHelps(facts, storedDiagnosis, focus?.stage) ? (
                 <Button variant="outline" className="bg-white" onClick={() => navigate("improve-diagnosis")}>
                   <TrendingUp className="size-4" aria-hidden />
                   Add my enquiry numbers
@@ -1055,7 +1055,8 @@ function KeepItGoing({
   activeStep: boolean;
   improved: boolean;
   onContinue: () => void;
-  onImprove: () => void;
+  /** Absent when channel counts couldn't change this read. */
+  onImprove?: () => void;
   onEvidence: () => void;
 }) {
   return (
@@ -1076,7 +1077,7 @@ function KeepItGoing({
             <ArrowRight className="size-4" aria-hidden />
           </Button>
         ) : null}
-        {!improved ? (
+        {!improved && onImprove ? (
           <Button variant="outline" className="w-full border-emerald-300 bg-white sm:w-auto" onClick={onImprove}>
             Add my enquiry numbers
           </Button>

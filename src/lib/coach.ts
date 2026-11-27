@@ -10,7 +10,7 @@
 // (WhatsApp chats, walk-ins, a price change, a slow week), so asking — briefly,
 // kindly, with tap answers — is the app's only way of knowing.
 
-import type { BusinessFacts, FocusStage } from "./checkup";
+import type { BusinessFacts, FocusStage, MoneyUpdates } from "./checkup";
 import { parseCloseRate, wordsToDigits } from "./checkup-math";
 import { businessWords } from "./business-words";
 
@@ -661,6 +661,8 @@ export interface CheckInResult {
   otherChanges: string[];
   /** Answers to still-missing checkup questions, by fact key. */
   factUpdates: Partial<Record<FactKey, string>>;
+  /** What they said changed in their money (paid, a plan, a new debt, cash, sales, prices) — checked on the server. */
+  moneyUpdates?: MoneyUpdates | null;
   /** Mid check-in: carry on with the same step. */
   keepGoing: boolean;
   /** A small adjustment to make it easier or sharper. */
@@ -923,6 +925,34 @@ export function yesNoAnswer(text: string | null | undefined): "yes" | "no" | nul
   return null;
 }
 
+const SAID_NO_RE = /\b(refused|declined|rejected|said no|did ?n[o']t agree|won'?t agree|would ?n[o']t agree|not agreed?|turned (me|us|it) down)\b/i;
+const SAID_YES_RE = /\b(agreed|accepted|said yes|approved|allowed (me|us)|gave (me|us) (more |extra )?time|signed)\b/i;
+
+/**
+ * The step's result, when the owner already typed it in an earlier answer ("Yes, I sent it —
+ * the landlord agreed…"), so the check-in doesn't ask for it again. Read only from their own
+ * typed words, and only when it is unambiguous; null otherwise.
+ */
+export function resultAlreadyTold(step: NextStep, answers: CheckInAnswer[]): string | null {
+  const said = answers
+    .filter((a) => a.typed && a.id !== "count")
+    .map((a) => a.answer)
+    .join(" ");
+  if (!said.trim()) return null;
+  if (isYesNoMeasure(step.measure)) {
+    if (SAID_NO_RE.test(said)) return "No";
+    if (SAID_YES_RE.test(said)) return "Yes";
+    return null;
+  }
+  const t = wordsToDigits(said.toLowerCase());
+  if (step.unit === "in10") {
+    const ratios = [...t.matchAll(/\b(\d{1,3})\s+(?:out of|of|in)\s+(\d{1,4})\b/g)];
+    return ratios.length === 1 && Number(ratios[0][1]) <= Number(ratios[0][2]) ? `${ratios[0][1]} out of ${ratios[0][2]}` : null;
+  }
+  const counts = [...new Set([...t.matchAll(/\b(\d{1,4})\s+(?:new\s+)?(?:people|customers|clients|orders|bookings|sales|of them|paid|bought|booked|came|signed up)\b/g)].map((m) => m[1]))];
+  return counts.length === 1 ? counts[0] : null;
+}
+
 const DISTRESS_RE =
   /\b(exhausted|tired of|so tired|i'?m tired|burn(ed|t)? out|can'?t cope|cannot cope|can'?t go on|give up|giving up|hopeless|(close|closing|shut|shutting) (it all|everything|down|the (shop|business|place)))\b/i;
 const CARE_RE =
@@ -993,7 +1023,8 @@ export function nextCheckInQuestion(ctx: QuestionContext): CheckInQuestion | nul
     };
   }
 
-  if (!notTried && got("count") === undefined) {
+  // Already told in their own words ("the landlord agreed"): not asked again.
+  if (!notTried && got("count") === undefined && resultAlreadyTold(step, answers) === null) {
     // Always the step's own measure, so the result compares like with like.
     if (step.unit === "count") {
       const what = (step.measure ?? "how many").replace(/[.?!\s]+$/, "").replace(/^./, (c) => c.toLowerCase());

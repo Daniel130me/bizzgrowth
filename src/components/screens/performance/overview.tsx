@@ -29,6 +29,7 @@ import { useBizz } from "@/lib/store";
 import { deltaPct, fmtDelta, fmtNaira, fmtNum, fmtPct, goodnessFor } from "@/lib/format";
 import type { DateRangeId } from "@/lib/types";
 import { useBiz, fmtMoneyMajor } from "./biz";
+import { OwnerNumbers, useHasOwnerNumbers } from "./owner-numbers";
 import type { ScreenProps } from "../view-types";
 
 interface AreaCardProps {
@@ -75,6 +76,8 @@ export default function PerformanceOverview(_props: ScreenProps) {
   const { business, period, dateRange, setDateRange, navigate, businessId } = useBiz();
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const ecom = business.type === "ecommerce";
+  const own = businessId === "user-workspace";
+  const hasNumbers = useHasOwnerNumbers();
 
   // Honest early-state: a real owner's workspace needs at least two entered
   // months before period comparisons (deltas) mean anything.
@@ -89,8 +92,13 @@ export default function PerformanceOverview(_props: ScreenProps) {
       <div className="mx-auto w-full max-w-4xl">
         <PageHeader
           title="Performance"
-          description={`${userWorkspace?.name ?? "Your business"} · performance opens here the moment your own numbers exist.`}
+          description={
+            hasNumbers
+              ? `${userWorkspace?.name ?? "Your business"} · every number you've given Nellovia, and how it has changed.`
+              : `${userWorkspace?.name ?? "Your business"} · performance opens here the moment your own numbers exist.`
+          }
         />
+        <OwnerNumbers className="mb-4" />
         <Card className="p-6">
           <span className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
             <Database className="size-5" aria-hidden />
@@ -98,12 +106,16 @@ export default function PerformanceOverview(_props: ScreenProps) {
           <h2 className="mt-3 text-lg font-semibold">
             {recorded
               ? `${recorded} month recorded — one more unlocks comparisons.`
-              : "Nothing measured yet — and nothing is made up to fill the page."}
+              : hasNumbers
+                ? "Track your numbers month by month"
+                : "Nothing measured yet — and nothing is made up to fill the page."}
           </h2>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {recorded
               ? `Your ${business.monthly[0].label} totals are in. Performance compares periods side by side, so a second month is what switches this page on.`
-              : "Seven performance areas (revenue, funnel, marketing, website, retention and more) activate from your own data. Add it whichever way suits you — each area will show its provenance, and sample figures are never substituted."}
+              : hasNumbers
+                ? "Add your monthly totals (sales, spend, people who asked, customers) and Nellovia compares each month with the one before — sales, marketing, your website and more. Type them in, upload a file, or connect a service you already use."
+                : "Seven performance areas (sales, how people find you, your website, customers coming back and more) open from your own figures. Add them whichever way suits you — each one shows where it came from, and sample figures are never used instead."}
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             {paths.map((p) => (
@@ -153,7 +165,7 @@ export default function PerformanceOverview(_props: ScreenProps) {
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
         title="Performance"
-        description={`${business.name} · ${period.label} (${period.compareLabel}). Seven areas, one picture — open any area for the full breakdown.`}
+        description={`${business.name} · ${period.label} (${period.compareLabel}). Seven areas, one picture — open any one to see more.`}
         actions={
           <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeId)}>
             <SelectTrigger className="w-full sm:w-[240px]" aria-label="Date range">
@@ -169,6 +181,8 @@ export default function PerformanceOverview(_props: ScreenProps) {
           </Select>
         }
       />
+
+      {own ? <OwnerNumbers className="mb-4" /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AreaCard
@@ -191,8 +205,8 @@ export default function PerformanceOverview(_props: ScreenProps) {
           }
           summary={
             ecom
-              ? `AOV ${fmtNaira(Math.round(aov))} (${fmtDelta(Math.round(deltaPct(aov, prevAov)))})`
-              : `From ${fmtNum(cur.enquiries)} enquiries at ${fmtPct(cur.enquiries ? (denom / cur.enquiries) * 100 : 0)} conversion`
+              ? `Average order ${fmtNaira(Math.round(aov))} (${fmtDelta(Math.round(deltaPct(aov, prevAov)))})`
+              : `From ${fmtNum(cur.enquiries)} people who asked — ${fmtPct(cur.enquiries ? (denom / cur.enquiries) * 100 : 0)} went on to buy`
           }
           onClick={() => navigate(visitorsMetric)}
         />
@@ -200,7 +214,7 @@ export default function PerformanceOverview(_props: ScreenProps) {
           icon={Filter}
           title="Funnel"
           value={firstStep && lastStep ? `${fmtNum(firstStep.value)} → ${fmtNum(lastStep.value)}` : "—"}
-          summary={`End-to-end conversion ${fmtPct(endToEnd)} · ${REPORTING_MONTH.current} snapshot`}
+          summary={`${fmtPct(endToEnd)} of everyone at the first step went on to buy · ${REPORTING_MONTH.current} snapshot`}
           onClick={() => navigate("performance/funnel")}
         />
         <AreaCard
@@ -208,7 +222,7 @@ export default function PerformanceOverview(_props: ScreenProps) {
           title="Marketing"
           value={fmtMoneyMajor(cur.spend)}
           badge={<TrendBadge delta={Math.round(deltaPct(cur.spend, prev.spend))} goodness="neutral" />}
-          summary={`Blended CAC ${fmtNaira(Math.round(cac))} (${fmtDelta(Math.round(deltaPct(cac, prevCac)))})`}
+          summary={`About ${fmtNaira(Math.round(cac))} of spend for each new customer (${fmtDelta(Math.round(deltaPct(cac, prevCac)))})`}
           onClick={() => navigate("performance/marketing")}
         />
         <AreaCard

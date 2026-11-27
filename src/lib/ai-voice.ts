@@ -125,7 +125,13 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
     const m = f.money;
     if (m) {
       lines.push("", "THEIR MONEY SITUATION (their own answers — this week's money comes first):");
-      m.due.forEach((d) => lines.push(`- Due: ${d.what}${d.amount ? ` — ${d.amount}` : ""}${d.when ? ` (${d.when})` : ""}`));
+      m.due.forEach((d) =>
+        lines.push(
+          d.status === "paid"
+            ? `- Paid (no longer due): ${d.what}${d.note ? ` — ${d.note}` : ""}`
+            : `- ${d.status === "plan" ? "On a plan they agreed" : "Due"}: ${d.what}${d.amount ? ` — ${d.amount}` : ""}${d.when ? ` (${d.when})` : ""}${d.note ? ` — ${d.note}` : ""}`,
+        ),
+      );
       if (m.cashNow) lines.push(`- Cash now: ${m.cashNow}`);
       if (m.moneyIn) lines.push(`- Money coming in: ${m.moneyIn.amount} a ${m.moneyIn.per}${m.moneyIn.daysOpen ? `, ${m.moneyIn.daysOpen} days a month` : ""}`);
       m.costs.forEach((c) => lines.push(`- Running cost: ${c.what} — ${c.amount} a ${c.per}`));

@@ -149,7 +149,7 @@ export function ChallengeChatScreen({ params }: ScreenProps) {
         });
       }
       if (challengeIdRef.current) persist(challengeIdRef.current, data);
-      if (Object.keys(data.factUpdates ?? {}).length) patchCheckupFacts(data.factUpdates as Partial<BusinessFacts>);
+      if (Object.keys(data.factUpdates ?? {}).length) patchCheckupFacts(data.factUpdates as Partial<BusinessFacts>, undefined, "challenge chat");
 
       if (data.phase === "done" && challengeIdRef.current) {
         setPhase("diagnosing");

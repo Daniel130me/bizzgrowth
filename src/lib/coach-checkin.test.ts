@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { acknowledge, isYesNoMeasure, nextCheckInQuestion, SERIOUS_RE, withCare, yesNoAnswer, type CheckInAnswer, type NextStep } from "./coach";
+import { acknowledge, isYesNoMeasure, nextCheckInQuestion, resultAlreadyTold, SERIOUS_RE, withCare, yesNoAnswer, type CheckInAnswer, type NextStep } from "./coach";
 
 const step: NextStep = {
   kind: "recommendation",
@@ -75,5 +75,31 @@ describe("check-in: an exhausted owner is answered as a person", () => {
   test("harassment in other words still stops the routine questions", () => {
     expect(SERIOUS_RE.test("the loan app people are disturbing my contacts")).toBe(true);
     expect(SERIOUS_RE.test("they keep bothering my family")).toBe(true);
+  });
+});
+
+describe("check-in: a result they already typed is not asked for again", () => {
+  const ynStep: NextStep = { ...step, measure: "Did the supplier agree to a payment plan?" };
+  test("a yes/no result in their own words skips the question", () => {
+    const answers = [answer("tried", "Yes I called them. The supplier agreed to take half now and half next month.", true)];
+    expect(resultAlreadyTold(ynStep, answers)).toBe("Yes");
+    expect(nextCheckInQuestion({ step: ynStep, kind: "end", facts, answers })?.id).not.toBe("count");
+  });
+  test("a refusal reads as no, even with 'agree' in the sentence", () => {
+    expect(resultAlreadyTold(ynStep, [answer("tried", "I asked but he didn't agree to it", true)])).toBe("No");
+    expect(resultAlreadyTold(ynStep, [answer("tried", "They turned me down", true)])).toBe("No");
+  });
+  test("a count in their words is used; two different counts are not guessed", () => {
+    const countStep: NextStep = { ...step, unit: "count", measure: "How many new customers booked" };
+    expect(resultAlreadyTold(countStep, [answer("tried", "Yes, and 4 new customers booked this week", true)])).toBe("4");
+    expect(resultAlreadyTold(countStep, [answer("tried", "3 people asked and 2 booked", true)])).toBeNull();
+    const ratioStep: NextStep = { ...step, unit: "in10", measure: "Out of the people who asked, how many paid" };
+    expect(resultAlreadyTold(ratioStep, [answer("tried", "About 3 out of 10 paid", true)])).toBe("3 out of 10");
+  });
+  test("a tapped answer, or a story without a result, still gets the question", () => {
+    expect(resultAlreadyTold(ynStep, [answer("tried", "Yes, most of the time")])).toBeNull();
+    const answers = [answer("tried", "Yes I called them on Monday", true)];
+    expect(resultAlreadyTold(ynStep, answers)).toBeNull();
+    expect(nextCheckInQuestion({ step: ynStep, kind: "end", facts, answers })?.id).toBe("count");
   });
 });

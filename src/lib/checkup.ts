@@ -77,9 +77,35 @@ export interface BusinessFacts {
 
 export type MoneyPeriod = "day" | "week" | "month" | "year";
 
+/** One payment they owe. After a check-in it can be paid, or moved onto a plan they agreed. */
+export interface DueItem {
+  what: string;
+  /** What they must pay — for a plan, the next instalment. */
+  amount?: string;
+  /** When, in their words ("in 9 days", "every month"). */
+  when?: string;
+  /** Paid off, or on a plan they agreed. Absent: still due as first said. */
+  status?: "paid" | "plan";
+  /** What changed, in their words ("paid ₦900k, then ₦300k a month"). */
+  note?: string;
+  /** When it last changed (ISO). */
+  updatedAt?: string;
+}
+
+/**
+ * What a check-in told us changed in their money — already checked: every amount is one
+ * they typed, and each change names a payment that is on their list.
+ */
+export interface MoneyUpdates {
+  due?: { what: string; change: "paid" | "plan" | "new" | "amount"; amount?: string; when?: string; note?: string }[];
+  cashNow?: string;
+  moneyIn?: { amount: string; per: MoneyPeriod };
+  pricesChanged?: string;
+}
+
 export interface MoneyFacts {
   /** What they have to pay soon, or already owe: what, how much they must pay, and when. */
-  due: { what: string; amount?: string; when?: string }[];
+  due: DueItem[];
   /** The cash the business has now to pay with, in their words. */
   cashNow?: string;
   /** Money coming in from sales, as they gave it, e.g. { amount: "₦40,000–₦60,000", per: "day", daysOpen: 24 }. */
@@ -634,4 +660,20 @@ export function extractJson<T>(raw: string | null | undefined): T | null {
 export function clampPercent(n: unknown, min: number, max: number, fallback: number): number {
   const v = typeof n === "number" && Number.isFinite(n) ? n : fallback;
   return Math.max(min, Math.min(max, Math.round(v)));
+}
+
+/**
+ * Whether "Improve your diagnosis" (counts of people who asked and paid, per way they find
+ * you) can change the read. It can when the read is about getting found, enquiries or
+ * winning customers — not money trouble, delivering, repeat customers, or a problem outside
+ * sales, where those counts would only take the owner's time.
+ */
+export function improveHelps(
+  facts: Pick<BusinessFacts, "money"> | null | undefined,
+  diagnosis: { focusStage?: FocusStage } | null | undefined,
+  challengeStage?: string | null,
+): boolean {
+  if (!facts || facts.money || challengeStage === "outside") return false;
+  const stage = diagnosis?.focusStage;
+  return !stage || stage === "found" || stage === "enquire" || stage === "convert";
 }

@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useBizz } from "@/lib/store";
-import type { ImprovedDiagnosis } from "@/lib/checkup";
+import { useBizz, useFocusChallenge } from "@/lib/store";
+import { improveHelps, type ImprovedDiagnosis } from "@/lib/checkup";
 import { diagnosisBaseOf, diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import type { ScreenProps } from "../view-types";
 
@@ -30,6 +30,8 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
   const facts = useBizz((s) => s.checkup.facts);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const setImprovedDiagnosis = useBizz((s) => s.setImprovedDiagnosis);
+  const diagnosis = useBizz((s) => s.checkup.diagnosis);
+  const focus = useFocusChallenge();
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -132,6 +134,33 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
       // Back to the diagnosis it came from, on Summary: the sharpened headline comes first.
       navigate(diagnosisBaseOf(diagnosisReturnRoute("diagnosis")));
     }
+  }
+
+  // Opened directly (an old link, the back button) for a read these counts can't change:
+  // say so plainly instead of asking for numbers that would only take their time.
+  if (facts && !improveHelps(facts, diagnosis, focus?.stage)) {
+    return (
+      <div className="mx-auto w-full max-w-2xl">
+        <Button variant="ghost" size="sm" className="-ml-2 mb-4 text-slate-500" onClick={() => navigate(diagnosisReturnRoute("diagnosis"))}>
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to diagnosis
+        </Button>
+        <Card className="p-6">
+          <h1 className="text-xl font-bold tracking-tight">These counts wouldn&apos;t change your diagnosis</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            This step adds how many people asked and how many paid, for each way they found you. Your diagnosis is about{" "}
+            {facts.money ? "the money you owe and what comes in" : focus?.stage === "outside" ? "something outside sales" : "what happens after people buy"}, so those
+            counts wouldn&apos;t sharpen it. If one of your numbers is wrong, correct it in Your numbers — anything worked out from it updates straight away.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <Button onClick={() => navigate("performance")}>See and correct your numbers</Button>
+            <Button variant="outline" onClick={() => navigate(diagnosisReturnRoute("diagnosis"))}>
+              Back to diagnosis
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
