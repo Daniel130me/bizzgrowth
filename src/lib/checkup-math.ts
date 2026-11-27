@@ -335,10 +335,28 @@ function keepCase(match: string, replacement: string): string {
  * Swap business-school jargon for everyday words — unless the owner used the
  * word themselves. A safety net behind the prompts, not a replacement for them.
  */
+// Scripts other than Latin (Greek, Cyrillic, Hebrew, Arabic, Devanagari, Thai, Japanese, Chinese, Korean).
+const OTHER_SCRIPT = "\\u0370-\\u03FF\\u0400-\\u04FF\\u0590-\\u05FF\\u0600-\\u06FF\\u0750-\\u077F\\u0900-\\u097F\\u0E00-\\u0E7F\\u3040-\\u30FF\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uAC00-\\uD7AF";
+
+/**
+ * A model sometimes slips a word from another language into an English reply
+ * ("how quickly do you عادة reply"). Words in a script the owner never wrote in
+ * are removed; an owner who writes in that script keeps them.
+ */
+export function dropForeignScript(text: string, ownerText = ""): string {
+  const any = new RegExp(`[${OTHER_SCRIPT}]`);
+  if (!any.test(text) || any.test(ownerText)) return text;
+  return text
+    .replace(new RegExp(`[${OTHER_SCRIPT}]+`, "g"), "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([,.!?;:])/g, "$1")
+    .trim();
+}
+
 export function plainify(text: string, ownerText = ""): string {
   if (!text) return text;
   const owner = ownerText.toLowerCase();
-  let out = text;
+  let out = dropForeignScript(text, ownerText);
   const rep = (re: RegExp, replacement: string) => {
     out = out.replace(re, (m) => keepCase(m, replacement));
   };

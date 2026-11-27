@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import { extractJson, FOCUS_STAGES, type BusinessFacts, type FocusStage } from "@/lib/checkup";
 import {
@@ -10,6 +11,9 @@ import {
   countAnswerText,
   factValueFor,
   numbersVerdict,
+  isYesNoMeasure,
+  withCare,
+  yesNoAnswer,
   templateNextStep,
   type CheckInAnswer,
   type CheckInKind,
@@ -44,6 +48,8 @@ HOW TO READ IT
 - If nothing changed: that is useful — it rules something out. Say what it rules out and where that points next (e.g. "That ruled out slow replies — let's look at pricing next.").
 - Half-way check-ins: encourage them, offer at most one small tweak, and keep going.
 - If, in their own typed words, they mention a NEW problem holding the business back that is not on THEIR CHALLENGES list (a worker left, costs jumped, customers complaining about something new), set "newChallenge" — in their words, with its stage, and "sameAs" = the id of a listed challenge only if it is really the same problem. Otherwise null. Never for ordinary ups and downs of the step itself.
+- If the step did what it was for (they did it and got the result it aimed at), the verdict is "working" — even at a half-way check-in.
+- Anything serious in their own words comes first in the reply (being harassed or threatened, exhaustion, wanting to give up): answer it as WHEN MONEY IS TIGHT OR THE OWNER IS STRUGGLING says, before the step. Then the reply may run to 5 short sentences.
 
 ${VOICE_RULES}
 
@@ -51,7 +57,7 @@ ${NUMBER_RULES}
 
 Return ONLY valid JSON, no markdown:
 {
-  "reply": "2-3 short sentences to the owner — warm, specific to their answers",
+  "reply": "2-3 short sentences to the owner — warm, specific to their answers (up to 5 when they told you something serious)",
   "verdict": "working|no-change|worse|not-tried|too-early|unclear",
   "learned": "ONE sentence (<= 150 chars) on what this showed, for their diagnosis",
   "tweak": "one small adjustment (<= 120 chars), or null",
@@ -126,6 +132,10 @@ function fallbackWords(v: CheckInVerdict, step: NextStep, baseline: string | und
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("coach-checkin");
+  if (guard.response) return guard.response;
+
   let body: CheckInBody = {};
   try {
     body = (await request.json()) as CheckInBody;
@@ -151,7 +161,9 @@ export async function POST(request: NextRequest) {
   const triedAnswer = got("tried") ?? "";
   const notTried = NOT_TRIED_RE.test(triedAnswer) && !/some|bit|differ/i.test(triedAnswer);
   const after = got("count") ? countAnswerText(got("count")!, unit) : null;
-  const dir = numbersVerdict(body.baseline, after, unit);
+  // A yes/no measure ("Did the supplier agree…?"): "yes" is the step working, "no" is no change yet.
+  const yn = isYesNoMeasure(step.measure) ? yesNoAnswer(got("count")) : null;
+  const dir = yn === "yes" ? "up" : yn === "no" ? "same" : numbersVerdict(body.baseline, after, unit);
   const changesAnswer = got("changes");
   const otherChanges = changesAnswer && !NOTHING_CHANGED_RE.test(changesAnswer.trim()) ? [changesAnswer.trim().slice(0, 120)] : [];
   const factUpdates: Partial<Record<FactKey, string>> = {};
@@ -266,6 +278,8 @@ export async function POST(request: NextRequest) {
   if (otherChanges.length && (verdict === "working" || verdict === "worse") && !/other|also|at the same time|promotion|price change|may explain/i.test(learned)) {
     learned = `${learned.replace(/[.\s]+$/, "")} — other changes at the same time may explain part of it.`.slice(0, 220);
   }
+  // Exhausted, or thinking of closing: the reply answers the person, not only the step.
+  reply = withCare(reply, answers.map((a) => a.answer).join("\n"));
   const result: CheckInResult = {
     reply,
     verdict,

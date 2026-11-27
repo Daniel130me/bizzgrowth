@@ -118,6 +118,7 @@ function AskScreen() {
   const checkupFacts = useBizz((s) => s.checkup.facts);
   const checkupDiagnosis = useBizz((s) => s.checkup.diagnosis);
   const checkupImproved = useBizz((s) => s.checkup.improved);
+  const checkupTranscript = useBizz((s) => s.checkup.transcript);
   const manualEntries = useBizz((s) => s.manualEntries);
   const recordAsk = useBizz((s) => s.recordAsk);
   const coach = useBizz((s) => s.coach);
@@ -224,6 +225,8 @@ function AskScreen() {
           coaching: coachingContext(coach, businessId),
           // Their list of challenges — so a new problem can be noticed, and an old one isn't added twice.
           challenges: challengesContext(challenges.filter((c) => c.workspaceId === "user-workspace")),
+          // What they said in the checkup, word for word (amounts owed, dates, cash…).
+          transcript: checkupTranscript,
         }),
         name: business.name,
         type: business.type,
@@ -672,12 +675,12 @@ function AnswerCard({
             <p className="mt-1 text-sm leading-relaxed text-brand-900">{answer.interpretation}</p>
           </div>
         ) : null}
+        {/* Asked for the words: they're right here, ready to copy — the button still offers a longer version. */}
+        {answer.tryThis ? <TryThisBox title={answer.tryThis.title} body={answer.tryThis.body} /> : null}
         {answer.draft ? (
           <div className="flex pt-1">
             <DraftButton hint={answer.draft} />
           </div>
-        ) : answer.tryThis ? (
-          <TryThisBox title={answer.tryThis.title} body={answer.tryThis.body} />
         ) : null}
         {answer.newChallenge ? <NoticedChallengeCard noticed={answer.newChallenge} source="ask" ownerText={question} /> : null}
         {answer.limitations && answer.limitations.length > 0 ? (

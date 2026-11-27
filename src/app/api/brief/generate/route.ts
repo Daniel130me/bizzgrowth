@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import { extractJson, type BusinessContextPayload, type BusinessFacts } from "@/lib/checkup";
 import { parseAmount, plainify } from "@/lib/checkup-math";
@@ -53,6 +54,10 @@ interface BriefInput {
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("brief");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as BriefInput;
     const facts = body.context?.facts ?? body.facts;

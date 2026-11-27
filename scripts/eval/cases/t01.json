@@ -1,0 +1,24 @@
+{
+  "id": "t01",
+  "title": "I need ₦3.6m in 9 days or I lose my shop",
+  "workspace": {
+    "name": "EVAL t01 Funmi's Kitchen",
+    "country": "Nigeria",
+    "currency": "₦ (Nigerian Naira)"
+  },
+  "ownerName": "Funmi EVAL-t01",
+  "openingLine": "My rent of ₦3.6m is due in 9 days and I only have ₦700k. Business is OK, we make about ₦2.5m a month. I just need to get through this.",
+  "followUps": [
+    "Should I just take another loan to pay the rent?",
+    "Can I sell my generator to raise money?",
+    "What exactly do I say to my landlord?"
+  ],
+  "plainAiMessage": "My rent of ₦3.6m is due in 9 days and I only have ₦700k. Business is OK, we make about ₦2.5m a month. I just need to get through this.\n\nSome details: I run a neighbourhood restaurant and takeaway in Surulere, Lagos. It's 3 years old and I have 4 staff. Daily takings are ₦55,000–70,000 and we open 26 days a month. Monthly costs: food and ingredients ₦1.1m, staff ₦480k (4 × ₦120k), generator diesel and gas ₦260k. The rent is ₦3.6m a year, paid yearly, and it's due in 9 days. I have ₦700k in cash. I owe my main supplier ₦350k and it's overdue. In the last 2 weeks (13 open days): walk-in 150 orders (average ₦2,500); WhatsApp and phone 45 enquiries, 30 orders (average ₦3,000); delivery apps 80 orders (average ₦4,500 at menu price).",
+  "specialistTask": {
+    "title": "Set up simple weekly bookkeeping for my restaurant",
+    "description": "I run a small restaurant and takeaway in Surulere with 4 staff. I need someone to set up a simple weekly way to write down sales, costs and what I owe, so every week I can see if we are making money or losing it. It must be simple — a notebook or my phone, nothing complicated.",
+    "category": "finance",
+    "skills": ["bookkeeping", "cash flow"]
+  },
+  "ownerNumbers": "₦3.6m ₦700k ₦2.5m 9 days 3 years 4 staff 41 ₦55,000 ₦70,000 26 days ₦1.1m ₦480k 4 × ₦120k ₦260k ₦350k 2 weeks 13 days 150 orders ₦2,500 45 enquiries 30 orders ₦3,000 80 orders ₦4,500 December ₦500k ₦650k day 8 six weeks 6 weeks 20% two years half"
+}

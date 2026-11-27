@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import {
   extractJson,
@@ -11,6 +12,7 @@ import {
 import { plainify } from "@/lib/checkup-math";
 import { VOICE_RULES } from "@/lib/ai-voice";
 import { collectAllowedNumbers, ungroundedNumbers } from "@/lib/grounding";
+import { isMoneyTrouble } from "@/lib/checkup-money";
 
 export const runtime = "nodejs";
 
@@ -66,6 +68,10 @@ function narrative(
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("improve");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as {
       workspaceName?: string;
@@ -89,6 +95,9 @@ export async function POST(request: NextRequest) {
 
     const name = (body.workspaceName ?? "Your business").slice(0, 120);
     const baseConfidence = typeof facts.confidence === "number" ? facts.confidence : 62;
+    // Counts of who asked and who paid can't sharpen a read about money running short —
+    // the page must not tell the owner their diagnosis just got more certain.
+    const aboutMoney = Boolean(facts.money) || isMoneyTrouble(facts.bottleneck ?? "");
 
     const payload = {
       business: { name, type: facts.businessType, sells: facts.whatTheySell, customers: facts.customers, goal: facts.primaryGoal },
@@ -114,6 +123,8 @@ export async function POST(request: NextRequest) {
       `You are Nellovia, the owner's own AI business consultant inside the Nellovia app. They just counted, for each way people find them, how many people asked and how many paid. The figures are ALREADY worked out for you — never recalculate or invent any number; use only the exact values in "measuredByOwner" and "computed".
 
 Explain what their own numbers show, connect it to what they told you in the checkup (whatTheyToldUs), and give the single most useful thing to change next.
+- A way where everyone who asked also paid shows no gap there; it does not make that way "strong" or "the best". These counts say nothing about what each way earns after fees, commission or costs, so never judge a way's worth from them alone.
+- If what feels hardest (whereItFeelsStuck) is not about getting the people who ask to pay (for example money running short, costs, or a payment due), say in one sentence what these counts can't show about it, and keep the next change on that problem — not on winning more of the people who ask.
 
 ${VOICE_RULES}
 
@@ -146,7 +157,8 @@ Return ONLY valid JSON:
       meaning: pick(parsed?.meaning, fallback.meaning, 700),
       whyItMatters: pick(parsed?.whyItMatters, fallback.whyItMatters, 550),
       nextInvestigation: pick(parsed?.nextInvestigation, fallback.nextInvestigation, 550),
-      confidence: clampPercent(baseConfidence + 20, 50, 88, 82),
+      // About money it can't see (the till, the bank), it is never surer than the diagnosis can be.
+      confidence: aboutMoney ? clampPercent(baseConfidence, 40, 72, 62) : clampPercent(baseConfidence + 20, 50, 88, 82),
     };
 
     return NextResponse.json({ ok: true, improved, degraded: !parsed });

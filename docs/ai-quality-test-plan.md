@@ -4,7 +4,10 @@
 > Implementation work must not run it, or any part of it, on its own, not even as a "quick check"
 > while building a feature.
 >
-> Written 2026-11-25. The model findings at the end are a snapshot from that date and will go stale.
+> Written 2026-11-25. Updated 2026-11-26: the test no longer compares models. The model findings at
+> the end are a snapshot from 2026-11-25 and will go stale.
+>
+> **Run so far:** tough case t01 only, 2026-11-26/27, with the owner played by Claude at the owner's request. Results: `eval-results/2026-11-26/t01/` (`report.md`).
 
 ## Why we are doing this
 
@@ -14,15 +17,15 @@ invest. Coding tests can't tell us whether the advice is good. This test can: re
 through the real app, every answer is scored against what a top consultant would have said, and
 every miss is traced to its cause.
 
-It answers four questions:
+It answers three questions:
 
-1. **Which model gives the best answers** for each feature, at what speed and cost? This sets the
-   Demo and Everyday provider orders.
-2. **Which problems does Nellovia not solve yet, and why?** The cause can be the model, Nellovia's
+1. **Which problems does Nellovia not solve yet, and why?** The cause can be the model, Nellovia's
    instructions, missing information, a missing feature, or a confusing flow.
-3. **Is Nellovia clearly better than a plain AI chat**, roughly what an owner gets from a free AI
+2. **Is Nellovia clearly better than a plain AI chat**, roughly what an owner gets from a free AI
    chat app? This is the first thing an investor will ask.
-4. **Do real owners say it solved their problem, and would they pay?**
+3. **Do real owners say it solved their problem, and would they pay?**
+
+Choosing between models is not part of this test.
 
 ## How it works
 
@@ -30,7 +33,8 @@ We write about 40 realistic business owners ("cases"), each with a full backstor
 An AI plays each owner and goes through the real app on a local copy, through every feature listed
 in "What is tested".
 
-- **Setups:** every case runs on each model setup, plus a plain-AI comparison.
+- **Setup:** every case runs on Nellovia with the provider order it uses today. Its diagnosis and
+  Ask answers are also compared with a plain AI chat.
 - **Scoring:** Claude scores every answer against the answer key. The owner blind-grades a sample to
   check that the scoring matches their judgment.
 - **Fixing:** failures go on a gap list and get fixed, and the test is re-run. That includes sealed
@@ -151,40 +155,29 @@ An AI plays each owner, using a free model such as Groq `openai/gpt-oss-120b`. I
 
 Its full conversation is saved with each run.
 
-## Setups compared
+## Plain-AI comparison
 
-| Setup | Model | Notes (2026-11-25) |
-|---|---|---|
-| z.ai paid | `glm-5.3`, reasoning effort low | only key #3 has balance |
-| OpenAI | `gpt-5.4-mini`, reasoning effort low | |
-| Groq | `openai/gpt-oss-120b` | switched off in the admin screen on this date |
-| Gemini | the model set in `.env` | not compared yet |
-| OpenRouter | `@preset/node71-chat` (check which model the preset uses) | not graded yet |
-| z.ai free | `glm-4.7-flash` | include only if it is answering that day |
-| **Plain-AI comparison** | the strongest setup above, with no Nellovia around it | stands in for "what an owner gets from a free AI chat" |
-
-The plain-AI comparison gets a one-line "you are a helpful business advisor" instruction and the
+The comparison stands in for "what an owner gets from a free AI chat". It uses the model that
+answered Nellovia's diagnosis for that case, with no Nellovia around it. It gets a one-line "you are a helpful business advisor" instruction and the
 owner's facts in a single message. Its answers are compared with Nellovia's diagnosis and Ask answers
 for the same case, blind: the grader doesn't know which answer came from where.
 
 ## Rounds
 
-1. **Round 1, 12 cases** (including 3 tough ones) on every setup plus the plain-AI comparison. It
-   picks the front-runners, finds the obvious gaps and measures the real cost. Report before going
-   further.
+1. **Round 1, 12 cases** (including 3 tough ones), plus the plain-AI comparison. It finds the
+   obvious gaps and measures the real cost. Report before going further.
 2. **Fixes** from Round 1 (see "Fix rules").
-3. **Round 2, all non-sealed cases** on the top 2–3 setups plus the plain-AI comparison. Then run 10
-   cases a second time on the top setup to check consistency: does it give an equally good answer
-   twice?
+3. **Round 2, all non-sealed cases**, plus the plain-AI comparison. Then run 10 cases a second time
+   to check consistency: does it give an equally good answer twice?
 4. **Fixes** from Round 2.
-5. **Final run of the sealed cases** on the chosen Demo and Everyday setups.
+5. **Final run of the sealed cases.**
 6. **Real-owner pilot** (see below).
 
 ## Scoring
 
 Claude grades every answer against the case's answer key. None of the tested models is Claude, so the
-grader is independent of them. The owner blind-grades about 10 answers without knowing which setup
-produced them. If the owner's grades and Claude's differ, the scoring guide is adjusted and the
+grader is independent of them. The owner blind-grades about 10 answers without knowing whether
+Nellovia or the plain AI produced them. If the owner's grades and Claude's differ, the scoring guide is adjusted and the
 sample is re-graded.
 
 ### Each answer, scored 1–5 on each point
@@ -217,7 +210,7 @@ Each answer also gets two verdicts:
 - Did it ask the questions that uncover the hidden facts?
 - How many turns did it take? Did it repeat questions or offer confusing suggested answers?
 
-### Each setup and feature (from the runs)
+### Each feature (from the runs)
 
 - average scores, share of must-catch points caught, critical errors, "would pay" rate;
 - speed: typical and slowest time for each feature. Fast features must stay well under 20 s, quality
@@ -230,7 +223,7 @@ Each answer also gets two verdicts:
 - The diagnosis catches at least 80% of the must-catch points on average.
 - Zero critical errors on the tough cases.
 - Nellovia beats the plain-AI comparison in at least 3 out of 4 blind comparisons.
-- "Would pay: yes" on at least 70% of cases with the Demo setup.
+- "Would pay: yes" on at least 70% of cases.
 - Chat replies typically arrive in under 8 s, and the diagnosis in under 30 s.
 - No blank or cut-off answers.
 
@@ -276,8 +269,7 @@ This starts after Round 2's fixes.
 
 ## What we get
 
-- **A scorecard** for each feature and setup: quality, speed and cost. It sets the Demo and Everyday
-  provider orders. The Demo/Everyday switch is designed but not built, and should use these results.
+- **A scorecard** for each feature: quality, speed and cost.
 - **A gap list** and a fix plan.
 - **Before and after scores** showing the fixes worked, including on the sealed cases.
 - **Pilot results:** the share of problems solved, willingness to pay, and quotes.
@@ -293,10 +285,8 @@ This starts after Round 2's fixes.
 - **Local only:** run against a local dev server with a dedicated test account and workspace. Some
   routes need a signed-in session (at least the diagnosis, Ask, insights and coach check-in).
 - **Never change live settings.** The admin-set provider order and on/off switches live in the shared
-  database (`AiProviderConfig`) and apply everywhere, so the runner must not edit them. It needs a
-  test-only override to force one setup per run, for example an environment variable that is ignored
-  in production. Today a saved admin order overrides `AI_GATEWAY_ORDER` for every profile, and a
-  provider switched off in the admin screen is skipped.
+  database (`AiProviderConfig`) and apply everywhere, so the runner must not edit them. It uses the
+  provider order set at the time and saves it with the results.
 - **Separate usage stats:** point `AI_GATEWAY_USAGE_FILE` at a test file, so test traffic doesn't mix
   with the real per-key stats in `.ai-gateway/usage.json`.
 - **Keys:** never print or log key values; use the masked labels.
@@ -308,8 +298,8 @@ This starts after Round 2's fixes.
 
 ## Cost and pacing (estimate)
 
-- **Round 1:** about 12 cases × 7 setups (including the plain-AI comparison), with around 10 AI calls
-  per case plus the simulated owner. That's roughly a thousand calls, most of them on free providers.
+- **Round 1:** about 12 cases, with around 10 AI calls per case plus the simulated owner's turns and
+  the plain-AI comparison. That's a few hundred calls.
 - **Paid cost:** paid models are cheap per answer. OpenRouter lists glm-5.3 at $0.07 per million
   input tokens and $1.40 per million output tokens, about $0.002 for a long answer at low effort.
   z.ai's own price may differ. The paid share should be a few dollars.
@@ -329,7 +319,7 @@ Measure Round 1, then decide.
 ## Checklist
 
 - [ ] Owner gives the target market and real problems
-- [ ] Build the test runner, the test-only provider override and the separate usage file
+- [ ] Build the test runner and the separate usage file
 - [ ] Write the cases and answer keys (10+ real, about 10 tough, about 10 sealed)
 - [ ] Round 1, with a report and the measured cost
 - [ ] Owner blind-grades about 10 answers; adjust the scoring guide
@@ -337,14 +327,13 @@ Measure Round 1, then decide.
 - [ ] Round 2 and the consistency re-run
 - [ ] Fixes from Round 2
 - [ ] Final run of the sealed cases
-- [ ] Set the Demo and Everyday orders from the scorecard
 - [ ] Real-owner pilot and survey
 - [ ] Results page for investors
 
 ## Snapshot: what we already know (2026-11-25)
 
-These results come from one consultant question (the bakery case) and quick reliability checks. They
-don't replace this test.
+These results come from one consultant question (the bakery case) and quick reliability checks. This
+test no longer compares models; the table is kept as background on the providers.
 
 | Setup | Result |
 |---|---|

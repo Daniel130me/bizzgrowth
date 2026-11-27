@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useBizz } from "@/lib/store";
 import { DRAFT_META, fixDraftHint, type DraftHint, type DraftKind, type DraftTweak } from "@/lib/coach";
+import { ownerWordsFrom } from "@/lib/ai-context";
 import { guessCategory } from "@/components/screens/market/parts";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +115,7 @@ interface DraftText {
 /** Calls the draft writer with the owner's latest checkup answers. */
 function useDraftWriter() {
   const facts = useBizz((s) => s.checkup.facts);
+  const transcript = useBizz((s) => s.checkup.transcript);
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const businessName = useBizz((s) => s.settings.businessName);
   return async (hint: DraftHint, tweak?: DraftTweak, current?: string): Promise<DraftText | null> => {
@@ -130,6 +132,8 @@ function useDraftWriter() {
           location: userWorkspace?.country,
           website: userWorkspace?.website,
           facts: facts ? { ...facts, facts: [], chips: [] } : null,
+          // What they said in the checkup (an amount they can pay, a date), for words that need it.
+          ownerWords: ownerWordsFrom(transcript),
           tweak,
           current,
         }),

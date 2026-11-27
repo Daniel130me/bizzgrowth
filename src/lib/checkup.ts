@@ -17,6 +17,15 @@ export interface CheckupFact {
   source: string;
 }
 
+/**
+ * How the business type reads in words. "ecommerce" only means they sell products —
+ * a food shop or a market stall is not an online store, and reading it that way
+ * misled both the owner ("a ecommerce business") and the model.
+ */
+export function businessKindPhrase(type: "service" | "ecommerce" | undefined): string {
+  return type === "ecommerce" ? "a business that sells products" : "a service business";
+}
+
 export interface BusinessFacts {
   businessType: "service" | "ecommerce";
   whatTheySell: string;
@@ -54,9 +63,39 @@ export interface BusinessFacts {
    * becomes a challenge of its own, taken one at a time.
    */
   otherChallenges?: string[];
+  /**
+   * The money picture, when the owner has a payment they can't cover (rent, a
+   * loan, a supplier, wages, tax). Every amount is one they gave; anything
+   * worked out from these (the gap, money in against money out) is computed in
+   * code — see src/lib/checkup-money.ts.
+   */
+  money?: MoneyFacts;
   chips: string[];
   facts: CheckupFact[];
   confidence: number;
+}
+
+export type MoneyPeriod = "day" | "week" | "month" | "year";
+
+export interface MoneyFacts {
+  /** What they have to pay soon, or already owe: what, how much they must pay, and when. */
+  due: { what: string; amount?: string; when?: string }[];
+  /** The cash the business has now to pay with, in their words. */
+  cashNow?: string;
+  /** Money coming in from sales, as they gave it, e.g. { amount: "₦40,000–₦60,000", per: "day", daysOpen: 24 }. */
+  moneyIn?: { amount: string; per: MoneyPeriod; daysOpen?: number };
+  /** Running costs they listed (stock, staff, power, transport…), each with its period. */
+  costs: { what: string; amount: string; per: MoneyPeriod }[];
+  /** A monthly sales figure they stated in passing, kept to check against money in. */
+  statedMonthlySales?: string;
+  /** How they were planning to cover the gap, in their words. */
+  coverPlan?: string;
+  /** When they last changed their prices, and whether costs went up since. */
+  pricesChanged?: string;
+  /** Fees or commission a way of selling takes (an app, a platform, a card machine). */
+  platformFees?: string;
+  /** Whether whoever they owe has agreed a payment plan or part payment before. */
+  owedFlex?: string;
 }
 
 export interface DiagnosisDelta {
@@ -133,6 +172,11 @@ export interface DiagnosisContent {
   nextStep?: NextStep;
   /** What the latest check-in taught us, shown on top of the diagnosis. */
   update?: { at: string; note: string };
+  /**
+   * Their money, worked out in code from their own figures (what's due against
+   * what they have; money in against running costs). Owners in money trouble only.
+   */
+  money?: string[];
 }
 
 export type FocusStage = "found" | "enquire" | "convert" | "deliver" | "return";
@@ -220,6 +264,12 @@ export interface BusinessContextPayload {
   } | null;
   /** Their list of challenges (one worked on at a time), so answers can connect to it. */
   challenges?: { id: string; title: string; status: string; stage: string; note?: string }[] | null;
+  /**
+   * What they said in the checkup, in their own words (their replies only). The
+   * fields above have no place for an amount owed, a due date or the cash they
+   * have — without these, every feature after the checkup forgot them.
+   */
+  ownerWords?: string[];
 }
 
 /** A new problem the owner described (in Ask or a check-in) that is not on their list yet. */
@@ -299,7 +349,19 @@ export type SlotKey =
   | "proof"
   | "repeat"
   | "ownerTheory"
-  | "otherChallenges";
+  | "otherChallenges"
+  // The money picture — asked only when the owner has a payment they can't cover.
+  | "moneyDue"
+  | "otherDebts"
+  | "cashNow"
+  | "moneyInOut"
+  | "coverPlan"
+  | "pricesChanged"
+  | "platformFees"
+  | "owedFlex";
+
+/** The money questions, in the order a consultant would ask them. */
+export const MONEY_SLOTS: SlotKey[] = ["moneyDue", "otherDebts", "cashNow", "moneyInOut", "coverPlan", "pricesChanged", "platformFees", "owedFlex"];
 
 export const SLOT_KEYS: SlotKey[] = [
   "businessType",
@@ -324,6 +386,7 @@ export const SLOT_KEYS: SlotKey[] = [
   "repeat",
   "ownerTheory",
   "otherChallenges",
+  ...MONEY_SLOTS,
 ];
 
 /**
@@ -335,7 +398,21 @@ export const SLOT_KEYS: SlotKey[] = [
  */
 export const DEPTH_SLOTS: SlotKey[] = ["pricePresentation", "lostReason", "proof", "repeat", "capacity"];
 
-export function depthSlotsFor(slots: Pick<CheckupSlots, "bottleneck" | "closeRate">): SlotKey[] {
+/** A way of selling that usually takes a fee or commission (apps, platforms, marketplaces, card payments). */
+export function sellsThroughPlatform(channels: string[] | undefined): boolean {
+  return (channels ?? []).some((c) => /\b(apps?|delivery|platform|marketplace|online store|jumia|konga|glovo|chowdeck|uber|bolt|etsy|amazon|ebay|shopify|pos|card)\b/i.test(c));
+}
+
+export function depthSlotsFor(slots: Pick<CheckupSlots, "bottleneck" | "closeRate"> & Partial<Pick<CheckupSlots, "money" | "channels">>): SlotKey[] {
+  // Money trouble: what is needed to judge whether the business covers its costs, and
+  // what room there is with whoever is owed — not how to win more customers.
+  if (slots.money) {
+    const out: SlotKey[] = [];
+    if (!slots.channels?.length) out.push("channels");
+    else if (sellsThroughPlatform(slots.channels)) out.push("platformFees");
+    out.push("pricesChanged", "owedFlex");
+    return out;
+  }
   const b = (slots.bottleneck ?? "").toLowerCase();
   const priceOrBuying = /price|expensive|cost|afford|pay|buy|quote|quiet|leave|commit|convert|close|decid|don't buy|dont buy/.test(b);
   const visibility = /not enough|find|visib|reach|known|more (people|customers|clients)|enquir|aware/.test(b);
@@ -368,6 +445,19 @@ export const REQUIRED_SLOTS: SlotKey[] = [
   "jobValue",
   "followUp",
 ];
+
+/**
+ * When the owner has a payment they can't cover, the first diagnosis has to
+ * be about this week's money: what is due, what else they owe, the cash they
+ * have, and whether money in covers money out. The questions about winning
+ * more customers wait — they can't fix a gap that is due in days.
+ */
+export const MONEY_REQUIRED_SLOTS: SlotKey[] = ["sells", "bottleneck", "moneyDue", "otherDebts", "cashNow", "moneyInOut", "coverPlan", "ownerTheory"];
+
+/** The questions a first diagnosis needs for this owner. */
+export function requiredSlotsFor(slots: Partial<Pick<CheckupSlots, "money">>): SlotKey[] {
+  return slots.money ? MONEY_REQUIRED_SLOTS : REQUIRED_SLOTS;
+}
 
 /**
  * Slots that carry real diagnostic signal. Owners who do not track numbers can
@@ -404,6 +494,14 @@ export const ASK_CAP: Record<SlotKey, number> = {
   ownerTheory: 1,
   // Asked once; a second time only if they asked something back instead of answering.
   otherChallenges: 2,
+  moneyDue: 2,
+  otherDebts: 1,
+  cashNow: 2,
+  moneyInOut: 2,
+  coverPlan: 1,
+  pricesChanged: 1,
+  platformFees: 1,
+  owedFlex: 1,
 };
 
 export const SLOT_LABELS: Record<SlotKey, string> = {
@@ -429,6 +527,14 @@ export const SLOT_LABELS: Record<SlotKey, string> = {
   repeat: "Whether past customers come back or order again, or it is mostly one-off work",
   ownerTheory: "What the owner thinks is causing the problem — their own observations, checks or hunches",
   otherChallenges: "Anything else holding the business back — up to 3, in their words (recorded only, never followed up here)",
+  moneyDue: "The payment they can't cover: what it is, how much, and when it is due",
+  otherDebts: "Anything ELSE they owe or must pay in the next few weeks (a loan, a supplier, wages, tax, a bill) — how much and when; 'nothing else' is an answer",
+  cashNow: "How much money the business has right now to pay with",
+  moneyInOut: "Money in and out in a normal week or month: roughly what comes in from sales, and the main running costs (stock, staff, power or fuel, transport)",
+  coverPlan: "How they were planning to cover the gap (borrowing, selling something, asking family, talking to whoever is owed) — so a risky plan can be caught before it happens",
+  pricesChanged: "When they last changed their prices, and whether their costs have gone up since",
+  platformFees: "Whether a way they sell (an app, a platform, a card machine) takes a fee or commission, and roughly how much",
+  owedFlex: "Whether whoever they owe has ever agreed to part payment or a payment plan before",
 };
 
 /** What the engine currently understands about the business. Updated every turn. */
@@ -456,6 +562,16 @@ export interface CheckupSlots {
   ownerTheory?: string;
   /** Other things holding the business back (an empty list = "no, that's the main one"). */
   otherChallenges?: string[];
+  moneyDue?: string;
+  otherDebts?: string;
+  cashNow?: string;
+  moneyInOut?: string;
+  coverPlan?: string;
+  pricesChanged?: string;
+  platformFees?: string;
+  owedFlex?: string;
+  /** Set once the owner says they have a payment they can't cover: the checkup asks about money first. */
+  money?: boolean;
   /** The slot the last question asked about — lets the next turn read a short reply in context. */
   pending?: SlotKey;
   /** Slots the owner declined to answer — accepted gaps, never fabricated. */

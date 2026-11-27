@@ -15,7 +15,7 @@ import { ProvenanceBadge } from "@/components/shared/badges";
 import { ProvenanceLegend } from "@/components/shared/evidence";
 import type { ScreenProps } from "../view-types";
 import { useBizz } from "@/lib/store";
-import type { BusinessFacts, CheckupFact, TrendDirection } from "@/lib/checkup";
+import { businessKindPhrase, type BusinessFacts, type CheckupFact, type TrendDirection } from "@/lib/checkup";
 import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import type { Provenance } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -212,14 +212,14 @@ export default function BusinessUnderstanding(_props: ScreenProps) {
                             draftType === t ? "bg-white text-brand-700 shadow-sm" : "text-slate-600 hover:text-slate-900",
                           )}
                         >
-                          {t === "service" ? "Service business" : "Ecommerce"}
+                          {t === "service" ? "Service business" : "Sells products"}
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : (
                   <p className="mt-1 text-sm">
-                    {businessName} — a {businessType} business in {country}
+                    {businessName} — {businessKindPhrase(businessType)} in {country}
                   </p>
                 )}
                 <p className="mt-1 text-[11px] text-muted-foreground">Workspace setup</p>

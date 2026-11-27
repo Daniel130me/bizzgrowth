@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import { extractJson, FOCUS_STAGES, type BusinessFacts, type TranscriptTurn } from "@/lib/checkup";
 import { plainify, shorten, tidyOwnerText } from "@/lib/checkup-math";
@@ -33,7 +34,7 @@ export const runtime = "nodejs";
 const SYSTEM = `You are Nellovia, the owner's AI business consultant inside the Nellovia app, having a SHORT, focused chat with a small-business owner about ONE problem holding their business back. You already know their business (BUSINESS CONTEXT below) — never ask about it again and never diagnose yet.
 
 Each turn you get the owner's latest answer and the question the app will ask next. Return:
-- "lead": ONE short sentence (max 25 words) reacting to their answer — what it suggests, or why it's useful to know. Never repeat their words back. Never ask a question. No "Great!", no "Thanks for sharing". Don't give advice yet.
+- "lead": ONE short sentence (max 25 words) reacting to their answer — what it suggests, or why it's useful to know. Never repeat their words back. Never ask a question. No "Great!", no "Thanks for sharing". Don't give advice yet. Never say whether the business, its sales or demand are fine or weak — you haven't seen their numbers. If they mention being harassed, threatened or worn out, the lead acknowledges that kindly instead.
 - "value": their answer cleaned up in plain words (fix spelling and grammar, keep their meaning and any numbers exactly), max 200 characters.
 - "theory": if their answer says what THEY think causes the problem, that in their own voice as a plain statement (e.g. "The new shop nearby is cheaper" — never "They think…"); otherwise null.
 Only when FIRST ANSWER is yes, also return:
@@ -94,6 +95,10 @@ function oneSentence(text: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("challenges-chat");
+  if (guard.response) return guard.response;
+
   let body: Body = {};
   try {
     body = (await request.json()) as Body;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import {
   extractJson,
@@ -13,9 +14,10 @@ import {
   type TrendDirection,
 } from "@/lib/checkup";
 import { computeStake, currencySymbol, isBroadMarket, parseAmount, parseCloseRate, plainify, ratioText, stakeLinesForPrompt } from "@/lib/checkup-math";
+import { daysBeforeDeadline, moneyFindingsBlock, moneyLinesForPrompt, withHarassmentSafety } from "@/lib/checkup-money";
 import { collectAllowedNumbers, dropUngroundedSentences, ungroundedNumbers, type AllowedNumbers } from "@/lib/grounding";
 import { NEXT_STEP_RULES, NEXT_STEP_SCHEMA, cleanNextStep, templateNextStep, type NextStep } from "@/lib/coach";
-import { HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
+import { HARD_TIMES_RULES, HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
 import { businessWords, type BusinessWords } from "@/lib/business-words";
 import {
   detailLines,
@@ -56,7 +58,7 @@ WHAT MAKES IT WORTH PAYING FOR
    - Plenty of people ask but few pay → the problem is after the first conversation, not finding people.
    - Orders come in waves (some months full, some empty) and people buy for occasions (birthdays, weddings, holidays, office events, school terms) → those occasions come round again, but past customers are never reminded, so every quiet month starts from zero.
    - Few customers come back → every month starts from zero; giving people a reason and a reminder to return is the cheapest growth there is.
-1b. THE OWNER'S OWN VIEW — if they told you what they think is causing it, take it seriously and address it by name: confirm it when their other answers support it and build on it, or — gently and with a reason from their own answers — show what else is likely going on ("You mentioned others charge less. That may be part of it, but people who never saw your past work have no way to compare the quality, so…"). Never ignore it.
+1b. THE OWNER'S OWN VIEW — if they told you what they think is causing it, take it seriously and address it by name: confirm it when their other answers support it and build on it (an answer that merely doesn't contradict it is not support — if nothing tests it yet, say what would), or — gently and with a reason from their own answers — show what else is likely going on ("You mentioned others charge less. That may be part of it, but people who never saw your past work have no way to compare the quality, so…"). Never ignore it.
 1c. ANSWER THE PROBLEM THEY NAMED — the headline must speak to what they said feels hardest (whereGrowthFeelsStuck), using their own view when their answers support it. Only lead with a different problem if their answers clearly show it matters more — and then say in the story why that is the better place to start.
 2. A FAIR READ OF THEIR NUMBERS — winning about half of the people who ask is strong; 3-4 out of 10 is a decent base for work that needs a quote or a price; 1 out of 10 or fewer is weak. If their rate is decent, SAY SO, and find the real lever (who is asking, how and when the price is given, follow-up, how many people ask).
 3. STAKES — if COMPUTED figures are listed, you may quote them exactly as written, each figure at most once in the whole diagnosis. Never write any other number, percentage or amount about their business, and never do your own maths.
@@ -73,6 +75,8 @@ VOICE
 ${I_VOICE}
 
 ${HONESTY_RULES}
+
+${HARD_TIMES_RULES}
 
 5. ONE NEXT STEP — end with the single thing to do first, as an experiment (a small test that checks whether you read the cause right) or a recommendation (a proven fix). If CHECK-IN RESULTS are listed, build on them: never suggest again a step that was tried and ruled out, and say what it taught you.
 
@@ -594,6 +598,10 @@ function rejectReason(p: ModelDiagnosis | null, allowed: AllowedNumbers): string
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("diagnosis");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as {
       workspaceName?: string;
@@ -664,8 +672,11 @@ export async function POST(request: NextRequest) {
       ? body.learnings.filter((l): l is string => typeof l === "string" && l.trim().length > 0).map((l) => l.slice(0, 240)).slice(-8)
       : [];
     const tried = Array.isArray(body.tried) ? body.tried.filter((t): t is string => typeof t === "string").slice(0, 12) : [];
-    // Nothing to work out in money for things the app can't measure (or for capacity).
-    const computed = noStake ? [] : stakeLinesForPrompt(facts, cur);
+    // Nothing to work out in money for things the app can't measure (or for capacity)…
+    // …except their money picture, when they have one: what's due against what they have,
+    // and money in against running costs — worked out in code from their own figures.
+    const moneyLines = moneyLinesForPrompt(facts.money, cur);
+    const computed = [...(noStake ? [] : stakeLinesForPrompt(facts, cur)), ...moneyLines];
     const userPayload = {
       business: { name, country, currency: cur, type: facts.businessType },
       whatTheySell: facts.whatTheySell,
@@ -686,6 +697,7 @@ export async function POST(request: NextRequest) {
       doPastCustomersComeBack: facts.repeat ?? null,
       statedTrends: facts.trends,
       recentChanges: facts.recentChanges,
+      ...(facts.money ? { theirMoneySituation: facts.money } : {}),
     };
     const session = await getSession().catch(() => null);
     const connected = session?.workspaceName === name
@@ -706,7 +718,13 @@ export async function POST(request: NextRequest) {
       "",
       computed.length
         ? `COMPUTED FROM THEIR OWN ESTIMATES (you may quote these exactly; do not change them or add other numbers):\n${computed.map((c) => `- ${c}`).join("\n")}`
-        : "COMPUTED: none — they did not give enough numbers. Use no figures at all.",
+        : "COMPUTED: none — nothing was worked out for this. Do no maths of your own; you may still quote the owner's own figures exactly as they said them.",
+      // Their figures challenge their own explanation: rule 1c's exception applies — say it.
+      moneyFindingsBlock(facts.money) ? `\n${moneyFindingsBlock(facts.money)}\nThis is a case where their answers clearly show a bigger problem than the one they named (rule 1c): the insight leads with it, and the headline names both the payment due and this. If it says a figure they stated doesn't add up, say so kindly in "meaning" and ask which months it came from.` : "",
+      // Money trouble: every tool earns its place against the payments due.
+      facts.money?.due?.length
+        ? `\nMONEY TROUBLE — TOOLS: each tool helps with a payment that is due: the words for one person they owe (one tool per person they must talk to this week, not only the biggest), or a way to bring cash in before the due date. No menus, packages or marketing tools. "working" names something that helps with the money (someone who has been flexible before, a part they can pay now), not how customers find them.`
+        : "",
       connected ? `\n${connected}` : "",
       ownerText ? `\nTHE OWNER'S OWN WORDS IN THE CHECKUP (for tone and specifics):\n${ownerText}` : "",
       learnings.length ? `\nCHECK-IN RESULTS SO FAR (oldest first — what they tried and what happened):\n${learnings.map((l) => `- ${l}`).join("\n")}` : "",
@@ -764,8 +782,18 @@ export async function POST(request: NextRequest) {
     // Untraceable figures after a retry: drop those sentences rather than the whole read.
     // (Still about another problem after a retry: the ready-made read for this challenge instead.)
     const onlyFigures = Boolean(reason && reason.startsWith("it used figures"));
+    // Deterministic care, whatever the words: harassment is answered first, and a step's
+    // check-in falls before the payment it is meant to help with.
+    const safeguard = (d: DiagnosisContent): DiagnosisContent => {
+      const base = d.steps ?? [];
+      const said = [d.headline, d.insight, d.meaning, d.whyItMatters, d.nextInvestigation, ...base, ...(d.tools ?? []).map((t) => `${t.title} ${t.body}`), d.nextStep?.title ?? "", ...(d.nextStep?.how ?? [])].join(" ");
+      const safer = withHarassmentSafety(base, ownerText, said);
+      const steps = safer === base ? d.steps : safer;
+      const nextStep = d.nextStep && facts.money ? { ...d.nextStep, days: daysBeforeDeadline(d.nextStep.days, facts.money) } : d.nextStep;
+      return { ...d, steps, nextStep };
+    };
     if (!parsed || (reason && !onlyFigures)) {
-      return NextResponse.json({ ok: true, diagnosis: { ...fallbackDiagnosis(), checked: true }, plan: planOut(), degraded: true });
+      return NextResponse.json({ ok: true, diagnosis: safeguard({ ...fallbackDiagnosis(), checked: true, ...(moneyLines.length ? { money: moneyLines } : {}) }), plan: planOut(), degraded: true });
     }
     const grounded = (s: unknown) => (onlyFigures ? dropUngroundedSentences(String(s ?? ""), allowed) : String(s ?? ""));
 
@@ -809,9 +837,11 @@ export async function POST(request: NextRequest) {
         () => templateNextStep(strictStage ?? stage, facts, tried),
       ),
       checked: true,
+      // Their money, worked out in code — shown on the page with the working.
+      ...(moneyLines.length ? { money: moneyLines } : {}),
     };
 
-    return NextResponse.json({ ok: true, diagnosis, plan: planOut(), degraded: false });
+    return NextResponse.json({ ok: true, diagnosis: safeguard(diagnosis), plan: planOut(), degraded: false });
   } catch (error) {
     console.error("[api/checkup/diagnosis] error:", error);
     return NextResponse.json({ ok: false, error: "Diagnosis generation failed" }, { status: 500 });

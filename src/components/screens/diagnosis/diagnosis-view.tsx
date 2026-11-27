@@ -41,7 +41,7 @@ import { loadHelpOpened, loadPlanProgress, planIdFor, saveHelpOpened, savePlanPr
 import { replaceRoute } from "@/lib/router";
 import { DIAGNOSIS_TABS, asDiagnosisTab, diagnosisRoute, rememberDiagnosisRoute, type DiagnosisBase, type DiagnosisTab } from "@/lib/diagnosis-route";
 import { cn } from "@/lib/utils";
-import { AnalysisProgress, JourneyFocus, OutsideNote, PlanChecklist, StakeCard, StakeLine, ToolCard, challengeRows, confidenceWord, toldUs, toolKey, type AnswerRow } from "./parts";
+import { AnalysisProgress, JourneyFocus, MoneyCard, OutsideNote, PlanChecklist, StakeCard, StakeLine, ToolCard, challengeRows, confidenceWord, toldUs, toolKey, type AnswerRow } from "./parts";
 import { MoreWorthKnowing } from "./more-worth-knowing";
 
 const OWN = "user-workspace";
@@ -615,6 +615,9 @@ export function DiagnosisView({ mode, tabParam, challengeParam }: { mode: Mode; 
 
             {outside && viewed ? <OutsideNote title={viewed.title} /> : <JourneyFocus stage={stage} />}
 
+            {/* Money trouble: the gap and money in vs out, worked out from their own figures. */}
+            {diagnosis.money?.length ? <MoneyCard lines={diagnosis.money} /> : null}
+
             <StakeCard key={`stake-${viewKey}`} diagnosis={diagnosis} facts={viewFacts} cur={cur} onAddNumbers={addNumbers} readOnly={!isFocusView} />
 
             {shownImproved ? <ChannelNumbers improved={shownImproved} /> : null}
@@ -623,8 +626,9 @@ export function DiagnosisView({ mode, tabParam, challengeParam }: { mode: Mode; 
               <AnswersUsed rows={told} more={toldMore} title={viewed && !isFocusView ? viewed.title : null} onFix={isFocusView ? () => navigate("business-understanding") : null} />
             ) : null}
 
-            {/* The answers that would sharpen it — each with what not knowing it costs */}
-            {isFocusView && !improved ? (
+            {/* The answers that would sharpen it — each with what not knowing it costs. (Not for money
+                trouble: questions about winning customers would only distract from this week's money.) */}
+            {isFocusView && !improved && !facts?.money ? (
               <MissingAnswers facts={facts} diagnosis={viewedBase} currency={userWorkspace?.currency} exclude={["monthlyEnquiries"]} onUpdate={generate} updating={generating} />
             ) : null}
 

@@ -193,14 +193,20 @@ const SKILL_SYNONYMS: Record<string, string[]> = {
 };
 
 /** Keywords worth matching between a task and a specialist's skills. */
-function keywordOverlap(text: string, skills: string[]): string[] {
+function keywordOverlap(text: string, skills: string[], ask: string = text): string[] {
   const t = text.toLowerCase();
+  const wants = ask.toLowerCase();
+  const offers = skills.join(" | ").toLowerCase();
   const hits: string[] = [];
   for (const skill of skills) {
     if (skill.length >= 3 && t.includes(skill.toLowerCase())) hits.push(skill);
   }
+  // A skill group counts only when the task ASKS for it (its title and chosen skills — not
+  // the words that describe the business, like "we have 4 staff") AND this specialist offers
+  // it. Otherwise every specialist "overlapped" on whatever the task mentioned (an SEO writer
+  // shown as a bookkeeping match because the task said "accounts" and "staff").
   for (const [group, words] of Object.entries(SKILL_SYNONYMS)) {
-    if (words.some((w) => t.includes(w))) {
+    if (words.some((w) => wants.includes(w)) && (offers.includes(group) || words.some((w) => offers.includes(w)))) {
       hits.push(group);
     }
   }
@@ -217,7 +223,7 @@ export function scoreSpecialist(
   // A headline is plain text, not a JSON array. Include it as one searchable
   // phrase so matching benefits from both the structured skills and the
   // specialist's own positioning statement.
-  const overlap = keywordOverlap(haystack, [...parseArray(s.skills), s.headline]);
+  const overlap = keywordOverlap(haystack, [...parseArray(s.skills), s.headline], `${task.title} ${task.skills.join(" ")}`);
   score += Math.min(overlap.length, 5) * 9;
   score += (s.rating - 4.0) * 15;
   score += Math.min(s.completedJobs / 25, 1) * 6;
@@ -355,6 +361,8 @@ export async function matchTask(input: {
   for (const { s, score, overlap } of ranked) {
     if (result.matches.length >= limit) break;
     if (picked.has(s.id)) continue;
+    // Never pad the list: a rule match must do this kind of work or offer a skill it asks for.
+    if (s.category !== result.category && overlap.length === 0) continue;
     picked.add(s.id);
     const why = overlap.length
       ? `Matched by category and overlapping skills: ${overlap.slice(0, 3).join(", ")}.`

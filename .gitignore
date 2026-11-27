@@ -58,3 +58,6 @@ server.log
 
 # AI gateway per-key usage stats (runtime data)
 /.ai-gateway/
+
+# AI quality test runner state (the headless app store, incl. the test account) — results stay tracked
+/eval-results/**/state/

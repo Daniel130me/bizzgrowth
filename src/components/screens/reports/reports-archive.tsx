@@ -30,6 +30,7 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
   const userWorkspace = useBizz((s) => s.userWorkspace);
   const facts = useBizz((s) => s.checkup.facts);
   const diagnosis = useBizz((s) => s.checkup.diagnosis);
+  const transcript = useBizz((s) => s.checkup.transcript);
   const manualEntries = useBizz((s) => s.manualEntries);
   const aiBrief = useBizz((s) => s.aiBrief);
   const setAiBrief = useBizz((s) => s.setAiBrief);
@@ -56,6 +57,7 @@ export function ReportsArchive({ params: _params }: ScreenProps) {
             facts,
             diagnosis,
             months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
+            transcript,
           }),
           months: ownerMonthsFromEntries(manualEntries).slice(-3).map((m) => ({ label: m.label, revenue: m.revenue, enquiries: m.enquiries, customers: m.customers })),
         }),

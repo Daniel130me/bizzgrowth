@@ -4,8 +4,9 @@
 // patterns experienced consultants look for, and the business context
 // formatted the same way for Ask, insights, briefs and diagnoses.
 
-import { FOCUS_STAGES, type BusinessContextPayload } from "./checkup";
+import { FOCUS_STAGES, businessKindPhrase, type BusinessContextPayload } from "./checkup";
 import { currencySymbol, stakeLinesForPrompt } from "./checkup-math";
+import { moneyFindingsBlock, moneyLinesForPrompt } from "./checkup-money";
 
 /**
  * How a good consultant earns trust: by noticing what the owner said, being
@@ -32,6 +33,20 @@ export const I_VOICE = `YOU ARE NELLOVIA — ONE PERSON, AND AN AI
 - Use your name only where it is natural: when you introduce yourself or when you are asked who you are. Do not open or sign off every answer with it.
 - Before suggesting they hire or pay someone, check whether it's work their own business does or could easily do (a web studio can build its own site, a photographer can take its own photos, a printer can print its own flyers, a caterer can make its own tasting samples) — then suggest doing it themselves.`;
 
+/**
+ * What a careful consultant does when the owner is short of money, owes money
+ * or is struggling. Shared by every feature that advises the owner (folded into
+ * VOICE_RULES, and added to the diagnosis).
+ */
+export const HARD_TIMES_RULES = `WHEN MONEY IS TIGHT OR THE OWNER IS STRUGGLING
+- A payment they can't make soon (rent, a loan, a supplier, wages, tax) comes first. Using only their own figures, say what is due and by when, set against what they have. If sales can't cover it in time, say so plainly. The first move is then to talk to whoever is owed before the due date and ask to pay part now with a plan for the rest.
+- Never suggest new borrowing to cover a shortfall or to pay off other debts, least of all high-cost quick loans (phone-app lenders, daily-repayment loans). If they ask about borrowing, say plainly why it usually deepens the hole and what to do instead. A loan is only worth weighing when profit, not more borrowing, will repay it.
+- Don't accept the owner's own explanation of a money problem on trust (that the business is fine, or that it's only bad timing). Unless their figures show money coming in covers money going out in a normal month, never call the business healthy or the problem "just timing". Say what you would need to know (money in and money out in a normal month) and why.
+- Never tell them to hold back all their sales money: the business still has to buy stock, pay staff and keep running. Set aside only what is left after those.
+- Never suggest skipping wages, tax or anything illegal. Never suggest selling equipment the business needs in order to keep trading.
+- If a lender or debt collector is harassing them (contacting their family, friends or phone contacts, threats, shaming them in public), say plainly that this is not acceptable and is usually against the rules lenders must follow. Suggest keeping screenshots and reporting it to the body that regulates lenders or protects consumers in their country, naming it only if you are sure.
+- If they sound exhausted or hopeless, or talk about giving up or shutting down, answer that first, briefly and warmly, before any business advice. If it sounds like more than business stress, gently suggest talking to someone they trust or a local support line, and make the next step small.`;
+
 export const VOICE_RULES = `VOICE — EVERY ANSWER
 - Speak to the owner as "you": warm, direct and confident, like a trusted consultant who knows their business.
 - Plain everyday words a market trader understands, short sentences. Never use: signed, sign up, leads, prospects, conversion, convert, funnel, pipeline, CTR, traffic, visitors, impressions, acquisition, CAC, ROAS, retention, churn, ROI, KPI, metrics, B2B, B2C, leverage, optimise — unless the owner used the word first (if measured data uses such a term, explain it in plain words).
@@ -42,7 +57,9 @@ export const VOICE_RULES = `VOICE — EVERY ANSWER
 
 ${I_VOICE}
 
-${HONESTY_RULES}`;
+${HONESTY_RULES}
+
+${HARD_TIMES_RULES}`;
 
 export const NUMBER_RULES = `NUMBERS AND FACTS
 - Use only numbers that appear in the business context (the owner's answers, owner-entered totals, measured data) or in the COMPUTED lines — exactly as written. Never do new maths (no yearly totals, no percentages of your own), and never invent a number, percentage, amount, date or timeframe.
@@ -70,7 +87,7 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
   const cur = currencySymbol(ctx.currency);
   const f = ctx.facts;
   const lines: string[] = [];
-  lines.push(`BUSINESS: ${ctx.name}${f ? ` — a ${f.businessType} business` : ""}${ctx.country ? ` in ${ctx.country}` : ""}. Currency: ${cur}.`);
+  lines.push(`BUSINESS: ${ctx.name}${f ? ` — ${businessKindPhrase(f.businessType)}` : ""}${ctx.country ? ` in ${ctx.country}` : ""}. Currency: ${cur}.`);
 
   if (f) {
     const rows: [string, string | undefined][] = [
@@ -103,6 +120,28 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
     ].filter(Boolean);
     if (trendBits.length) lines.push(`- Lately (their own sense): ${trendBits.join("; ")}`);
     if (f.recentChanges.length) lines.push(`- Recent changes: ${f.recentChanges.join("; ")}`);
+
+    // Money trouble: their own answers, then what code worked out from them.
+    const m = f.money;
+    if (m) {
+      lines.push("", "THEIR MONEY SITUATION (their own answers — this week's money comes first):");
+      m.due.forEach((d) => lines.push(`- Due: ${d.what}${d.amount ? ` — ${d.amount}` : ""}${d.when ? ` (${d.when})` : ""}`));
+      if (m.cashNow) lines.push(`- Cash now: ${m.cashNow}`);
+      if (m.moneyIn) lines.push(`- Money coming in: ${m.moneyIn.amount} a ${m.moneyIn.per}${m.moneyIn.daysOpen ? `, ${m.moneyIn.daysOpen} days a month` : ""}`);
+      m.costs.forEach((c) => lines.push(`- Running cost: ${c.what} — ${c.amount} a ${c.per}`));
+      if (m.statedMonthlySales) lines.push(`- Monthly sales they mentioned: ${m.statedMonthlySales}`);
+      if (m.coverPlan) lines.push(`- How they planned to cover it: ${m.coverPlan}`);
+      if (m.pricesChanged) lines.push(`- Prices: ${m.pricesChanged}`);
+      if (m.platformFees) lines.push(`- Fees on their sales: ${m.platformFees}`);
+      if (m.owedFlex) lines.push(`- Payment plans before: ${m.owedFlex}`);
+      const worked = moneyLinesForPrompt(m, cur);
+      if (worked.length) {
+        lines.push("", "COMPUTED FROM THEIR OWN FIGURES (you may quote these exactly; do no other maths):");
+        worked.forEach((w) => lines.push(`- ${w}`));
+      }
+      const findings = moneyFindingsBlock(m);
+      if (findings) lines.push("", findings);
+    }
   }
 
   const d = ctx.diagnosis;
@@ -150,7 +189,16 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
     });
   }
 
-  if (f) {
+  // What they told the checkup in their own words: figures, dates and problems
+  // the fields above have no place for (an amount owed, what's due when, their cash).
+  if (ctx.ownerWords?.length) {
+    lines.push("", "THE OWNER'S OWN WORDS IN THEIR CHECKUP (their replies, in order — figures here are theirs):");
+    ctx.ownerWords.forEach((w) => lines.push(`- "${w}"`));
+  }
+
+  // "What it's worth" only when their diagnosis has one: a diagnosis that decided the
+  // figure doesn't fit (money trouble, no room for more work) must not be overruled here.
+  if (f && !f.money && (!d || d.stake)) {
     const computed = stakeLinesForPrompt(f, cur);
     if (computed.length) {
       lines.push("", "COMPUTED FROM THEIR OWN ESTIMATES (you may quote these exactly):");

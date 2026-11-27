@@ -15,7 +15,7 @@ import { useBizz } from "@/lib/store";
 import {
   depthSlotsFor,
   emptySlots,
-  REQUIRED_SLOTS,
+  requiredSlotsFor,
   type AskCounts,
   type BusinessFacts,
   type ChatTurnResult,
@@ -137,6 +137,14 @@ const LEARN_LABELS: Partial<Record<SlotKey, string>> = {
   repeat: "Customers coming back",
   capacity: "Room for more work",
   otherChallenges: "Anything else holding you back",
+  moneyDue: "What's due, and when",
+  otherDebts: "Anything else you owe",
+  cashNow: "Cash you have now",
+  moneyInOut: "Money in and out",
+  coverPlan: "How you plan to cover it",
+  pricesChanged: "When prices last changed",
+  platformFees: "Fees apps or platforms take",
+  owedFlex: "Payment plans before",
 };
 
 /** Hard cap on owner replies — matches the server; depth beats speed. */
@@ -160,6 +168,14 @@ const CHIP_SLOT: Record<string, SlotKey> = {
   "customers coming back": "repeat",
   "your view": "ownerTheory",
   also: "otherChallenges",
+  due: "moneyDue",
+  "also owed": "otherDebts",
+  "cash now": "cashNow",
+  "money in and out": "moneyInOut",
+  "your plan": "coverPlan",
+  "prices last changed": "pricesChanged",
+  "fees taken": "platformFees",
+  "payment plans before": "owedFlex",
 };
 
 /** The model's short summaries of each answer, rebuilt from the chips on its replies. */
@@ -550,10 +566,12 @@ export default function OnboardingChat(_props: ScreenProps) {
     // Prefer the checkup's own short summary; otherwise the owner's words, tidied.
     return summaries[key] ?? tidyOwnerText(raw);
   };
+  // An owner with a payment they can't cover is asked about this week's money first.
+  const required = requiredSlotsFor(slots);
   const panelKeys: SlotKey[] = [
     // "Anything else holding you back?" shows once the main problem is known.
-    ...REQUIRED_SLOTS.flatMap((k): SlotKey[] => (k === "ownerTheory" && slots.bottleneck ? [k, "otherChallenges"] : [k])),
-    ...(slots.bottleneck ? depthSlotsFor(slots).filter((k) => !REQUIRED_SLOTS.includes(k)) : []),
+    ...required.flatMap((k): SlotKey[] => (k === "ownerTheory" && slots.bottleneck ? [k, "otherChallenges"] : [k])),
+    ...(slots.bottleneck ? depthSlotsFor(slots).filter((k) => !required.includes(k)) : []),
   ];
   const LEARN: { key: SlotKey; label: string; value: string | null; status: LearnStatus }[] = panelKeys.map((key) => {
     const value = valueOf(key);
@@ -804,7 +822,9 @@ export default function OnboardingChat(_props: ScreenProps) {
             <div className="mt-5 rounded-lg border border-brand-100 bg-white p-3">
               <p className="text-[11px] font-semibold text-brand-800">Why all the questions?</p>
               <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                Each answer makes your diagnosis more specific to you — and lets us work out what fixing the problem is worth, using your own numbers. Rough guesses are fine, and you can skip anything.
+                {slots.money
+                  ? "Each answer lets me work out this week's money with your own figures: what's due, what you have, and whether the business covers its costs. Rough figures are fine, and you can skip anything."
+                  : "Each answer makes your diagnosis more specific to you — and lets us work out what fixing the problem is worth, using your own numbers. Rough guesses are fine, and you can skip anything."}
               </p>
             </div>
           </aside>

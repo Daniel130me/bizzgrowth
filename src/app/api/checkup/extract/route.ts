@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import {
+  businessKindPhrase,
   extractJson,
-  clampPercent,
   type BusinessFacts,
   type CheckupFact,
+  type MoneyFacts,
   type TranscriptTurn,
-  type TrendDirection,
 } from "@/lib/checkup";
-import { plainify, shorten, tidyOwnerText } from "@/lib/checkup-math";
+import { plainify, tidyOwnerText } from "@/lib/checkup-math";
+import { mergeExtractedFacts, slotTrend } from "@/lib/checkup-facts";
 
 export const runtime = "nodejs";
 
@@ -24,7 +26,7 @@ Return ONLY valid JSON, no markdown, matching exactly this shape:
   "journey": ["4-6 short steps from first hearing about them to paying, e.g. 'Hears about you from a friend', 'Asks on WhatsApp', 'Gets a price', 'Pays'"],
   "trends": { "enquiries": "Increased|Decreased|About the same|Don't know", "customers": "...", "revenue": "..." },
   "recentChanges": ["short strings"],
-  "bottleneck": "where growth feels stuck, one clean sentence, or null",
+  "bottleneck": "what feels hardest right now, one clean sentence in their terms — say what IS stuck, never what is not, and never their own explanation of it (that goes in ownerTheory) — or null",
   "closeRate": "out of the people who ask, how many pay — both numbers as the owner said them, e.g. '2 out of 5', or null. Never assume a denominator they did not say.",
   "followUp": "how quickly they reply and whether they check back, or null",
   "jobValue": "roughly what one customer pays for a typical job, with currency, e.g. '₦200k – ₦500k', or null",
@@ -35,6 +37,17 @@ Return ONLY valid JSON, no markdown, matching exactly this shape:
   "proof": "whether new people see past work or results before the price, or null",
   "repeat": "whether past customers come back or order again, or null",
   "ownerTheory": "what the owner thinks is causing the problem — their own observations or hunches, or null",
+  "money": null — or, ONLY when the owner described a payment they can't cover or money they owe: {
+    "due": [{ "what": "what it is, e.g. 'Supplier invoice'", "amount": "what they must pay, exactly as they said it", "when": "when it is due, in their words" }],
+    "cashNow": "the cash they have now, exactly as they said it, or null",
+    "moneyIn": { "amount": "sales as they gave them, e.g. '₦40,000–₦60,000'", "per": "day|week|month", "daysOpen": the number of days a month they said they open, or null } or null,
+    "costs": [{ "what": "a running cost they named", "amount": "exactly as they said it", "per": "day|week|month|year" }],
+    "statedMonthlySales": "a monthly sales figure they stated in passing, exactly as said, or null",
+    "coverPlan": "how they were planning to cover the gap, in their words, or null",
+    "pricesChanged": "when they last changed prices and whether costs rose, or null",
+    "platformFees": "fees or commission a way of selling takes, or null",
+    "owedFlex": "whether whoever they owe agreed to part payment or a plan before, or null"
+  },
   "chips": ["3-6 short chips, each <= 46 characters"],
   "facts": [
     { "section": "Business", "value": "...", "provenance": "user-supplied|ai-interpretation|estimated", "source": "Your checkup conversation|Interpreted from your checkup conversation|Your directional estimates" }
@@ -51,9 +64,8 @@ Rules:
 - provenance: "user-supplied" only for things the owner explicitly stated; "ai-interpretation" for your inferences (journey, goal); "estimated" for directional trends they gave.
 - trends: only what they actually said; otherwise "Don't know". Never infer a trend from words like "more" in an unrelated answer.
 - Never invent numbers, tools or channels they did not mention.
+- "money": every amount exactly as the owner said it — never add up, convert, round or estimate anything. For a loan, the amount they must pay back, not what they borrowed. Leave out anything they didn't say. Add facts rows "Money due", "Cash now", "Money in and out" when they spoke to them.
 - Plain everyday English any small-business owner understands. Never use jargon such as signed, leads, prospects, conversions, funnel, CTR, traffic, visitors or acquisition unless the owner used the word first. Never assume the business is online. No emoji.`;
-
-const TRENDS: TrendDirection[] = ["Increased", "Decreased", "About the same", "Don't know"];
 
 type SlotInput = Partial<
   Record<
@@ -74,16 +86,23 @@ type SlotInput = Partial<
     | "ownerTheory"
     | "enquiries"
     | "customers"
-    | "revenue",
+    | "revenue"
+    | "moneyDue"
+    | "otherDebts"
+    | "cashNow"
+    | "moneyInOut"
+    | "coverPlan"
+    | "pricesChanged"
+    | "platformFees"
+    | "owedFlex",
     unknown
   >
-> & { channels?: unknown; changes?: unknown; otherChallenges?: unknown };
+> & { channels?: unknown; changes?: unknown; otherChallenges?: unknown; money?: unknown };
 
 const slotText = (v: unknown, cap: number) =>
   typeof v === "string" && v.trim().length > 0 && v !== "Don't know" ? v.trim().slice(0, cap) : undefined;
 const slotList = (v: unknown, cap: number, n: number) =>
   Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()).map((x) => String(x).trim().slice(0, cap)).slice(0, n) : [];
-const slotTrend = (v: unknown): TrendDirection | undefined => (typeof v === "string" && (TRENDS as string[]).includes(v) ? (v as TrendDirection) : undefined);
 
 /**
  * Facts built ONLY from the confirmed interview answers — used whenever the
@@ -120,7 +139,7 @@ function factsFromSlots(body: { workspaceName: string; country: string; transcri
   const fact = (section: string, value: string | undefined): CheckupFact | null =>
     value ? { section, value, provenance: "user-supplied", source: "Your checkup conversation" } : null;
   const facts = [
-    fact("Business", `${body.workspaceName} — a ${businessType} business in ${body.country}`),
+    fact("Business", `${body.workspaceName} — ${businessKindPhrase(businessType)} in ${body.country}`),
     fact("What you sell", slotText(s.sells, 200) ? fields.whatTheySell : undefined),
     fact("Customers", slotText(s.targetMarket, 200) ? fields.customers : undefined),
     fact("How people find you", channels.length ? channels.join(", ") : undefined),
@@ -135,7 +154,26 @@ function factsFromSlots(body: { workspaceName: string; country: string; transcri
     fact("Past work shown before the price", fields.proof),
     fact("Room for more work", fields.capacity),
     fact("Customers coming back", fields.repeat),
+    fact("Money due", own(s.moneyDue, 220)),
+    fact("Also owed", own(s.otherDebts, 220)),
+    fact("Cash now", own(s.cashNow, 120)),
+    fact("Money in and out", own(s.moneyInOut, 300)),
   ].filter((f): f is CheckupFact => f !== null);
+  // Money trouble: what they told the interview, unstructured (the model's extraction adds the amounts).
+  const money: MoneyFacts | undefined =
+    s.money === true
+      ? {
+          due: [own(s.moneyDue, 220), /^(nothing|no|none)\b/i.test(String(s.otherDebts ?? "").trim()) ? undefined : own(s.otherDebts, 220)]
+            .filter((t): t is string => Boolean(t))
+            .map((what) => ({ what })),
+          cashNow: slotText(s.cashNow, 120),
+          costs: [],
+          coverPlan: own(s.coverPlan),
+          pricesChanged: own(s.pricesChanged),
+          platformFees: own(s.platformFees),
+          owedFlex: own(s.owedFlex),
+        }
+      : undefined;
 
   return {
     businessType,
@@ -153,6 +191,7 @@ function factsFromSlots(body: { workspaceName: string; country: string; transcri
     recentChanges: slotList(s.changes, 80, 5),
     // Other challenges come straight from their answer — recorded, never diagnosed here.
     otherChallenges: Array.isArray(s.otherChallenges) ? slotList(s.otherChallenges, 80, 3).map(tidyOwnerText) : undefined,
+    ...(money ? { money } : {}),
     chips: [],
     facts,
     confidence: 58,
@@ -160,6 +199,10 @@ function factsFromSlots(body: { workspaceName: string; country: string; transcri
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("checkup-extract");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as {
       workspaceName?: string;
@@ -200,67 +243,8 @@ export async function POST(request: NextRequest) {
       const t = typeof v === "string" ? plainify(v.trim(), ownerText).slice(0, cap) : "";
       return t.length > 0 && !/^null$/i.test(t) ? t : undefined;
     };
-    const parsedTrend = (v: unknown): TrendDirection | undefined => slotTrend(v);
-
-    const modelFacts: CheckupFact[] = Array.isArray(parsed.facts)
-      ? parsed.facts
-          .filter((f) => f && typeof f.section === "string" && typeof f.value === "string" && f.value.trim())
-          .map((f) => ({
-            section: String(f.section).replace(/^acquisition channels$/i, "How people find you").slice(0, 40),
-            value: plain(f.value, 220) ?? "",
-            provenance: (["user-supplied", "ai-interpretation", "estimated", "measured"] as const).includes(f.provenance as "user-supplied")
-              ? f.provenance
-              : "ai-interpretation",
-            source: String(f.source ?? "Your checkup conversation").slice(0, 80),
-          }))
-          .filter((f) => f.value)
-          .slice(0, 14)
-      : [];
-
-    // Confirmed interview answers win for anything the owner explicitly gave
-    // (channels, numbers, trends); the model's cleaned wording wins for prose.
-    const channels = base.channels.length
-      ? base.channels
-      : Array.isArray(parsed.channels)
-        ? parsed.channels.filter((c) => typeof c === "string").map((c) => String(c).slice(0, 40)).slice(0, 6)
-        : [];
-    const facts: BusinessFacts = {
-      businessType: parsed.businessType === "ecommerce" ? "ecommerce" : parsed.businessType === "service" ? "service" : base.businessType,
-      whatTheySell: plain(parsed.whatTheySell, 200) ?? base.whatTheySell,
-      primaryGoal: plain(parsed.primaryGoal, 200) ?? base.primaryGoal,
-      customers: plain(parsed.customers, 200) ?? base.customers,
-      channels,
-      journey: Array.isArray(parsed.journey) && parsed.journey.length >= 3
-        ? parsed.journey.filter((j) => typeof j === "string").map((j) => plainify(String(j), ownerText).slice(0, 60)).slice(0, 8)
-        : base.journey,
-      trends: {
-        enquiries: slotTrend(slots.enquiries) ?? parsedTrend(parsed.trends?.enquiries) ?? "Don't know",
-        customers: slotTrend(slots.customers) ?? parsedTrend(parsed.trends?.customers) ?? "Don't know",
-        revenue: slotTrend(slots.revenue) ?? parsedTrend(parsed.trends?.revenue) ?? "Don't know",
-      },
-      bottleneck: plain(parsed.bottleneck, 160) ?? base.bottleneck,
-      closeRate: base.closeRate ?? plain(parsed.closeRate, 80),
-      followUp: plain(parsed.followUp, 160) ?? base.followUp,
-      jobValue: base.jobValue ?? plain(parsed.jobValue, 80),
-      monthlyEnquiries: base.monthlyEnquiries ?? plain(parsed.monthlyEnquiries, 80),
-      pricePresentation: plain(parsed.pricePresentation, 160) ?? base.pricePresentation,
-      lostReason: plain(parsed.lostReason, 160) ?? base.lostReason,
-      capacity: plain(parsed.capacity, 160) ?? base.capacity,
-      proof: plain(parsed.proof, 160) ?? base.proof,
-      repeat: plain(parsed.repeat, 160) ?? base.repeat,
-      ownerTheory: plain(parsed.ownerTheory, 220) ?? base.ownerTheory,
-      otherChallenges: base.otherChallenges,
-      recentChanges: Array.isArray(parsed.recentChanges)
-        ? parsed.recentChanges.filter((c) => typeof c === "string").map((c) => plainify(String(c), ownerText).slice(0, 80)).slice(0, 5)
-        : base.recentChanges,
-      chips: Array.isArray(parsed.chips)
-        ? parsed.chips.filter((c) => typeof c === "string").map((c) => shorten(plainify(String(c), ownerText), 46)).slice(0, 6)
-        : [],
-      facts: modelFacts.length >= 4 ? modelFacts : base.facts,
-      confidence: clampPercent(parsed.confidence, 40, 80, 62),
-    };
-    // "How people find you" must match the confirmed channels.
-    facts.facts = facts.facts.map((f) => (/find you|channel/i.test(f.section) && channels.length ? { ...f, value: channels.join(", ") } : f));
+    // The interview's own answers decide what is a fact; the model only words them.
+    const facts: BusinessFacts = mergeExtractedFacts({ base, parsed, slots, ownerText });
 
     return NextResponse.json({
       ok: true,

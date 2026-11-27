@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import { extractJson, clampPercent, type BusinessContextPayload, type BusinessFacts } from "@/lib/checkup";
 import { plainify } from "@/lib/checkup-math";
@@ -27,6 +28,7 @@ const SYSTEM = `You are Nellovia, the owner's own AI business consultant inside 
 
 They have already read their diagnosis (it is in the context). Do NOT repeat its main point.
 They also track THEIR CHALLENGES (listed in the context, whatever their status) and may be TRYING a step right now. Never turn a challenge on that list into an insight, even in other words — if "weekdays are too quiet" is listed, "quiet weekdays are costing you" is a repeat. Never suggest a step they are trying, one marked "already tried", one already on their plan for this week, or ready-made help they already have. Pick angles the list and the plan don't cover yet.
+A NEW ANGLE on a listed challenge is not a repeat and is often the most useful insight: a cause they haven't named, a cost or price they haven't looked at, a risk it creates. If the challenge they are WORKING ON NOW is about money (cash running short, what they owe, rent, costs, prices), at least two of the three insights must be new angles on it, from their own answers (what comes in against what goes out, prices against rising costs, fees they pay, what is due when) — not ways to find more customers.
 Each insight must give them something new, specific and usable:
 1. an OPPORTUNITY they are probably missing (type "opportunity") — e.g. past customers who would buy again, people who already trust them, a better offer, a group who already asks;
 2. something to WATCH (type "watch") — a real risk implied by their own answers (e.g. relying on one way people find them, being too stretched to follow up, the quiet months);
@@ -99,6 +101,10 @@ function coveredSubjects(ctx: BusinessContextPayload): string[] {
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("insights");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as InsightsInput;
     const facts = body.context?.facts ?? body.facts;
@@ -123,8 +129,10 @@ export async function POST(request: NextRequest) {
     const invented = (list: RawInsight[]) =>
       [...new Set(list.flatMap((r) => textOf(r).flatMap((t) => ungroundedNumbers(t, allowed))))];
     // An insight that restates one of their challenges (or their diagnosis), whatever the wording.
+    // Read from the title, which names what an insight is about: the summary of a new angle on a
+    // challenge naturally shares words with it (its cost, its cause) without restating it.
     const subjects = coveredSubjects(context);
-    const repeatOf = (r: RawInsight) => subjects.find((s) => sharedWords(`${String(r.title ?? "")} ${String(r.summary ?? "")}`, s) >= SAME_SUBJECT) ?? null;
+    const repeatOf = (r: RawInsight) => subjects.find((s) => sharedWords(String(r.title ?? ""), s) >= SAME_SUBJECT) ?? null;
 
     let list: RawInsight[] = [];
     let feedback = "";

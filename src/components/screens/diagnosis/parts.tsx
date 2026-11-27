@@ -22,6 +22,7 @@ import {
   Tags,
   Target,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DraftButton } from "@/components/shared/try-this";
@@ -471,6 +472,32 @@ export function JourneyFocus({ stage }: { stage: FocusStage }) {
           );
         })}
       </ol>
+    </section>
+  );
+}
+
+/**
+ * An owner in money trouble: what is due against what they have, and whether
+ * money in covers the running costs — worked out in code from their own
+ * figures, every line showing what it came from.
+ */
+export function MoneyCard({ lines }: { lines: string[] }) {
+  if (!lines.length) return null;
+  return (
+    <section aria-label="Your money, worked out" className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm sm:p-6">
+      <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+        <Wallet className="size-5 text-amber-700" aria-hidden />
+        Your money, worked out from your figures
+      </h2>
+      <ul className="mt-3 space-y-2">
+        {lines.map((l) => (
+          <li key={l} className="flex gap-2 text-sm leading-relaxed text-slate-800">
+            <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-amber-600" />
+            <span>{l}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-slate-500">Only from what you told me — nothing is invented. If a figure is off, correct it and I'll work it out again.</p>
     </section>
   );
 }

@@ -1,0 +1,138 @@
+{
+  "takenAt": "2026-11-27T09:35:08.925Z",
+  "adminOrder": [
+    "openai",
+    "z.ai",
+    "openrouter",
+    "gemini",
+    "z.ai-free",
+    "groq",
+    "cerebras",
+    "mistral"
+  ],
+  "adminOrderSavedAt": "2026-11-25T14:25:02.673Z",
+  "envOrder": "z.ai,openai,groq,openrouter,gemini",
+  "providers": [
+    {
+      "id": "z.ai",
+      "enabled": true,
+      "model": "glm-5.3",
+      "modelSource": "admin screen",
+      "envKeys": [
+        {
+          "label": "z.ai#1",
+          "masked": "…gR7p"
+        }
+      ],
+      "adminKeys": []
+    },
+    {
+      "id": "z.ai-free",
+      "enabled": true,
+      "model": "glm-4.7-flash",
+      "modelSource": ".env ZAI_FREE_MODEL",
+      "envKeys": [
+        {
+          "label": "z.ai-free#1",
+          "masked": "…YQPj"
+        },
+        {
+          "label": "z.ai-free#2",
+          "masked": "…DxF8"
+        }
+      ],
+      "adminKeys": []
+    },
+    {
+      "id": "openai",
+      "enabled": true,
+      "model": "gpt-5.4-mini",
+      "modelSource": "admin screen",
+      "envKeys": [],
+      "adminKeys": [
+        {
+          "label": "gpt-5.4-mini model",
+          "masked": "…33wA",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "groq",
+      "enabled": true,
+      "model": "openai/gpt-oss-120b",
+      "modelSource": ".env GROQ_MODEL",
+      "envKeys": [
+        {
+          "label": "groq#1",
+          "masked": "…2JRF"
+        },
+        {
+          "label": "groq#2",
+          "masked": "…4Yvj"
+        },
+        {
+          "label": "groq#3",
+          "masked": "…y74m"
+        }
+      ],
+      "adminKeys": []
+    },
+    {
+      "id": "openrouter",
+      "enabled": true,
+      "model": "@preset/node71-chat",
+      "modelSource": ".env OPENROUTER_MODEL",
+      "envKeys": [
+        {
+          "label": "openrouter#1",
+          "masked": "…cd89"
+        }
+      ],
+      "adminKeys": []
+    },
+    {
+      "id": "gemini",
+      "enabled": true,
+      "model": "gemini-3.5-flash-lite",
+      "modelSource": ".env GEMINI_MODEL",
+      "envKeys": [
+        {
+          "label": "gemini#1",
+          "masked": "…GoQA"
+        },
+        {
+          "label": "gemini#2",
+          "masked": "…j6kQ"
+        },
+        {
+          "label": "gemini#3",
+          "masked": "…xrIQ"
+        }
+      ],
+      "adminKeys": []
+    },
+    {
+      "id": "cerebras",
+      "enabled": true,
+      "model": "gpt-oss-120b",
+      "modelSource": ".env CEREBRAS_MODEL",
+      "envKeys": [],
+      "adminKeys": []
+    },
+    {
+      "id": "mistral",
+      "enabled": true,
+      "model": "mistral-medium-latest",
+      "modelSource": ".env MISTRAL_MODEL",
+      "envKeys": [
+        {
+          "label": "mistral#1",
+          "masked": "…hhl1"
+        }
+      ],
+      "adminKeys": []
+    }
+  ],
+  "note": "Re-taken after the run with the .env reader fixed to match Next.js (the first snapshot, read through Bun, showed one key for Groq, Gemini and z.ai-free). Settings themselves did not change: same order, same switches."
+}

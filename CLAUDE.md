@@ -1,3 +1,25 @@
+## North Star — read before building or changing anything
+
+Every feature, prompt, screen and notification must serve **the feeling we want owners to have**:
+the full text is in `PRODUCT.md` ("North Star: the feeling we want owners to have").
+
+- **Fear of missing valuable discoveries**: every visit can show the owner something new and useful
+  about their own business.
+- **Confidence Nellovia will find answers**: it investigates beyond the obvious, finds overlooked
+  problems and opportunities, challenges wrong assumptions (the owner's too, when their figures say
+  otherwise), recommends evidence-based solutions, and follows through until there is real progress.
+- **A living business intelligence**: it feels like a consultant who keeps thinking, not a tool that
+  waits for instructions.
+- **It remembers** (owners never start over), **every discovery can be checked** (their own figures,
+  maths in code, working shown), **it cares about the person** (the urgent thing first), and
+  **progress is visible**.
+- **Earned, never manufactured**: no fabricated discoveries, meaningless notifications,
+  manufactured urgency, or generic advice dressed up as insight. When nothing new has happened,
+  say so.
+
+Before finishing a change, ask: after this, what does the owner know that they didn't, or what can
+they now do that they couldn't? If a screen or flow misleads or underwhelms, change it.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

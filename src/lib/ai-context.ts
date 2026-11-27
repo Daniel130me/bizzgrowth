@@ -3,7 +3,7 @@
 // and any totals they entered. With it, Ask / insights / briefs build on what
 // the owner already knows instead of starting from a blank page.
 
-import type { BusinessContextPayload, BusinessFacts, DiagnosisContent } from "./checkup";
+import type { BusinessContextPayload, BusinessFacts, DiagnosisContent, TranscriptTurn } from "./checkup";
 import { loadPlanProgress, planIdFor } from "./plan-progress";
 import { daysSince, friendlyDate, nextCheckIn } from "./coach";
 import type { CoachState } from "./store";
@@ -39,6 +39,8 @@ export function buildBusinessContext(input: {
   coaching?: BusinessContextPayload["coaching"];
   /** Their list of challenges (see challengesContext). */
   challenges?: BusinessContextPayload["challenges"];
+  /** The checkup conversation — the owner's own replies go along, word for word. */
+  transcript?: TranscriptTurn[];
 }): BusinessContextPayload | null {
   const { workspace, facts, diagnosis: d } = input;
   if (!workspace && !facts) return null;
@@ -69,5 +71,22 @@ export function buildBusinessContext(input: {
     months: (input.months ?? []).slice(-3),
     coaching: input.coaching ?? null,
     challenges: input.challenges?.length ? input.challenges : null,
+    ...(ownerWordsFrom(input.transcript).length ? { ownerWords: ownerWordsFrom(input.transcript) } : {}),
   };
+}
+
+/** The owner's own checkup replies, trimmed to what a prompt can carry (latest kept). */
+export function ownerWordsFrom(transcript: TranscriptTurn[] | undefined, maxChars = 2400): string[] {
+  const replies = (transcript ?? [])
+    .filter((t) => t.role === "user" && typeof t.text === "string" && t.text.trim().length > 0)
+    .map((t) => t.text.replace(/\s+/g, " ").trim().slice(0, 400));
+  const out: string[] = [];
+  let used = 0;
+  // Keep the first reply (it usually says why they came) and as many of the latest as fit.
+  for (let i = replies.length - 1; i >= 0; i--) {
+    if (used + replies[i].length > maxChars && out.length > 0 && i !== 0) continue;
+    out.unshift(replies[i]);
+    used += replies[i].length;
+  }
+  return out;
 }

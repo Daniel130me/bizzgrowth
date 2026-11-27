@@ -103,7 +103,9 @@ export default function ImproveDiagnosis(_props: ScreenProps) {
       const data = (await res.json()) as { ok?: boolean; improved?: ImprovedDiagnosis };
       if (data?.ok && data.improved) {
         setImprovedDiagnosis(data.improved);
-        toast.success(`Diagnosis improved — confidence increased to ${data.improved.confidence}%`, {
+        // Only claim more certainty when the counts really added it.
+        const before = facts?.confidence ?? 62;
+        toast.success(data.improved.confidence > before ? `Diagnosis improved — confidence increased to ${data.improved.confidence}%` : "Your counts are added to your diagnosis", {
           description: `${worst.name}: ${worst.conversion.toFixed(1)}% of people who asked went on to pay, vs ${best.conversion.toFixed(1)}% for ${best.name} — worked out from your numbers.`,
         });
       } else {

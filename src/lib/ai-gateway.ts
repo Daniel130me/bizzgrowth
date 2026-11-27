@@ -34,10 +34,21 @@
 // survives dev-server restarts. Set AI_GATEWAY_USAGE_FILE=off to keep it
 // in-memory only, or to a path to store it elsewhere.
 //
+// Test hooks for the AI quality test (scripts/eval), both OFF unless set:
+//   AI_GATEWAY_TRACE_FILE=path   appends one JSON line per completion: profile,
+//                                which route served it, model, time, tokens,
+//                                every attempt, and the prompt and reply text.
+//                                Keys are never written (labels only).
+//   AI_GATEWAY_FAULTS_FILE=path  while that file exists, the providers it lists
+//                                fail on purpose ({"providers":["openai"],
+//                                "mode":"http500"|"http429"|"timeout"}), so
+//                                failover can be checked without touching the
+//                                live provider settings.
+//
 // MUST only be imported from API routes / server code.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import ZAI from "z-ai-web-dev-sdk";
 import { providerRequestOptions, type GatewayReasoningEffort } from "@/lib/ai-gateway-request";
@@ -175,6 +186,20 @@ const TIMEOUT_MS = envInt("AI_GATEWAY_TIMEOUT_MS", 45_000);
 // limit cut off replies that were nearly done and restarted on the next key.
 const FAST_TIMEOUT_MS = envInt("AI_GATEWAY_FAST_TIMEOUT_MS", 20_000);
 const COOLDOWN_MS = envInt("AI_GATEWAY_COOLDOWN_MS", 60_000);
+/**
+ * The time limit is for the whole request — every provider tried included —
+ * because that is what the owner waits for. While another provider could still
+ * answer, the FIRST try gets at most this share of it, so a stuck provider
+ * leaves a healthy one behind it enough time to really answer (a chat turn took
+ * 26 s when the first provider hung for the full 20 s; giving the first 70%
+ * left the next ones 3 s and 2 s — too little for either, so nobody answered).
+ * Later tries get what is left, minus RESERVE_MS for one more.
+ */
+const FIRST_TRY_SHARE = 0.5;
+/** Time kept back for the next provider when one could still answer. */
+const RESERVE_MS = 3_000;
+/** Below this, a try can't finish — don't start one. */
+const MIN_TRY_MS = 2_000;
 const AUTH_PARK_MS = envInt("AI_GATEWAY_AUTH_PARK_MS", 6 * 60 * 60 * 1000);
 const QUOTA_PARK_MS = envInt("AI_GATEWAY_QUOTA_PARK_MS", 60 * 60 * 1000);
 const FAILURES_TO_OPEN = 2;
@@ -634,7 +659,53 @@ function addUsage(h: KeyStats, usage: CompletionUsage | undefined) {
   h.totalTokens += Number(usage.total_tokens) || p + c;
 }
 
+// ---------- Test hooks (AI quality test only; inert unless their env var is set) ----------
+
+type InjectedFault = "http500" | "http429" | "timeout";
+
+/** A failure the eval runner asked for, for this provider, or null (the normal case). */
+function injectedFault(provider: GatewayProviderId): InjectedFault | null {
+  const raw = (process.env.AI_GATEWAY_FAULTS_FILE ?? "").trim();
+  if (!raw) return null;
+  try {
+    const spec = JSON.parse(readFileSync(path.resolve(appRoot(), raw), "utf8")) as { providers?: unknown; mode?: unknown };
+    const listed = Array.isArray(spec.providers) && spec.providers.includes(provider);
+    if (!listed) return null;
+    return spec.mode === "http429" || spec.mode === "timeout" ? spec.mode : "http500";
+  } catch {
+    return null; // no faults file right now — nothing is injected
+  }
+}
+
+/** Fail the way a real provider would, so the failover path is the real one. */
+async function raiseInjectedFault(fault: InjectedFault, timeoutMs: number): Promise<never> {
+  if (fault === "timeout") {
+    await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+    throw new Error("This operation was aborted (injected timeout for the AI quality test)");
+  }
+  const status = fault === "http429" ? 429 : 500;
+  throw Object.assign(new Error(`HTTP ${status}: injected failure for the AI quality test`), { status });
+}
+
+function traceCompletion(record: Record<string, unknown>): void {
+  const raw = (process.env.AI_GATEWAY_TRACE_FILE ?? "").trim();
+  if (!raw) return;
+  try {
+    const file = path.resolve(appRoot(), raw);
+    mkdirSync(path.dirname(file), { recursive: true });
+    appendFileSync(file, `${JSON.stringify(record)}\n`);
+  } catch (error) {
+    console.warn("[Nellovia AI] could not write the gateway trace:", error instanceof Error ? error.message : error);
+  }
+}
+
 // ---------- Public API ----------
+
+export interface GatewayUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
 
 export interface GatewayAttempt {
   routeLabel: string;
@@ -642,6 +713,8 @@ export interface GatewayAttempt {
   ok: boolean;
   latencyMs: number;
   error?: string;
+  /** Tokens the provider reported for this attempt, when it reported any. */
+  usage?: GatewayUsage;
 }
 
 export interface GatewayResult {
@@ -649,11 +722,49 @@ export interface GatewayResult {
   servedBy?: string;
   model?: string;
   latencyMs?: number;
+  /** Tokens used by the attempt that answered. */
+  usage?: GatewayUsage;
   attempts: GatewayAttempt[];
+}
+
+function usageOf(usage: CompletionUsage | undefined): GatewayUsage | undefined {
+  if (!usage) return undefined;
+  const promptTokens = Number(usage.prompt_tokens) || 0;
+  const completionTokens = Number(usage.completion_tokens) || 0;
+  const totalTokens = Number(usage.total_tokens) || promptTokens + completionTokens;
+  return totalTokens > 0 ? { promptTokens, completionTokens, totalTokens } : undefined;
 }
 
 /** Run one chat completion through the failover chain. */
 export async function gatewayChatComplete(
+  system: string,
+  user: string,
+  opts?: { maxTokens?: number; profile?: GatewayProfile; timeoutMs?: number },
+): Promise<GatewayResult> {
+  const started = Date.now();
+  const result = await runChatCompletion(system, user, opts);
+  if (process.env.AI_GATEWAY_TRACE_FILE) {
+    const profile = opts?.profile ?? "default";
+    traceCompletion({
+      ts: new Date(started).toISOString(),
+      profile,
+      maxTokens: opts?.maxTokens ?? 2000,
+      timeoutMs: opts?.timeoutMs ?? (profile === "fast" ? Math.min(FAST_TIMEOUT_MS, TIMEOUT_MS) : TIMEOUT_MS),
+      servedBy: result.servedBy ?? null,
+      model: result.model ?? null,
+      latencyMs: result.latencyMs ?? null,
+      totalMs: Date.now() - started,
+      usage: result.usage ?? null,
+      attempts: result.attempts,
+      system,
+      user,
+      text: result.text,
+    });
+  }
+  return result;
+}
+
+async function runChatCompletion(
   system: string,
   user: string,
   opts?: { maxTokens?: number; profile?: GatewayProfile; timeoutMs?: number },
@@ -678,6 +789,8 @@ export async function gatewayChatComplete(
   // stay as a last resort, nothing is dropped.
   const queue = [...routes];
   const slowProviders = new Set<string>();
+  const deadline = Date.now() + timeoutMs;
+  let triedOne = false;
 
   for (let i = 0; i < queue.length; i++) {
     const route = queue[i];
@@ -688,6 +801,10 @@ export async function gatewayChatComplete(
       attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: false, latencyMs: 0, error: "skipped — cooling down after earlier failures" });
       continue;
     }
+    if (deadline - Date.now() < MIN_TRY_MS) {
+      attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: false, latencyMs: 0, error: "skipped — the time for this request ran out" });
+      break;
+    }
 
     // Auth-like failures get one quick retry (platform token rotation window);
     // everything else moves straight to the next route.
@@ -695,16 +812,29 @@ export async function gatewayChatComplete(
     const tries = 2;
     for (let t = 0; t < tries; t++) {
       const started = Date.now();
+      // This try's share of the request's time: all that is left, or — while another
+      // provider could still answer — half the whole for the first try and what is
+      // left minus RESERVE_MS after that, so the next provider always gets a real turn.
+      const remaining = deadline - started;
+      if (remaining < MIN_TRY_MS) break;
+      const fallbackLeft = queue.slice(i + 1).some((r) => r.provider.id !== route.provider.id && healthFor(r).openUntil <= started);
+      const cap = triedOne ? remaining - RESERVE_MS : Math.min(Math.round(timeoutMs * FIRST_TRY_SHARE), remaining - RESERVE_MS);
+      const tryMs = fallbackLeft ? Math.min(remaining, Math.max(MIN_TRY_MS, cap)) : remaining;
+      triedOne = true;
       h.requests += 1;
       h.lastUsedAt = started;
       scheduleSave();
       try {
+        const fault = injectedFault(route.provider.id);
+        if (fault) await raiseInjectedFault(fault, tryMs);
         let text: string;
+        let usage: GatewayUsage | undefined;
         if (route.provider.kind === "platform") {
-          text = await callZai(system, user, timeoutMs);
+          text = await callZai(system, user, tryMs);
         } else {
-          const out = await callOpenAiCompatible(route, system, user, maxTokens, timeoutMs, reasoningEffort);
+          const out = await callOpenAiCompatible(route, system, user, maxTokens, tryMs, reasoningEffort);
           text = out.text;
+          usage = usageOf(out.usage);
           addUsage(h, out.usage);
         }
         const latencyMs = Date.now() - started;
@@ -716,13 +846,14 @@ export async function gatewayChatComplete(
         h.lastError = undefined;
         state.lastServedBy = route.routeLabel;
         scheduleSave();
-        attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: true, latencyMs });
+        attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: true, latencyMs, ...(usage ? { usage } : {}) });
         recordEvent({ ts: Date.now(), routeLabel: route.routeLabel, provider: route.provider.id, model: route.model, ok: true, latencyMs });
-        return { text, servedBy: route.routeLabel, model: route.model, latencyMs, attempts };
+        return { text, servedBy: route.routeLabel, model: route.model, latencyMs, ...(usage ? { usage } : {}), attempts };
       } catch (error) {
         const latencyMs = Date.now() - started;
         const message = redact(error instanceof Error ? error.message : String(error), route.apiKey);
-        attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: false, latencyMs, error: message });
+        const failedUsage = usageOf((error as { usage?: CompletionUsage })?.usage);
+        attempts.push({ routeLabel: route.routeLabel, model: route.model, ok: false, latencyMs, error: message, ...(failedUsage ? { usage: failedUsage } : {}) });
         recordEvent({ ts: Date.now(), routeLabel: route.routeLabel, provider: route.provider.id, model: route.model, ok: false, latencyMs, error: message.slice(0, 200) });
         console.error(`[Nellovia AI] ${route.routeLabel} (${route.masked}) failed (${latencyMs}ms):`, message);
         if (isTimeoutError(message) && !slowProviders.has(route.provider.id)) {

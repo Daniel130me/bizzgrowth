@@ -546,6 +546,7 @@ export const NEXT_STEP_RULES = `- nextStep.kind: "experiment" when you are not s
 - nextStep.how is the HOW: specific steps they can follow today without any app. Each step stands on its own — never "the message above" or "see below". Never describe menus or buttons inside other apps — keep it general.
 - nextStep.draft only when the step involves writing, sending or saying something the app can write (a message, email, reply, post, ad, website words, a description, a bio or profile, a flyer or sign, what to say, price options); otherwise null. Its kind is what it makes: ${DRAFT_KIND_GUIDE}. If none fits, use "other" — never squeeze website words, an ad or a sign into an email or a message. draftIsMain true only when sending or putting up those words IS the step.
 - No numbers in nextStep text except the owner's own.
+- If the owner has something due by a date or within a number of days (a payment, an order, a deadline), the step must fit before it: days no more than the days left, and "how" says what to do before the due date.
 - Never invent a specific offer, discount, bonus or deadline for them. If an offer could help, describe it as their choice ("a small extra you're happy to give") or use [brackets] for them to fill in.`;
 
 /* ------------------------------------------------------------------ */
@@ -900,6 +901,46 @@ export interface CheckInQuestion {
 }
 
 export const NOT_TRIED_RE = /\bnot yet\b|\bno\b|\bnope\b|didn'?t|did not|haven'?t|have not|couldn'?t|forgot|no time/i;
+
+/**
+ * Something said in their own words that matters more than the step: exhaustion,
+ * wanting to give up, threats or harassment. Once it is said, the check-in stops
+ * asking routine questions and reads what they told it.
+ */
+export const SERIOUS_RE =
+  /\b(exhausted|tired of|so tired|i'?m tired|burn(ed|t)? out|can'?t cope|cannot cope|can'?t go on|give up|giving up|hopeless|depress\w*|suicid\w*|kill myself|end it all|(close|closing|shut|shutting) (it all|everything|down|the (shop|business|place))|threat\w*|harass\w*|shaming|blackmail\w*|(messag|call|text|contact|disturb|bother|embarrass|insult|abus|disgrac)\w* (all )?(my|our) (contacts|family|friends|relatives|people|customers|neighbou?rs|colleagues))\b/i;
+
+/** A step measured by a yes/no question ("Did the supplier agree…?") is answered yes or no, not counted. */
+export function isYesNoMeasure(measure: string | undefined): boolean {
+  return /^(did|has|have|is|are|was|were|will|can|could|do|does)\b/i.test((measure ?? "").trim());
+}
+
+/** "Yes, he agreed" → "yes"; "Not yet" / "No" → "no"; anything else (a story, "partly") → null. */
+export function yesNoAnswer(text: string | null | undefined): "yes" | "no" | null {
+  const t = (text ?? "").trim().toLowerCase();
+  if (/^(yes|yeah|yep|yup|yes o|(he|she|they|it|we) (did|agreed|said yes)|agreed|done)\b/.test(t)) return "yes";
+  if (/^(no|nope|not yet|(he|she|they|it|we) (didn'?t|did not|refused|said no)|refused)\b/.test(t)) return "no";
+  return null;
+}
+
+const DISTRESS_RE =
+  /\b(exhausted|tired of|so tired|i'?m tired|burn(ed|t)? out|can'?t cope|cannot cope|can'?t go on|give up|giving up|hopeless|(close|closing|shut|shutting) (it all|everything|down|the (shop|business|place)))\b/i;
+const CARE_RE =
+  /\b(sounds (really |so )?(hard|heavy|exhausting|tough)|that'?s a lot|i'?m (so |really )?sorry|you'?re not alone|i hear (you|how)|(you|you'?re) (sound )?(tired|exhausted)|look after yourself|someone you trust)\b/i;
+const SAFETY_FIRST_RE = /not acceptable|screenshot|report (it|them|this)|keep (yourself )?safe/i;
+
+/**
+ * When the owner says they're exhausted or thinking of closing, the reply answers that —
+ * briefly and kindly — before the business (after a safety point, if there is one). Added in
+ * code when the model skipped it, which it did even with the rule in its instructions.
+ */
+export function withCare(reply: string, ownerText: string): string {
+  if (!DISTRESS_RE.test(ownerText) || CARE_RE.test(reply)) return reply;
+  const care = "I'm sorry it feels this heavy — you don't have to decide anything big today, and we'll take it one step at a time.";
+  const sentences = reply.trim().split(/(?<=[.!?])\s+/);
+  const at = sentences.length > 1 && SAFETY_FIRST_RE.test(sentences[0]) ? 1 : 0;
+  return [...sentences.slice(0, at), care, ...sentences.slice(at)].join(" ");
+}
 export const NOT_COUNTED_RE = /not sure|didn'?t count|did not count|no idea|don'?t know/i;
 export const NOTHING_CHANGED_RE = /^(nothing|no|none|nope)\b|nothing (else )?changed|no (other )?changes?/i;
 
@@ -955,7 +996,17 @@ export function nextCheckInQuestion(ctx: QuestionContext): CheckInQuestion | nul
   if (!notTried && got("count") === undefined) {
     // Always the step's own measure, so the result compares like with like.
     if (step.unit === "count") {
-      const what = (step.measure ?? "how many").replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase());
+      const what = (step.measure ?? "how many").replace(/[.?!\s]+$/, "").replace(/^./, (c) => c.toLowerCase());
+      // "Did the landlord agree…?" is answered yes or no — count buttons ("3 to 5") make no sense for it.
+      if (isYesNoMeasure(step.measure)) {
+        return {
+          id: "count",
+          text: `Since you started, ${what}?`,
+          why: "This is how we'll know if the step worked.",
+          choices: ["Yes", "Partly", "Not yet", "Not sure"],
+          placeholder: "Yes, no, or what happened",
+        };
+      }
       return {
         id: "count",
         text: `Since you started, ${what}?`,
@@ -983,6 +1034,11 @@ export function nextCheckInQuestion(ctx: QuestionContext): CheckInQuestion | nul
     };
   }
 
+  // They told us something serious in their own words: no more routine questions now.
+  if (answers.some((a) => a.typed && SERIOUS_RE.test(a.answer))) return null;
+  // Money trouble: the missing checkup answers are about winning customers — not now.
+  if (facts?.money) return null;
+
   // A few still-missing checkup answers, spread over time instead of asked all at once.
   const slotLimit = kind === "end" ? 2 : 1;
   const askedSlots = answers.filter((a) => a.id.startsWith("fact:")).length;
@@ -1005,6 +1061,8 @@ export function nextCheckInQuestion(ctx: QuestionContext): CheckInQuestion | nul
 /** A short, kind acknowledgement for an answer — and, when they weren't sure, what that costs. */
 export function acknowledge(questionId: string, answer: string): string {
   const a = answer.toLowerCase();
+  // Never a breezy "good to know" for something heavy.
+  if (SERIOUS_RE.test(a)) return "Thank you for telling me — that sounds really hard. Let me read everything you've said together.";
   if (questionId === "tried") {
     if (NOT_TRIED_RE.test(a) && !/some|bit|differ/.test(a)) return "That's okay — weeks get busy.";
     if (/some/.test(a)) return "Some is a real start.";

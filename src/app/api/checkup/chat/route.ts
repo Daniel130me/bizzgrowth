@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import {
   ASK_CAP,
   MIN_SIGNALS,
-  REQUIRED_SLOTS,
+  MONEY_SLOTS,
   SIGNAL_SLOTS,
   SLOT_KEYS,
   SLOT_LABELS,
   depthSlotsFor,
+  requiredSlotsFor,
   extractJson,
   emptySlots,
   type AskCounts,
@@ -20,6 +22,8 @@ import {
   type TrendDirection,
 } from "@/lib/checkup";
 import { currencySymbol, isBareNumber, parseCloseRate, plainify, shorten, tidyOwnerText, wordsToDigits } from "@/lib/checkup-math";
+import { amountFromOwner, classifyQuestion, countFromOwner, listenOnly, neutralReply, ownerSpokeOfChange, usableChip } from "@/lib/checkup-turn";
+import { isMoneyTrouble, moneyClauses, speaksOfCosts } from "@/lib/checkup-money";
 import { HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
 import { businessKind, otherChallengeChips, parseOtherChallenges } from "@/lib/challenges";
 
@@ -48,6 +52,14 @@ const TEXT_SLOT_KEYS = [
   "proof",
   "repeat",
   "ownerTheory",
+  "moneyDue",
+  "otherDebts",
+  "cashNow",
+  "moneyInOut",
+  "coverPlan",
+  "pricesChanged",
+  "platformFees",
+  "owedFlex",
 ] as const satisfies readonly SlotKey[];
 
 /** Hard cap on owner replies — generous, because depth beats speed for the diagnosis. */
@@ -81,6 +93,15 @@ const ANSWER_CHIPS: Record<SlotKey, string[]> = {
   ownerTheory: ["Prices — others charge less", "Not enough people know me", "Customers forget about me", "Not sure"],
   // Built per business from what the owner said (see chipsFor) — never a fixed list.
   otherChallenges: [],
+  // Money trouble: amounts are typed, so these are the common short answers.
+  moneyDue: [],
+  otherDebts: ["Nothing else", "A loan repayment", "Money I owe a supplier", "Wages or bills too"],
+  cashNow: ["Almost nothing", "Less than half of it", "About half of it", "Rather not say"],
+  moneyInOut: ["Sales cover costs, with a bit left", "About break-even", "Costs are more than sales", "Not sure"],
+  coverPlan: ["Borrow the rest", "Ask family or friends", "Sell something", "No plan yet"],
+  pricesChanged: ["Raised them this year", "Over a year ago", "Never changed them", "Not sure"],
+  platformFees: ["Yes, they take a cut", "No fees", "Not sure"],
+  owedFlex: ["Yes, they've agreed before", "Never asked them", "They said no before", "Not sure"],
 };
 
 /** Smaller ranges for currencies whose typical job is not in the hundreds of thousands. */
@@ -131,15 +152,16 @@ function chipsFor(slot: SlotKey, cur: string, slots?: CheckupSlots): string[] {
   return base.map((c) => c.replaceAll("{cur}", cur));
 }
 
-/** Keep only chips that read as answers: drop anything phrased as a question. */
-function answerChips(raw: unknown, slot: SlotKey | "none", cur: string, slots?: CheckupSlots): string[] {
+/** Keep only chips that read as answers: drop anything phrased as a question, a fill-in template, or a figure they never gave. */
+function answerChips(raw: unknown, slot: SlotKey | "none", cur: string, slots?: CheckupSlots, ownerText = ""): string[] {
   if (slot === "none") return [];
   const QUESTION_START = /^(who|what|which|where|when|why|how|do|does|did|is|are|can|could|would|should|tell me|describe|explain)\b/i;
+  const money = (MONEY_SLOTS as string[]).includes(slot);
   let list = Array.isArray(raw)
     ? raw
         .filter((c): c is string => typeof c === "string")
         .map((c) => plainify(c.trim()).slice(0, 40))
-        .filter((c) => c && !c.includes("?") && !QUESTION_START.test(c))
+        .filter((c) => c && !c.includes("?") && !QUESTION_START.test(c) && usableChip(c, { money, ownerText }))
         .slice(0, 4)
     : [];
   // Close-rate answers must carry both numbers, or the diagnosis cannot use them.
@@ -244,6 +266,38 @@ const QUESTION_VARIANTS: Record<SlotKey, string[]> = {
     "Is anything else holding the business back right now? Tap any that apply — I'll keep them on your list, and let's take them one at a time.",
     "Apart from that, is anything else making growth hard at the moment? Tap any that apply, or tell me it's just the one.",
   ],
+  moneyDue: [
+    "What exactly is due, how much is it, and when is it due? This tells me how much time we have.",
+    "How much do you have to pay, and by what date?",
+  ],
+  otherDebts: [
+    "Is anything else due or owed in the next few weeks — a loan repayment, a supplier, wages, tax or a bill? How much, and when? This is how I see the whole week, not just one bill.",
+    "Do you owe anyone else money right now, or have another payment coming soon?",
+  ],
+  cashNow: [
+    "How much money does the business have right now to pay with — a rough figure is fine?",
+    "Roughly how much cash do you have on hand today?",
+  ],
+  moneyInOut: [
+    "In a normal day or week, roughly how much comes in from sales — and what are your main costs each month (stock, staff, power or fuel)? This shows whether the business covers its costs.",
+    "What does a normal week bring in, and what are the biggest things you pay for each month?",
+  ],
+  coverPlan: [
+    "How were you planning to cover the rest of it? Even a rough idea helps me check it's a safe way to do it.",
+    "Where were you going to find the rest of the money?",
+  ],
+  pricesChanged: [
+    "When did you last change your prices — and have your costs gone up since then?",
+    "Have your prices stayed the same while your costs went up?",
+  ],
+  platformFees: [
+    "Does any way you sell — an app, a platform or a card machine — take a fee or a cut? Roughly how much?",
+    "Do the apps or platforms you sell through charge you a commission?",
+  ],
+  owedFlex: [
+    "Has whoever you owe ever agreed to part payment or a payment plan before? That tells me how to ask them.",
+    "Have they let you pay in parts before?",
+  ],
 };
 const SYSTEM = `You are Nellovia, an AI business consultant inside the Nellovia app — experienced and friendly — having a SHORT first conversation (the business checkup) with a small-business owner. Many owners are in Nigeria and many have NO website or online presence. Warm, sharp, efficient, genuinely listening. You never sound like a survey, a form or a script.
 
@@ -267,6 +321,14 @@ WHAT EACH SLOT MEANS
   - repeat: whether past customers come back or order again, or it is mostly one-off work (key when orders come in waves).
   When useful, say in a few words why you're asking ("This tells me whether the price or the timing is the real issue.").
 - goal, location, changes and the trend slots (enquiries, customers, revenue) are optional — only when they come up naturally.
+- MONEY TROUBLE (only when the prompt says MONEY FIRST — the owner has a payment they can't cover):
+  - moneyDue: the payment they named — what, how much, when it is due (often already in their first message: record it).
+  - otherDebts: anything ELSE owed or due in the next few weeks (a loan repayment, a supplier, wages, tax, a bill) — how much and when. "Nothing else" is a full answer. Always ask it, even when the first payment is clear: people rarely mention every debt up front.
+  - cashNow: the money the business has now to pay with.
+  - moneyInOut: roughly what comes in from sales in a normal day, week or month, and the main running costs. If they gave a monthly sales figure, ask what a normal day or week brings in instead of building on the monthly figure — the two often don't match.
+  - coverPlan: how they were planning to cover the gap — borrowing, selling something, family, talking to whoever is owed. Ask plainly and without judging; the diagnosis weighs it.
+  - pricesChanged: when they last changed prices, and whether costs went up since. platformFees: whether an app, platform or card machine they sell through takes a fee or cut. owedFlex: whether whoever they owe has ever agreed to part payment or a plan before.
+  Record every amount exactly as they said it; never add up, convert or estimate anything.
 
 CHOOSING WHAT TO ASK NEXT
 - Look at COVERAGE: what is KNOWN, MISSING, how often it was ASKED, or DECLINED. Never ask about anything KNOWN or DECLINED. Never reuse a question's wording.
@@ -288,6 +350,7 @@ TONE AND STYLE
 - Do NOT repeat the owner's answer back to them. At most echo a 2-4 word fragment — better, say what it suggests ("Referrals usually mean people already trust your work.").
 - Do not mention their country or city unless they just did.
 - Never judge their numbers ("that's low", "that's a big challenge") — stay curious and neutral; the diagnosis interprets them.
+- Never agree or disagree with their explanation of the cause, however sure they sound ("so it's only timing", "then the business itself is fine"): you haven't seen enough yet. Note it and keep asking; the diagnosis weighs it against their answers.
 - Thank them only now and then, and vary it. Never start two replies the same way.
 - Exactly ONE question per reply (none when wrapping), written out inside your reply.
 
@@ -317,7 +380,8 @@ OUTPUT — return ONLY valid JSON, no markdown:
     "revenue": "Increased|Decreased|About the same|Don't know",
     "changes": ["full updated list"],
     "bottleneck": "...", "closeRate": "X out of Y", "followUp": "...", "jobValue": "...", "monthlyEnquiries": "...",
-    "pricePresentation": "...", "lostReason": "...", "proof": "...", "capacity": "...", "repeat": "...", "ownerTheory": "..."
+    "pricePresentation": "...", "lostReason": "...", "proof": "...", "capacity": "...", "repeat": "...", "ownerTheory": "...",
+    "moneyDue": "...", "otherDebts": "...", "cashNow": "...", "moneyInOut": "...", "coverPlan": "...", "pricesChanged": "...", "platformFees": "...", "owedFlex": "..."
   },
   "learnedChips": ["up to 3 short plain labels <= 46 chars for what you understood THIS turn, in the form 'Sells: <what they sell>', 'How many pay: <X out of Y>', 'Typical job: <range>' (say 'Typical order' for goods). Never 'Close rate'. Prefix 'Updated:' ONLY when correcting something"],
   "nextSlot": "the ONE missing slot your question goes after, or \\"none\\" when wrapping up",
@@ -380,6 +444,15 @@ function sanitizeSlots(input: Partial<CheckupSlots> | undefined): CheckupSlots {
     proof: str(input.proof, 160),
     repeat: str(input.repeat, 160),
     ownerTheory: str(input.ownerTheory, 220),
+    moneyDue: str(input.moneyDue, 220),
+    otherDebts: str(input.otherDebts, 220),
+    cashNow: str(input.cashNow, 120),
+    moneyInOut: str(input.moneyInOut, 300),
+    coverPlan: str(input.coverPlan, 200),
+    pricesChanged: str(input.pricesChanged, 160),
+    platformFees: str(input.platformFees, 160),
+    owedFlex: str(input.owedFlex, 160),
+    money: input.money === true ? true : undefined,
     // An empty list is a real answer here ("no, that's the main one").
     otherChallenges: Array.isArray(input.otherChallenges) ? (list(input.otherChallenges, 80, 3) ?? []) : undefined,
     pending: typeof input.pending === "string" && (SLOT_KEYS as string[]).includes(input.pending) ? input.pending : undefined,
@@ -426,10 +499,11 @@ function knownSignals(slots: CheckupSlots): number {
  */
 function missingRequired(slots: CheckupSlots): SlotKey[] {
   // "Anything else holding you back?" — once, right after the main problem and their view of it.
-  const order: SlotKey[] = [...REQUIRED_SLOTS];
+  const order: SlotKey[] = [...requiredSlotsFor(slots)];
   order.splice(order.indexOf("ownerTheory") + 1, 0, "otherChallenges");
   const missing = order.filter((k) => (k === "otherChallenges" ? isResolved(slots, "bottleneck") && !isResolved(slots, k) : !isResolved(slots, k)));
-  if (knownSignals(slots) < MIN_SIGNALS) {
+  // Money trouble: the money answers are the signal; no sales-funnel answers are needed.
+  if (!slots.money && knownSignals(slots) < MIN_SIGNALS) {
     for (const k of SIGNAL_SLOTS) {
       if (!missing.includes(k) && !isResolved(slots, k)) missing.push(k);
     }
@@ -475,6 +549,14 @@ function deriveLearnedChips(updates: Partial<CheckupSlots>): string[] {
   push("Past work shown", updates.proof);
   push("Customers coming back", updates.repeat);
   push("Your view", updates.ownerTheory);
+  push("Due", updates.moneyDue);
+  push("Also owed", updates.otherDebts);
+  push("Cash now", updates.cashNow);
+  push("Money in and out", updates.moneyInOut);
+  push("Your plan", updates.coverPlan);
+  push("Prices last changed", updates.pricesChanged);
+  push("Fees taken", updates.platformFees);
+  push("Payment plans before", updates.owedFlex);
   (updates.otherChallenges ?? []).slice(0, 3).forEach((c) => chips.push(shorten(`Also: ${c}`, 46)));
   (updates.channels ?? []).slice(0, 2).forEach((c) => chips.push(shorten(`Found via: ${c}`, 46)));
   (updates.changes ?? []).slice(0, 2).forEach((c) => chips.push(shorten(`Change: ${c}`, 46)));
@@ -486,6 +568,14 @@ function deriveLearnedChips(updates: Partial<CheckupSlots>): string[] {
 
 /** Plain labels for slot keys the model sometimes leaks into chips ("monthlyEnquiries about 5"). */
 const CHIP_LABELS: [RegExp, string][] = [
+  [/^(other ?debts?|also owed|other payments?|owe(s|d)? also)\b/i, "Also owed"],
+  [/^(money ?due|due|payment due|rent due)\b/i, "Due"],
+  [/^(cash ?now|cash on hand|cash in hand)\b/i, "Cash now"],
+  [/^(money ?in ?(and|&|\/) ?out|money ?in ?out|money in|sales and costs|running costs)\b/i, "Money in and out"],
+  [/^(prices? (last )?changed|prices? changed)\b/i, "Prices last changed"],
+  [/^(platform ?fees|fees taken|fees|commission)\b/i, "Fees taken"],
+  [/^(cover ?plan|your plan|plan to cover)\b/i, "Your plan"],
+  [/^(owed ?flex|payment plans? before)\b/i, "Payment plans before"],
   [/^(other ?challenges?|also holding( you)? back|anything else|other problems?|also)\b/i, "Also"],
   [/^(owner ?theory|your view|your theory|you think|cause)\b/i, "Your view"],
   [/^(repeat|customers coming back|come back)\b/i, "Customers coming back"],
@@ -519,6 +609,14 @@ const LABEL_SLOT: Record<string, SlotKey> = {
   "Past work shown": "proof",
   "Customers coming back": "repeat",
   "Your view": "ownerTheory",
+  Due: "moneyDue",
+  "Also owed": "otherDebts",
+  "Cash now": "cashNow",
+  "Money in and out": "moneyInOut",
+  "Your plan": "coverPlan",
+  "Prices last changed": "pricesChanged",
+  "Fees taken": "platformFees",
+  "Payment plans before": "owedFlex",
   Also: "otherChallenges",
   "Found via": "channels",
   Sells: "sells",
@@ -532,7 +630,7 @@ function cleanChip(raw: string, read: ChatRead): string {
   for (const [re, label] of CHIP_LABELS) {
     const m = c.match(re);
     if (m) {
-      const rest = c.slice(m[0].length).replace(/^\s*[:\-–=]?\s*/, "");
+      const rest = c.slice(m[0].length).replace(/^\s*[:\-–—=]?\s*/, "");
       c = rest ? `${label}: ${rest}` : label;
       break;
     }
@@ -540,39 +638,6 @@ function cleanChip(raw: string, read: ChatRead): string {
   if (/(^|:\s*)(\.{2,}|…)\s*$/.test(c)) return ""; // placeholder, not something learned
   if (updated && read === "correction") c = `Updated: ${c}`;
   return shorten(plainify(c), 46);
-}
-
-/**
- * What the reply's question is really about — read from the question itself,
- * because the model's own label ("nextSlot") is sometimes wrong, and a wrong
- * label made correct answers look unanswered.
- */
-function classifyQuestion(reply: string): SlotKey | null {
-  const qs = reply.split(/(?<=[.!?])\s+/).filter((s) => s.includes("?"));
-  const q = (qs[qs.length - 1] ?? "").toLowerCase();
-  if (!q) return null;
-  const rules: [RegExp, SlotKey][] = [
-    // "What do you think is causing them to drop off after you give the price?" asks for their view,
-    // not how they give the price — so this is read first.
-    [/(what|why) do you think|behind (that|this|it)|what('s| is) causing|any (idea|hunch|theory)|reason (for|behind) (that|this|it)|something else you've noticed/, "ownerTheory"],
-    [/out of (how many|every)|how many (of them|of those|out of)|how many .*(pay|buy|go ahead|end up)|go ahead and pay/, "closeRate"],
-    [/(each|a|per|normal|typical) month|monthly/, "monthlyEnquiries"],
-    [/twice as many|room for more|more work (right now|than)|handle (the|more|that|it)|already (quite )?full|capacity/, "capacity"],
-    [/come back|order again|buy again|one-?off|returning|repeat/, "repeat"],
-    [/examples|past work|portfolio|samples|photos of|reviews|testimonials|results from|show (new )?(people|customers)/, "proof"],
-    [/how (quickly|fast|soon)|get back to|respond to|check (back|in)|follow[- ]?up/, "followUp"],
-    [/don't go ahead|doesn't go ahead|don't buy|didn't buy|reason they give|what do they (usually )?say|why (they|people) (don't|didn't)/, "lostReason"],
-    [/get your price|give (your|the|a) price|send (your|the|a) price|written quote|how do you (usually )?(price|quote)/, "pricePresentation"],
-    [/how much|cost|typical (job|project|order)|pay you for|bring in|worth/, "jobValue"],
-    [/anything else (that'?s |is )?(holding|getting in the way|making (it|growth) hard|stopping)|else (is )?(holding|making growth hard)|other (problems|challenges|things holding)/, "otherChallenges"],
-    [/stuck|hardest|holding .* back|biggest challenge|main challenge|struggl/, "bottleneck"],
-    [/find you|hear about you|come from|reach you|discover/, "channels"],
-    [/who (usually )?(pays|buys)|which (kind|type) of (client|customer)|your (usual |typical )?(clients|customers) are|kind of (client|customer|person)/, "targetMarket"],
-    [/what (does your business|do you) (do|sell|offer)|what exactly do/, "sells"],
-    [/one thing you would|most like to (get better|improve)|three months/, "goal"],
-  ];
-  for (const [re, slot] of rules) if (re.test(q)) return slot;
-  return null;
 }
 
 const OPENER_RE = /^(got it|thanks( a lot)?|thank you|understood|okay|ok|i see|great|sure|alright|noted|perfect|that'?s (helpful|useful|very helpful))[,.!—-]*\s+/i;
@@ -601,6 +666,10 @@ const DEPTH_EVIDENCE: Partial<Record<SlotKey, RegExp>> = {
   lostReason: /expensive|quiet|stop|reply|cheaper|get back|leave|left|disappear|budget|ghost|later|think about/i,
   pricePresentation: /price|quote|whatsapp|call|visit|invoice|send|figure|tell them|straight|after/i,
   repeat: /back|again|repeat|one[- ]?off|return|regular|loyal|yes|no\b|rarely|few|some/i,
+  pricesChanged: /price|raise|rais|increas|changed|same|year|month|never|last/i,
+  platformFees: /%|percent|commission|fee|cut|charge|take|nothing|no\b|free/i,
+  owedFlex: /yes|no\b|before|agree|accept|half|part|instal|plan|never|ask/i,
+  otherDebts: /owe|owing|loan|debt|supplier|wage|salar|tax|bill|due|repay|nothing|no\b|none|just (that|the)/i,
 };
 
 /** The close — never pastes the owner's raw words back (typos and all). */
@@ -652,6 +721,9 @@ const SKIP_COST: Partial<Record<SlotKey, string>> = {
   followUp: "That's okay — I'll go on the rest, though how people are followed up is often where a lot quietly slips away.",
   bottleneck: "No problem — I'll work it out from your other answers, so the diagnosis may be a little broader.",
   ownerTheory: "That's fine — I'll lean on your other answers instead.",
+  cashNow: "That's okay — without a rough figure I can't size this week's gap, so I'll go on what's due.",
+  moneyInOut: "No problem — without rough figures for money in and out I can't tell whether the business covers its costs, so I'll say what that would show.",
+  otherDebts: "That's fine — I'll plan around the payment you named, but anything else due soon could change what comes first.",
 };
 
 /** Channels the owner named, harvested conservatively from their own words. */
@@ -797,12 +869,23 @@ function fallbackTurn(body: {
   // Substantive answer harvest in the owner's own words, for the slot the
   // last question asked about (or "sells" on the very first reply).
   const textUpdates: Partial<CheckupSlots> = {};
+  // A first message about money they can't cover is about the problem, not what they sell:
+  // what is due and what they have stay in their own words, the message is the main problem,
+  // and "what do you sell?" comes next — never their rent filed as what they sell.
+  const moneyOpener = Boolean(merged.money) && userTurns <= 1 && !slots.pending;
+  if (moneyOpener && !dodge && !correctionish) {
+    const { due, cash } = moneyClauses(lastUser);
+    if (due && !isResolved(merged, "moneyDue")) textUpdates.moneyDue = tidyOwnerText(snippet(due, 120));
+    if (cash && !isResolved(merged, "cashNow")) textUpdates.cashNow = tidyOwnerText(snippet(cash, 80));
+    if (!isResolved(merged, "bottleneck")) textUpdates.bottleneck = tidyOwnerText(snippet(lastUser));
+  }
   if (!dodge && !correctionish && !answeringOthers && lastUser.trim().length >= 1) {
     const pendingCandidates = TEXT_SLOT_KEYS.filter((k) => !isResolved(merged, k));
-    const pending =
-      (slots.pending && (pendingCandidates as SlotKey[]).includes(slots.pending) ? slots.pending : undefined) ??
-      pendingCandidates.find((k) => (askCounts[k] ?? 0) > 0) ??
-      (pendingCandidates.includes("sells") && transcript.filter((tr) => tr.role === "user").length <= 1 ? "sells" : undefined);
+    const pending = moneyOpener
+      ? undefined
+      : ((slots.pending && (pendingCandidates as SlotKey[]).includes(slots.pending) ? slots.pending : undefined) ??
+        pendingCandidates.find((k) => (askCounts[k] ?? 0) > 0) ??
+        (pendingCandidates.includes("sells") && transcript.filter((tr) => tr.role === "user").length <= 1 ? "sells" : undefined));
     const short = lastUser.trim().length < 8;
     const shortOk: SlotKey[] = ["closeRate", "jobValue", "monthlyEnquiries", "capacity", "proof"];
     if (pending && (!short || shortOk.includes(pending))) {
@@ -851,7 +934,7 @@ function fallbackTurn(body: {
 
   // Not sure / skip on a question that matters: say once, plainly, what that costs.
   const skipCost = dodge && slots.pending ? SKIP_COST[slots.pending] : undefined;
-  const ack = skipCost ?? ACKS[userTurns % ACKS.length];
+  const ack = skipCost ?? (moneyOpener ? "Thank you for telling me — that's a lot of pressure. Let's get the full picture so the plan fits." : ACKS[userTurns % ACKS.length]);
   return {
     read: Object.keys(trendHarvest).length || Object.keys(textUpdates).length || otherUpdate ? "answer" : skipCost ? "dodge" : "other",
     reply: `${ack} ${questionFor(target, asked, cur)}`,
@@ -865,6 +948,10 @@ function fallbackTurn(body: {
 }
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("checkup-chat");
+  if (guard.response) return guard.response;
+
   // Parse and normalize the request state FIRST so every error path can
   // preserve what the conversation already learned — wiping state here is
   // what made degraded conversations look scripted and forgetful.
@@ -894,6 +981,8 @@ export async function POST(request: NextRequest) {
     .filter((t) => t.role === "user")
     .map((t) => t.text)
     .join("\n");
+  // A payment they can't cover (rent, a loan, a supplier, wages…): this week's money comes first.
+  if (!slots.money && isMoneyTrouble(ownerText)) slots.money = true;
 
   if (phase === "done") {
     const fb = fallbackTurn({ phase, slots, askCounts, lastUser, transcript, cur });
@@ -919,9 +1008,16 @@ export async function POST(request: NextRequest) {
       }
       if (key === "otherChallenges" && !isResolved(slots, "bottleneck")) return "- otherChallenges: not yet (asked once, after the main problem)";
       const asked = askCounts[key] ?? 0;
-      const tag = REQUIRED_SLOTS.includes(key) ? "REQUIRED" : "optional";
-      return `- ${key}: MISSING, ${tag}, asked ${asked}/${ASK_CAP[key]}${asked >= ASK_CAP[key] ? " (off-limits)" : ""}${REQUIRED_SLOTS.includes(key) ? ` — ${SLOT_LABELS[key]}` : ""}`;
-    }).join("\n");
+      const required = requiredSlotsFor(slots).includes(key);
+      // Money questions are only for owners in money trouble — never shown otherwise.
+      if (!slots.money && (MONEY_SLOTS as string[]).includes(key)) return "";
+      const tag = required ? "REQUIRED" : "optional";
+      return `- ${key}: MISSING, ${tag}, asked ${asked}/${ASK_CAP[key]}${asked >= ASK_CAP[key] ? " (off-limits)" : ""}${required || (MONEY_SLOTS as string[]).includes(key) ? ` — ${SLOT_LABELS[key]}` : ""}`;
+    })
+      .filter(Boolean)
+      .join("\n");
+    // Money trouble: what is due, what else is owed, the cash and money in/out come before anything else.
+    const moneyGaps = slots.money ? (["moneyDue", "otherDebts", "cashNow", "moneyInOut", "coverPlan"] as SlotKey[]).filter((k) => !isResolved(slots, k) && (askCounts[k] ?? 0) < ASK_CAP[k]) : [];
     const recentOpeners = transcript
       .filter((t) => t.role === "ai")
       .slice(-4)
@@ -938,11 +1034,16 @@ export async function POST(request: NextRequest) {
       "",
       `Your last question was about: ${slots.pending ?? "(not recorded)"}.`,
       recentOpeners.length ? `Your recent replies began with: ${recentOpeners.map((o) => `"${o}"`).join(", ")} — begin this one differently.` : "",
-      `Owner replies so far: ${userTurns} (hard limit ${MAX_USER_TURNS}). Known diagnostic signals: ${knownSignals(slots)} of ${MIN_SIGNALS} needed.`,
-      !wrapNow && isResolved(slots, "bottleneck") && !isResolved(slots, "ownerTheory")
+      slots.money
+        ? `Owner replies so far: ${userTurns} (hard limit ${MAX_USER_TURNS}).`
+        : `Owner replies so far: ${userTurns} (hard limit ${MAX_USER_TURNS}). Known diagnostic signals: ${knownSignals(slots)} of ${MIN_SIGNALS} needed.`,
+      !wrapNow && moneyGaps.length
+        ? `MONEY FIRST: they have a payment they can't cover, so this week's money comes before anything about customers. Ask next about: ${moneyGaps[0]} (still missing: ${moneyGaps.join(", ")}). Calm and matter-of-fact, one thing at a time, with a few words on why ("so we can see this week's gap"). Harvest anything they already said.`
+        : "",
+      !wrapNow && !moneyGaps.length && isResolved(slots, "bottleneck") && !isResolved(slots, "ownerTheory")
         ? "ASK NEXT: ownerTheory — they have told you where it feels stuck; now ask what THEY think is causing it (directly, or with 2-3 likely reasons as hints). Their own observations matter."
         : "",
-      !wrapNow && isResolved(slots, "bottleneck") && isResolved(slots, "ownerTheory") && !isResolved(slots, "otherChallenges")
+      !wrapNow && !moneyGaps.length && isResolved(slots, "bottleneck") && isResolved(slots, "ownerTheory") && !isResolved(slots, "otherChallenges")
         ? "ASK NEXT: otherChallenges — react briefly to their last answer, then ask ONE question: is anything else holding the business back right now? They can tap any that apply. Never ask about those other things — the app records them for later."
         : "",
       wrapNow
@@ -1008,10 +1109,42 @@ export async function POST(request: NextRequest) {
     }
 
     // Follow-up answers the owner never gave are dropped (no invented "Yes").
-    for (const key of ["capacity", "proof", "lostReason", "pricePresentation", "repeat"] as const) {
+    for (const key of ["capacity", "proof", "lostReason", "pricePresentation", "repeat", "pricesChanged", "platformFees", "owedFlex", "otherDebts"] as const) {
       const evidence = DEPTH_EVIDENCE[key];
       if (updates[key] && key !== slots.pending && evidence && !evidence.test(lastUser)) updates[key] = undefined;
     }
+
+    // A count or amount the model worked out ("20 a day" recorded as "about 600 a month")
+    // is not the owner's answer: keep their own words when they were answering that
+    // question, otherwise record nothing.
+    const ownerRecent = transcript
+      .filter((t) => t.role === "user")
+      .slice(-2)
+      .map((t) => t.text)
+      .join("\n");
+    if (updates.monthlyEnquiries && !countFromOwner(updates.monthlyEnquiries, ownerRecent)) {
+      updates.monthlyEnquiries = slots.pending === "monthlyEnquiries" && /\d/.test(wordsToDigits(lastUser)) ? tidyOwnerText(snippet(lastUser, 80)) : undefined;
+    }
+    if (updates.jobValue && !amountFromOwner(updates.jobValue, ownerRecent)) {
+      updates.jobValue = slots.pending === "jobValue" && /\d/.test(wordsToDigits(lastUser)) ? tidyOwnerText(snippet(lastUser, 80)) : undefined;
+    }
+    // A trend is only theirs when they spoke of a change (or were asked about that trend).
+    for (const key of TREND_SLOT_KEYS) {
+      if (updates[key] && slots.pending !== key && !ownerSpokeOfChange(lastUser)) updates[key] = undefined;
+    }
+    // Money answers carry amounts the whole diagnosis will be worked out from: every amount
+    // must be one the owner said (in any earlier reply), never a sum or a guess.
+    for (const key of ["moneyDue", "otherDebts", "cashNow", "moneyInOut"] as const) {
+      const v = updates[key];
+      if (v && !amountFromOwner(v, ownerText)) {
+        updates[key] = slots.pending === key ? tidyOwnerText(snippet(lastUser, 220)) : undefined;
+      }
+    }
+    // A sales figure on its own (often a claim in passing) doesn't answer "money in and out":
+    // the costs are what show whether the business covers itself, so it still gets asked.
+    if (updates.moneyInOut && !speaksOfCosts(updates.moneyInOut)) updates.moneyInOut = undefined;
+    // Money questions belong to owners in money trouble only.
+    if (!slots.money) for (const key of MONEY_SLOTS) (updates as unknown as Record<string, unknown>)[key] = undefined;
 
     // The owner answered the question we asked, but the model recorded nothing:
     // keep their answer (lightly cleaned) against that question.
@@ -1035,6 +1168,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const nextAskCountsBase = askCounts;
     const merged: CheckupSlots = { ...slots };
     for (const key of TEXT_SLOT_KEYS) {
       if (updates[key]) (merged as unknown as Record<string, unknown>)[key] = updates[key];
@@ -1089,7 +1223,23 @@ export async function POST(request: NextRequest) {
       }
       // Trust what the question actually asks over the model's own label.
       const actuallyAsks = classifyQuestion(reply);
-      if (actuallyAsks && !isResolved(merged, actuallyAsks)) {
+      // Money trouble: a sales-funnel question nobody needs now (reply speed, how many pay…)
+      // is swapped for the next money question — the owner's time goes on this week's money.
+      const FUNNEL: SlotKey[] = ["closeRate", "followUp", "monthlyEnquiries", "jobValue", "pricePresentation", "lostReason", "proof", "capacity", "repeat", "targetMarket"];
+      // When the wording isn't recognised, the model's own label still tells us what it asks.
+      const asksAbout = actuallyAsks ?? (finalSlot !== "none" ? finalSlot : null);
+      const offTopic = merged.money === true && asksAbout !== null && FUNNEL.includes(asksAbout) && !stillMissing.includes(asksAbout);
+      const nextNeeded = offTopic ? stillMissing.find((k) => (askCounts[k] ?? 0) < ASK_CAP[k]) : undefined;
+      if (offTopic && nextNeeded && !clarifyN) {
+        const lead = reply
+          .split(/(?<=[.!?])\s+/)
+          .filter((s) => !s.includes("?"))
+          .join(" ")
+          .trim();
+        reply = `${lead} ${questionFor(nextNeeded, asked, cur)}`.trim();
+        finalSlot = nextNeeded;
+        ownChips = nextNeeded;
+      } else if (actuallyAsks && !isResolved(merged, actuallyAsks)) {
         if (actuallyAsks !== finalSlot && !clarifyN) ownChips = ownChips ?? (parsed.chips ? null : actuallyAsks);
         finalSlot = actuallyAsks;
       } else if (actuallyAsks && !clarifyN && !merged.declined.includes(actuallyAsks)) {
@@ -1110,11 +1260,14 @@ export async function POST(request: NextRequest) {
 
       // Right after the main problem and their view of it: "anything else?", asked once,
       // in the app's own words with tap answers fitted to their kind of business.
+      // (Money trouble: not before this week's money is clear — "what else do you owe" comes first.)
+      const moneyStillOpen = merged.money === true && (["moneyDue", "otherDebts", "cashNow", "moneyInOut", "coverPlan"] as SlotKey[]).some((k) => !isResolved(merged, k) && (nextAskCountsBase[k] ?? 0) < ASK_CAP[k]);
       const askOthersNow =
         isResolved(merged, "bottleneck") &&
         isResolved(merged, "ownerTheory") &&
         !isResolved(merged, "otherChallenges") &&
         (askCounts.otherChallenges ?? 0) < ASK_CAP.otherChallenges &&
+        !moneyStillOpen &&
         !clarifyN;
       if (askOthersNow) {
         const lead =
@@ -1143,6 +1296,11 @@ export async function POST(request: NextRequest) {
     }
 
     reply = plainify(reply, ownerText);
+    // Their own explanation was just given: the reply thanks them and asks on, with no verdict on it.
+    if (slots.pending === "ownerTheory" && outPhase === "interview") reply = listenOnly(reply);
+    // The checkup listens; it never rules on the cause ("it's timing, not demand") — the diagnosis does, with their figures.
+    reply = neutralReply(reply, userTurns);
+    if (outPhase === "done" && !reply.replace(/^(thanks — noted\.|got it\.|that's useful to know\.|thanks, that helps\.)\s*/i, "").trim()) reply = wrapReply();
     if (outPhase === "interview") reply = varyOpener(reply, transcript);
 
     const rawLearned = Array.isArray(parsed.learnedChips) ? parsed.learnedChips.filter((c): c is string => typeof c === "string") : [];
@@ -1159,6 +1317,10 @@ export async function POST(request: NextRequest) {
     const learnedChips = [...new Set([...otherChips, ...modelChips].map((c) => cleanChip(c, read)).map((c) => (goodsChips ? c.replace(/^(Updated: )?Typical job:/, "$1Typical order:") : c)))]
       .filter((c) => {
         if (c.length === 0 || !ownerGaveRatio(c, transcript)) return false;
+        // "Understood as" shows what they said: never a total the model added up ("Running costs: ₦1.84m"),
+        // and never an empty word standing in for it ("Also owed: named").
+        if (!amountFromOwner(c, ownerText)) return false;
+        if (/:\s*(named|noted|given|known|captured|recorded|mentioned|listed|yes|no|ok)\.?\s*$/i.test(c)) return false;
         const label = c.replace(/^Updated:\s*/, "").split(":")[0].trim();
         const slot = LABEL_SLOT[label];
         return !slot || read === "correction" || newThisTurn.has(slot);
@@ -1172,7 +1334,7 @@ export async function POST(request: NextRequest) {
           ? [`${clarifyN} out of 5`, `${clarifyN} out of 10`, `${clarifyN} out of 20`, "Not sure"]
           : ownChips
             ? chipsFor(ownChips, cur, merged)
-            : answerChips(parsed.chips, finalSlot, cur, merged);
+            : answerChips(parsed.chips, finalSlot, cur, merged, ownerText);
 
     const result: ChatTurnResult = {
       read,

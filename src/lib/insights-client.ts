@@ -66,6 +66,7 @@ export async function generateOwnerInsights(): Promise<boolean> {
           months,
           coaching: coachingContext(s.coach, OWN),
           challenges: challengeListForAi(),
+          transcript: s.checkup.transcript,
         }),
         months,
       }),

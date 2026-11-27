@@ -1,0 +1,124 @@
+{
+  "probes": [
+    {
+      "text": "Your rent is ₦3.6m and you have ₦700k in cash.",
+      "invented": false,
+      "note": "owner's own figures",
+      "flagged": [],
+      "pass": true
+    },
+    {
+      "text": "You have ₦700,000 now.",
+      "invented": false,
+      "note": "owner's figure, other format",
+      "flagged": [],
+      "pass": true
+    },
+    {
+      "text": "Takings of ₦55,000–70,000 a day over 26 days.",
+      "invented": false,
+      "note": "owner's range",
+      "flagged": [],
+      "pass": true
+    },
+    {
+      "text": "You could raise ₦5m from a new loan.",
+      "invented": true,
+      "note": "invented amount, ₦ + m",
+      "flagged": [
+        "₦5m"
+      ],
+      "pass": true
+    },
+    {
+      "text": "That is about N4.2m.",
+      "invented": true,
+      "note": "invented amount, N prefix",
+      "flagged": [
+        "N4.2m"
+      ],
+      "pass": true
+    },
+    {
+      "text": "You probably make about 1.5m a month after costs.",
+      "invented": true,
+      "note": "invented amount, bare m suffix",
+      "flagged": [],
+      "pass": false
+    },
+    {
+      "text": "Your margin is about 35%.",
+      "invented": true,
+      "note": "invented percentage",
+      "flagged": [
+        "35%"
+      ],
+      "pass": true
+    },
+    {
+      "text": "Expect around 2.2 million naira next month.",
+      "invented": true,
+      "note": "invented amount, words for the scale",
+      "flagged": [
+        "2.2 million"
+      ],
+      "pass": true
+    },
+    {
+      "text": "You could save three hundred thousand naira.",
+      "invented": true,
+      "note": "invented amount in words",
+      "flagged": [],
+      "pass": false
+    },
+    {
+      "text": "Sales are ₦1,820,000 a month.",
+      "invented": true,
+      "note": "derived figure not given (70k × 26)",
+      "flagged": [
+        "₦1,820,000"
+      ],
+      "pass": true
+    },
+    {
+      "text": "Raise prices by 15%.",
+      "invented": true,
+      "note": "a percentage the owner never gave",
+      "flagged": [
+        "15%"
+      ],
+      "pass": true
+    }
+  ],
+  "audit": [
+    {
+      "seq": 14,
+      "feature": "ask",
+      "figures": [
+        "600"
+      ]
+    },
+    {
+      "seq": 15,
+      "feature": "ask",
+      "figures": [
+        "600"
+      ]
+    },
+    {
+      "seq": 20,
+      "feature": "brief",
+      "figures": [
+        "₦120k",
+        "600"
+      ]
+    },
+    {
+      "seq": 21,
+      "feature": "insights",
+      "figures": [
+        "600"
+      ]
+    }
+  ]
+}

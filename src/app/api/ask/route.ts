@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAiSession } from "@/lib/ai-route-guard";
 import { completeText } from "@/lib/ai";
 import { extractJson, type AskAnswerContent, type AskWorkspaceContext } from "@/lib/checkup";
 import { DRAFT_KIND_ENUM, DRAFT_KIND_GUIDE, cleanDraftHint } from "@/lib/coach";
@@ -25,11 +26,14 @@ HOW TO ANSWER
 - Then give the reasoning from what they told you, their diagnosis and any numbers — specific, never generic.
 - When the question is about what to do, what to say or how to handle someone — or the answer means writing something (website words, an ad, a post, a product description, a bio, a flyer or sign, a brief for someone they'll hire, a reply to a review, a policy) — offer to write the words with "draft"; the app writes them only if they tap the button. Set its kind to WHAT IT MAKES:
 ${DRAFT_KIND_GUIDE}
-  Use "other" if none fits — never squeeze website words, a brief or an ad into an email or a message. Give it a button label naming what it makes ("Write the follow-up message", "Write the words for my homepage", "Write the developer brief") and the purpose (what the words are for and who reads them). Don't write the words yourself.
+  Use "other" if none fits — never squeeze website words, a brief or an ad into an email or a message. Give it a button label naming what it makes ("Write the follow-up message", "Write the words for my homepage", "Write the developer brief") and the purpose (what the words are for and who reads them). Don't write long pieces yourself.
+- When they ask for the words themselves — what exactly to say or write to someone ("what do I say to…", "what should I tell…", "write me…") — give them in "words": a short, ready-to-use version in their own voice (a message or what to say, 2-6 short sentences), built on their own figures, with [brackets] for anything you don't know. Still offer "draft" for a longer or polished version. Otherwise "words" is null. Words to someone they owe (a landlord, a supplier, a lender) ask for one clear thing — what they can pay now and when the rest follows ([amount] and [date] if they haven't said) — and never mention their other debts or the other people they owe: that weakens their hand.
 - If they are trying a step right now (WHAT THEY ARE TRYING RIGHT NOW in the context), connect your answer to it when it is relevant, in one short sentence; a few days in, you may lightly ask how it's going. Never nag, never more than one sentence about it.
 - Build on their diagnosis and plan: if they ask "what should I do?", start from the plan steps they have NOT done yet; if they did some, acknowledge it and move them forward.
 - If previous questions in this session are provided, build on them and move the conversation forward — never repeat earlier wording.
 - If the owner is FOLLOWING UP ON AN EARLIER ANSWER (that block is in the context), their question is about that answer: build on it, refer to it naturally in a few words ("On the showcase idea…"), and never repeat it back.
+- If their question tells you something you didn't know (that they already owe money, a date something is due, a new cost or problem), pick it up: say what it changes, and ask for the one missing detail that matters most (how much, and when it is due).
+- THE OWNER'S OWN WORDS IN THEIR CHECKUP are part of what you know: never say you don't know a figure or a fact they gave there.
 - If the snapshot cannot answer the question, say so plainly in one sentence, give your best reasoning from what they DID tell you, and name the cheapest way to find out (e.g. "count the next 10 people who ask").
 - Offer 2-3 natural next questions THEY might ask you next, in their voice ("How do I follow up without sounding pushy?").
 - NOTICING A NEW CHALLENGE: if the question describes a NEW problem holding the business back that is not already on THEIR CHALLENGES list (for example something that just started going wrong, or a problem they hadn't mentioned), answer it as usual AND set "newChallenge" — the problem in their own words, its stage, and "sameAs": the id of a challenge on their list only if it is really the same problem seen from another angle. Never for a question that only asks how to do something, and never for a challenge already on the list.
@@ -45,6 +49,7 @@ Return ONLY valid JSON, no markdown:
   "grounded": ["2-3 short paragraphs (strings). Paragraph 1: the direct answer. Paragraph 2+: the reasoning."],
   "interpretation": "optional: 1-2 sentences — the pattern you see or the likely real cause",
   "draft": { "kind": "${DRAFT_KIND_ENUM}", "label": "button text naming what it makes, <= 40 chars", "purpose": "what the words are for and who reads them, 1 sentence" } or null,
+  "words": { "title": "<= 60 chars, what these words are, e.g. 'What to say when you call'", "body": "the words, ready to use" } or null,
   "limitations": ["0-2 short strings in your own voice ('I don't know yet how many…', never 'We don't know'): what is genuinely unknown and would change the answer"],
   "evidence": [
     { "label": "short label", "value": "the exact number or short fact", "provenance": "measured|user-supplied|estimated|ai-interpretation", "source": "e.g. 'Your checkup answers', 'Your diagnosis', 'Owner-entered totals', 'Meta Ads (connected)'" }
@@ -60,6 +65,10 @@ Rules:
 const HISTORY_TURNS = 4;
 
 export async function POST(request: NextRequest) {
+  // Paid AI: signed-in accounts only, with a per-account limit.
+  const guard = await requireAiSession("ask");
+  if (guard.response) return guard.response;
+
   try {
     const body = (await request.json()) as {
       question?: string;
@@ -114,8 +123,12 @@ export async function POST(request: NextRequest) {
     const ownerText = [question, ...history.map((h) => h.question), ...(replyTo ? [replyTo.question] : [])].join("\n");
     // The only figures an answer may use: what is in the context and the snapshot.
     const allowed = collectAllowedNumbers(prompt);
+    const wordsOf = (p: Partial<AskAnswerContent>) => {
+      const w = (p as { words?: { body?: unknown } }).words;
+      return w && typeof w.body === "string" ? w.body : "";
+    };
     const inventedIn = (p: Partial<AskAnswerContent>) =>
-      [...(p.grounded ?? []), p.interpretation ?? ""].flatMap((t) => ungroundedNumbers(String(t ?? ""), allowed));
+      [...(p.grounded ?? []), p.interpretation ?? "", wordsOf(p)].flatMap((t) => ungroundedNumbers(String(t ?? ""), allowed));
 
     let parsed: Partial<AskAnswerContent> | null = null;
     let feedback = "";
@@ -148,11 +161,14 @@ export async function POST(request: NextRequest) {
     if (inventedIn(parsed).length > 0) {
       const grounded = parsed.grounded.map((g) => dropUngroundedSentences(String(g), allowed)).filter((g) => g.length > 0);
       if (grounded.length > 0) {
+        // Words to send with an untraceable figure are left out entirely (the draft button still offers them).
+        const words = (parsed as { words?: unknown }).words;
         parsed = {
           ...parsed,
           grounded,
           interpretation: parsed.interpretation ? dropUngroundedSentences(parsed.interpretation, allowed) || undefined : undefined,
-        };
+          ...(words && ungroundedNumbers(wordsOf(parsed), allowed).length ? { words: null } : {}),
+        } as Partial<AskAnswerContent>;
       } else {
         verified = false;
       }
@@ -167,14 +183,25 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/** The ready-to-use words in an answer, or null. Kept in the owner's voice; never signed as Nellovia. */
+function cleanWords(raw: unknown, ownerText: string): { title: string; body: string } | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as { title?: unknown; body?: unknown };
+  const body = typeof o.body === "string" ? plainify(o.body.replace(/\r/g, "").trim(), ownerText).slice(0, 900) : "";
+  if (body.length < 20 || /\bnellovia\b/i.test(body)) return null;
+  const title = typeof o.title === "string" && o.title.trim() ? plainify(o.title.trim(), ownerText).slice(0, 70) : "What to say";
+  return { title, body };
+}
+
 function normalizeAnswer(parsed: Partial<AskAnswerContent>, ownerText: string): AskAnswerContent {
   const plain = (s: string, cap: number) => plainify(s.replace(/\s+\n/g, "\n").trim(), ownerText).slice(0, cap);
   return {
     grounded: parsed.grounded!.filter((g) => typeof g === "string" && g.trim()).map((g) => plain(String(g), 800)).slice(0, 5),
     interpretation:
       typeof parsed.interpretation === "string" && parsed.interpretation.trim().length > 0 ? plain(parsed.interpretation, 500) : undefined,
-    tryThis: null,
-    // The words themselves are written on request (POST /api/draft), grounded there.
+    // Asked for the words themselves: a short version right here, checked like the rest of the answer.
+    tryThis: cleanWords((parsed as { words?: unknown }).words, ownerText),
+    // Longer or polished words are written on request (POST /api/draft), grounded there.
     draft: cleanDraftHint((parsed as { draft?: unknown }).draft),
     limitations: Array.isArray(parsed.limitations)
       ? parsed.limitations.filter((l) => typeof l === "string" && l.trim()).map((l) => plain(String(l), 180)).slice(0, 3)
