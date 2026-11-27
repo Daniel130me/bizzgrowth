@@ -39,7 +39,7 @@ import {
 } from "./coach";
 import { computeStake, currencySymbol, shorten, tidyOwnerText } from "./checkup-math";
 import { applyMoneyUpdates, moneyLinesForPrompt } from "./checkup-money";
-import { logChanges, setNumber, type NumberEntry, type NumberInput, type NumberSource } from "./number-log";
+import { logChanges, logCorrection, logRemoval, removeNumber, setNumber, type NumberEntry, type NumberInput, type NumberSource } from "./number-log";
 import {
   isOpen,
   outcomeFor,
@@ -257,8 +257,13 @@ interface BizzState {
   updateCheckupFacts: (facts: BusinessFacts) => void;
   /** Add answers to the facts and swap in an updated diagnosis in one step (no regeneration). */
   patchCheckupFacts: (patch: Partial<BusinessFacts>, diagnosis?: DiagnosisContent, source?: NumberSource) => void;
-  /** The owner corrects one of their numbers (or marks a payment paid) where it is shown. False when nothing changed. */
-  correctNumber: (key: string, input: NumberInput) => boolean;
+  /**
+   * The owner corrects one of their numbers (or marks a payment paid) where it is shown. "mistake" fixes
+   * a wrong figure (no history, never read as a change in the business). False when nothing changed.
+   */
+  correctNumber: (key: string, input: NumberInput, kind?: "change" | "mistake") => boolean;
+  /** The owner removes one of their numbers. Returns an undo, or null when there was nothing to remove. */
+  removeOwnerNumber: (key: string) => (() => void) | null;
   setCheckupDiagnosis: (diagnosis: DiagnosisContent) => void;
   setImprovedDiagnosis: (improved: ImprovedDiagnosis) => void;
   setAiInsights: (items: Insight[]) => void;
@@ -331,6 +336,32 @@ function persistAi(state: { aiInsights: Insight[]; aiBrief: Brief | null }) {
   try {
     localStorage.setItem(AI_KEY, JSON.stringify({ aiInsights: state.aiInsights, aiBrief: state.aiBrief }));
   } catch {}
+}
+
+/**
+ * The owner changed their numbers by hand (corrected, removed): the read's words stay, and
+ * everything worked out in code from those figures — the money picture, what's at stake — is
+ * worked out again.
+ */
+function setOwnerNumbers(
+  s: { checkup: CheckupState; userWorkspace: UserWorkspaceMeta | null },
+  before: BusinessFacts,
+  facts: BusinessFacts,
+  numberLog: NumberEntry[],
+  key: string,
+) {
+  const cur = currencySymbol(s.userWorkspace?.currency);
+  let diagnosis = s.checkup.diagnosis;
+  if (diagnosis && facts.money !== before.money) {
+    const lines = facts.money ? moneyLinesForPrompt(facts.money, cur) : [];
+    diagnosis = { ...diagnosis, money: lines.length ? lines : undefined };
+  }
+  if (diagnosis?.stake && (key === "closeRate" || key === "monthlyEnquiries" || key === "jobValue")) {
+    diagnosis = { ...diagnosis, stake: computeStake(facts, cur, diagnosis.focusStage ?? "convert") };
+  }
+  const checkup: CheckupState = { ...s.checkup, facts, diagnosis, numberLog };
+  useBizz.setState({ checkup });
+  persistCheckup({ userWorkspace: s.userWorkspace, checkup });
 }
 
 function persistCheckup(state: { userWorkspace: UserWorkspaceMeta | null; checkup: CheckupState }) {
@@ -1438,27 +1469,33 @@ export const useBizz = create<BizzState>((set, get) => ({
     persistChallenges(get());
     if (steps !== s.coach.steps) persistCoach(get());
   },
-  correctNumber: (key, input) => {
+  correctNumber: (key, input, kind = "change") => {
     const s = get();
     const before = s.checkup.facts;
     if (!before) return false;
     const now = new Date().toISOString();
     const facts = setNumber(before, key, input, now);
     if (!facts) return false;
-    // The read's words stay; everything worked out in code is worked out again from the new figure.
-    const cur = currencySymbol(s.userWorkspace?.currency);
-    let diagnosis = s.checkup.diagnosis;
-    if (diagnosis && facts.money && facts.money !== before.money) {
-      const lines = moneyLinesForPrompt(facts.money, cur);
-      diagnosis = { ...diagnosis, money: lines.length ? lines : undefined };
-    }
-    if (diagnosis?.stake && (key === "closeRate" || key === "monthlyEnquiries" || key === "jobValue")) {
-      diagnosis = { ...diagnosis, stake: computeStake(facts, cur, diagnosis.focusStage ?? "convert") };
-    }
-    const checkup: CheckupState = { ...s.checkup, facts, diagnosis, numberLog: logChanges(s.checkup.numberLog, before, facts, "you", now) };
-    set({ checkup });
-    persistCheckup({ userWorkspace: s.userWorkspace, checkup });
+    // A fixed mistake replaces the wrong figure with no history; a change keeps what it was.
+    const numberLog = kind === "mistake" ? logCorrection(s.checkup.numberLog, before, facts, now) : logChanges(s.checkup.numberLog, before, facts, "you", now);
+    setOwnerNumbers(s, before, facts, numberLog, key);
     return true;
+  },
+  removeOwnerNumber: (key) => {
+    const s = get();
+    const before = s.checkup.facts;
+    if (!before) return null;
+    const facts = removeNumber(before, key);
+    if (!facts) return null;
+    const snapshot = s.checkup;
+    setOwnerNumbers(s, before, facts, logRemoval(s.checkup.numberLog, before, key, new Date().toISOString()), key);
+    // Undo puts back exactly what was there (the figure, its history, the worked-out money).
+    return () => {
+      const now = get();
+      const checkup: CheckupState = { ...now.checkup, facts: snapshot.facts, diagnosis: snapshot.diagnosis, numberLog: snapshot.numberLog };
+      set({ checkup });
+      persistCheckup({ userWorkspace: now.userWorkspace, checkup });
+    };
   },
   patchCheckupFacts: (patch, diagnosis, source = "you") => {
     const s = get();

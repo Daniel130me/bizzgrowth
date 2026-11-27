@@ -42,6 +42,7 @@ import { EmptyState } from "@/components/shared/states";
 import { InfoBanner, PageHeader, SectionCard } from "@/components/shared/layout";
 import { ProvenanceBadge } from "@/components/shared/badges";
 import { useBizz } from "@/lib/store";
+import { backTarget } from "@/lib/router";
 import { getBusiness } from "@/lib/data/businesses";
 import { MANUAL_ENTRIES } from "@/lib/data/operations";
 import { recentMonthLabels } from "@/lib/data/user-business";
@@ -80,6 +81,21 @@ type BusinessTypeKey = "service" | "ecommerce";
 type Precision = "exact" | "approximate" | "range";
 
 // ---------- Screen 57 — Manual Data Entry ----------
+
+/** "Back to Performance" — where Back goes, said plainly. */
+function backLabel(route: string): string {
+  const names: Record<string, string> = {
+    performance: "Performance",
+    home: "Home",
+    data: "Data Centre",
+    "manual-history": "manual entries",
+    insights: "Insights",
+    "setup-complete": "setup",
+    integrations: "sources",
+  };
+  const page = names[route.split("/")[0]];
+  return page ? `Back to ${page}` : "Back";
+}
 
 function ManualEntryScreen() {
   const businessId = useBizz((s) => s.businessId);
@@ -148,8 +164,12 @@ function ManualEntryScreen() {
           ? `${approximate} value${approximate > 1 ? "s" : ""} labelled as approximate and marked in analysis.`
           : "Values are labelled User supplied in analysis.",
     });
-    navigate("manual-history");
+    // Back to where they came from (Performance, Home, Data…), where the new totals show.
+    navigate(backTarget("manual-entry", "manual-history"));
   }
+
+  // Cancel and Back return to the page they came from; opened directly, to the list of entries.
+  const returnTo = backTarget("manual-entry", "manual-history");
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -157,8 +177,8 @@ function ManualEntryScreen() {
         title="Enter monthly totals"
         description="Aggregate totals only — no customer-level data needed. Values appear in analysis labelled as user supplied."
         back={
-          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate("manual-history")}>
-            Back to manual entries
+          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(returnTo)}>
+            {backLabel(returnTo)}
           </Button>
         }
       />
@@ -250,7 +270,7 @@ function ManualEntryScreen() {
         <Button onClick={save} className="flex-1">
           Save {period} totals
         </Button>
-        <Button variant="ghost" className="flex-1" onClick={() => navigate("manual-history")}>
+        <Button variant="ghost" className="flex-1" onClick={() => navigate(returnTo)}>
           Cancel
         </Button>
       </div>

@@ -10,10 +10,38 @@ export function readHashPath(): string {
   return raw.length ? raw : "landing";
 }
 
+// Which page each page was opened from, so Cancel and Back return there (kept for the tab's
+// session, so a reload doesn't lose it).
+const CAME_FROM_KEY = "nellovia-came-from";
+
+function cameFromMap(): Record<string, string> {
+  try {
+    return JSON.parse(sessionStorage.getItem(CAME_FROM_KEY) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
 export function navigate(path: string) {
   if (typeof window === "undefined") return;
   const clean = path.replace(/^#\/?/, "");
+  const here = readHashPath();
+  if (here !== clean) {
+    try {
+      sessionStorage.setItem(CAME_FROM_KEY, JSON.stringify({ ...cameFromMap(), [clean]: here }));
+    } catch {}
+  }
   window.location.hash = `#/${clean}`;
+}
+
+/**
+ * Where Cancel or Back should go from `current`: the page it was opened from, or `fallback`
+ * when it was opened directly (a link, a reload of a fresh tab).
+ */
+export function backTarget(current: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const from = cameFromMap()[current];
+  return from && from !== current && from !== "landing" ? from : fallback;
 }
 
 /** Like navigate, without a new history entry — for a tab or view on the same page, so Back leaves the page. */

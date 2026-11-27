@@ -7,7 +7,7 @@
 
 import type { MoneyFacts, MoneyPeriod, MoneyUpdates } from "./checkup";
 import { amountFromOwner } from "./checkup-turn";
-import { formatMoney, formatMoneyRange, parseAmount, wordsToDigits, type Range } from "./checkup-math";
+import { foreignCurrency, formatMoney, formatMoneyRange, parseAmount, wordsToDigits, type Range } from "./checkup-math";
 
 /**
  * The owner has a payment they can't cover, or owes money that is due: rent,
@@ -130,9 +130,10 @@ export interface MoneyFindings {
   statedTooHigh: boolean;
 }
 
-export function moneyFindings(money: MoneyFacts | null | undefined): MoneyFindings {
+export function moneyFindings(given: MoneyFacts | null | undefined, cur = ""): MoneyFindings {
   const none = { losesMoney: false, statedTooHigh: false };
-  if (!money) return none;
+  if (!given) return none;
+  const { money } = homeCurrencyOnly(given, cur);
   const inRange = money.moneyIn ? parseAmount(money.moneyIn.amount) : null;
   const monthlyIn = money.moneyIn && inRange ? perMonth(inRange, money.moneyIn.per, money.moneyIn.daysOpen) : null;
   const costs = money.costs.map((c) => ({ r: parseAmount(c.amount), per: c.per })).filter((c): c is { r: Range; per: MoneyPeriod } => c.r !== null);
@@ -149,8 +150,8 @@ export function moneyFindings(money: MoneyFacts | null | undefined): MoneyFindin
  * The instruction that goes with those findings: they are the insight the owner hasn't
  * connected, and they challenge "it's only timing" — so the answer must say them, kindly.
  */
-export function moneyFindingsBlock(money: MoneyFacts | null | undefined): string {
-  const f = moneyFindings(money);
+export function moneyFindingsBlock(money: MoneyFacts | null | undefined, cur = ""): string {
+  const f = moneyFindings(money, cur);
   if (!f.losesMoney && !f.statedTooHigh) return "";
   return [
     "WHAT THEIR OWN FIGURES SHOW THAT THEY MAY NOT HAVE CONNECTED (from the COMPUTED lines — say it plainly and kindly; it is more important than how they explained the problem):",
@@ -168,9 +169,12 @@ export function moneyFindingsBlock(money: MoneyFacts | null | undefined): string
  * and when, the cash they have and the gap, and — when they gave money in and
  * their costs — what is left each month before those payments.
  */
-export function moneyLinesForPrompt(money: MoneyFacts | null | undefined, cur: string): string[] {
-  if (!money) return [];
+export function moneyLinesForPrompt(given: MoneyFacts | null | undefined, cur: string): string[] {
+  if (!given) return [];
   const lines: string[] = [];
+  // Only amounts in their own currency are added up; others are named, never converted.
+  const { money, leftOut } = homeCurrencyOnly(given, cur);
+  if (leftOut.length) lines.push(`Not added up, because it is not in ${cur} (Nellovia never converts currencies): ${leftOut.join("; ")}.`);
 
   // What is still due (paid items are done), against the cash they have.
   const paid = money.due.filter((d) => d.status === "paid").map((d) => d.what.trim());
@@ -288,12 +292,13 @@ const str = (v: unknown, cap: number): string | undefined => (typeof v === "stri
  * every amount is one the owner typed, a change to a payment names one on their list
  * (a new one needs their amount), periods are real. Null when nothing is left.
  */
-export function cleanMoneyUpdates(raw: unknown, money: MoneyFacts | null | undefined, ownerText: string): MoneyUpdates | null {
+export function cleanMoneyUpdates(raw: unknown, money: MoneyFacts | null | undefined, ownerText: string, cur = ""): MoneyUpdates | null {
   if (!money || !raw || typeof raw !== "object" || !ownerText.trim()) return null;
   const r = raw as Record<string, unknown>;
   const theirs = (v: unknown, cap = 60): string | undefined => {
     const s = str(v, cap);
-    return s && /\d/.test(s) && amountFromOwner(s, ownerText) ? s : undefined;
+    // Their own figure, in their own currency (one in another currency is never recorded or converted).
+    return s && /\d/.test(s) && amountFromOwner(s, ownerText) && !(cur && foreignCurrency(s, cur)) ? s : undefined;
   };
   const out: MoneyUpdates = {};
 
@@ -367,5 +372,30 @@ export function applyMoneyUpdates(money: MoneyFacts, u: MoneyUpdates | null | un
     // A new sales figure keeps their open days (it is the same shop, a different week).
     ...(u.moneyIn ? { moneyIn: { ...u.moneyIn, ...(money.moneyIn?.daysOpen && u.moneyIn.per === "day" ? { daysOpen: money.moneyIn.daysOpen } : {}) } } : {}),
     ...(u.pricesChanged ? { pricesChanged: u.pricesChanged } : {}),
+  };
+}
+
+/**
+ * Their money with every amount in another currency taken out of the sums (never converted),
+ * and a note naming what was left out — so "$500" is never added to naira as if it were ₦500.
+ */
+export function homeCurrencyOnly(money: MoneyFacts, cur: string): { money: MoneyFacts; leftOut: string[] } {
+  if (!cur) return { money, leftOut: [] };
+  const leftOut: string[] = [];
+  const foreign = (label: string, amount: string | undefined) => {
+    if (!amount || !foreignCurrency(amount, cur)) return false;
+    leftOut.push(`${label} ${amount.trim()}`);
+    return true;
+  };
+  return {
+    money: {
+      ...money,
+      due: money.due.map((d) => (foreign(d.what.trim(), d.amount) ? { ...d, amount: undefined } : d)),
+      cashNow: foreign("Cash now", money.cashNow) ? undefined : money.cashNow,
+      moneyIn: money.moneyIn && foreign("Money coming in", money.moneyIn.amount) ? undefined : money.moneyIn,
+      costs: money.costs.filter((c) => !foreign(c.what.trim(), c.amount)),
+      statedMonthlySales: foreign("Monthly sales they mentioned", money.statedMonthlySales) ? undefined : money.statedMonthlySales,
+    },
+    leftOut,
   };
 }

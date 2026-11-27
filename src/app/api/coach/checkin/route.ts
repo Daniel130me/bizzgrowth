@@ -27,7 +27,7 @@ import { NUMBER_RULES, VOICE_RULES, formatBusinessContext } from "@/lib/ai-voice
 import { collectAllowedNumbers, ungroundedNumbers } from "@/lib/grounding";
 import { getSession } from "@/lib/auth/session";
 import { measuredContext } from "@/lib/connectors/summary";
-import { plainify } from "@/lib/checkup-math";
+import { currencySymbol, plainify } from "@/lib/checkup-math";
 import { cleanMoneyUpdates } from "@/lib/checkup-money";
 import { CLEAR_PROBLEM_RE, cleanNoticed, stageOfText, templateOutsideStep } from "@/lib/challenges";
 
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
   // Only their own typed words can reveal a new problem (a tapped answer can't).
   const typedText = answers.filter((a) => a.typed).map((a) => a.answer).join("\n");
   // Money that changed, in their own typed words only — every amount checked against what they wrote.
-  const moneyUpdates = parsed && facts?.money ? cleanMoneyUpdates(parsed.moneyUpdates, facts.money, typedText) : null;
+  const moneyUpdates = parsed && facts?.money ? cleanMoneyUpdates(parsed.moneyUpdates, facts.money, typedText, currencySymbol(body.currency)) : null;
   let newChallenge = parsed && typedText ? cleanNoticed(parsed.newChallenge, typedText, list) : null;
   // The model missed it, but they plainly typed that something went wrong ("the generator broke",
   // "my helper quit"): offer it anyway, in their own words — they can say "Not now".

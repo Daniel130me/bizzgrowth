@@ -21,6 +21,15 @@ export interface NumberEntry {
   source: NumberSource;
   /** For a payment: paid off, or on a plan. */
   status?: DueItem["status"];
+  /**
+   * A fixed mistake, not a change in the business: the value before it was wrong. Never read
+   * a correction as the business doing better or worse.
+   */
+  correction?: true;
+  /** This value turned out to be a mistake (fixed later). Kept for the record, never shown as history. */
+  wrong?: true;
+  /** The owner removed this number. */
+  removed?: true;
 }
 
 /** At most this many entries are kept (oldest go first); plenty for years of check-ins. */
@@ -103,6 +112,8 @@ export interface NumberRow {
   source: NumberSource;
   /** When the current value was recorded; absent when not known. */
   at?: string;
+  /** The current value fixed a mistake (so nothing changed in the business). */
+  corrected?: boolean;
   /** Earlier values, newest first (the current one is not repeated). */
   history: { value: string; at?: string; source: NumberSource }[];
 }
@@ -114,8 +125,10 @@ export interface NumberRow {
 export function numberRows(facts: BusinessFacts | null | undefined, log: NumberEntry[] | undefined): NumberRow[] {
   const entries = log ?? [];
   return numbersFromFacts(facts).map((n) => {
-    // Repeats of the same value in a row say nothing new.
-    const mine = entries.filter((e) => e.key === n.key).filter((e, i, arr) => i === 0 || e.value !== arr[i - 1].value);
+    // Mistakes and removals are not part of a number's story; repeats of the same value say nothing new.
+    const mine = entries
+      .filter((e) => e.key === n.key && !e.wrong && !e.removed)
+      .filter((e, i, arr) => i === 0 || e.value !== arr[i - 1].value);
     const last = mine[mine.length - 1];
     // The log agrees with the facts: the current value is its last entry.
     const current = last && last.value === n.value ? last : null;
@@ -126,6 +139,7 @@ export function numberRows(facts: BusinessFacts | null | undefined, log: NumberE
       // log (an older version of the app): shown as theirs, undated.
       source: current?.source ?? (mine.length ? "you" : "checkup"),
       at: current?.at,
+      ...(current?.correction ? { corrected: true } : {}),
       history: earlier.reverse().map((e) => ({ value: e.value, at: e.at, source: e.source })),
     };
   });
@@ -212,4 +226,47 @@ export function setNumber(f: BusinessFacts, key: string, input: NumberInput, at:
   if (key.startsWith("cost:")) return { ...f, money: { ...m, costs: m.costs.map((c) => (`cost:${slug(c.what)}` === key ? { ...c, amount: value } : c)) } };
   if (key.startsWith("due:")) return { ...f, money: { ...m, due: m.due.map((d) => (`due:${slug(d.what)}` === key ? { ...d, amount: value, updatedAt: at } : d)) } };
   return null;
+}
+
+/** Numbers that are amounts of money (read and shown in full), as opposed to counts or words. */
+export function isMoneyNumber(key: string): boolean {
+  return ["cashNow", "moneyIn", "statedMonthlySales", "jobValue"].includes(key) || key.startsWith("cost:") || key.startsWith("due:");
+}
+
+/**
+ * A mistake fixed: the new value replaces the wrong one as if it had always been right. The
+ * wrong value is marked wrong (kept for the record, never shown as history), no "was …" is
+ * added, and the entry is a correction — so it is never read as a change in the business.
+ */
+export function logCorrection(log: NumberEntry[] | undefined, prev: BusinessFacts | null | undefined, next: BusinessFacts | null | undefined, at: string): NumberEntry[] {
+  const changes = diffNumbers(prev, next, "you", at).map((c) => ({ ...c, correction: true as const }));
+  if (!changes.length) return log ?? [];
+  const entries = [...(log ?? [])];
+  for (const key of new Set(changes.map((c) => c.key))) {
+    // The wrong value is the latest one recorded for this number.
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (entries[i].key !== key || entries[i].removed) continue;
+      entries[i] = { ...entries[i], wrong: true };
+      break;
+    }
+  }
+  return appendNumbers(entries, changes);
+}
+
+/** Their facts without one number (a payment or cost leaves the list). Null when there is nothing to remove. */
+export function removeNumber(f: BusinessFacts, key: string): BusinessFacts | null {
+  if (!numbersFromFacts(f).some((n) => n.key === key)) return null;
+  if (key === "monthlyEnquiries" || key === "closeRate" || key === "jobValue") return { ...f, [key]: undefined };
+  const m = f.money;
+  if (!m) return null;
+  if (key === "cashNow" || key === "statedMonthlySales" || key === "platformFees" || key === "moneyIn") return { ...f, money: { ...m, [key]: undefined } };
+  if (key.startsWith("cost:")) return { ...f, money: { ...m, costs: m.costs.filter((c) => `cost:${slug(c.what)}` !== key) } };
+  if (key.startsWith("due:")) return { ...f, money: { ...m, due: m.due.filter((d) => `due:${slug(d.what)}` !== key) } };
+  return null;
+}
+
+/** The log with a removal recorded (the value it had, marked removed). */
+export function logRemoval(log: NumberEntry[] | undefined, prev: BusinessFacts, key: string, at: string): NumberEntry[] {
+  const n = numbersFromFacts(prev).find((x) => x.key === key);
+  return n ? appendNumbers(log, [{ ...n, at, source: "you", removed: true }]) : log ?? [];
 }

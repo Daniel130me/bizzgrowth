@@ -22,40 +22,86 @@ export interface Range {
   high: number;
 }
 
-const WORD_NUMBERS: Record<string, number> = {
-  zero: 0,
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-  eleven: 11,
-  twelve: 12,
-  thirteen: 13,
-  fourteen: 14,
-  fifteen: 15,
-  sixteen: 16,
-  seventeen: 17,
-  eighteen: 18,
-  nineteen: 19,
-  twenty: 20,
-  thirty: 30,
-  forty: 40,
-  fifty: 50,
-  hundred: 100,
+const UNIT_WORDS: Record<string, number> = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
 };
+/** Scales owners use: thousand, million, billion — and lakh (100,000) and crore (10,000,000). */
+const SCALE_WORDS: Record<string, number> = { thousand: 1e3, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, million: 1e6, crore: 1e7, crores: 1e7, billion: 1e9 };
+const RUN_WORDS = [...Object.keys(UNIT_WORDS), "hundred", ...Object.keys(SCALE_WORDS), "and", "a", "an", "half"].join("|");
+const RUN_RE = new RegExp(`\\b(?:${RUN_WORDS})\\b(?:[\\s-]+(?:${RUN_WORDS})\\b)*`, "gi");
 
-/** "two out of five" -> "2 out of 5" */
+/** One run of number words ("nine hundred and sixty thousand") as digits; other words kept as they were. */
+function spelledRun(run: string): string {
+  const orig = run.split(/[\s-]+/);
+  const words = orig.map((w) => w.toLowerCase());
+  const out: string[] = [];
+  let total = 0;
+  let current = 0;
+  let has = false;
+  let half = false;
+  let prevUnit: number | null = null;
+  let afterBig = false; // just read "hundred" or a scale: an "and" next joins the number
+  const flush = () => {
+    if (has) out.push(String(total + current));
+    total = 0;
+    current = 0;
+    has = false;
+    half = false;
+    prevUnit = null;
+    afterBig = false;
+  };
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const next = words[i + 1];
+    const bigNext = next === "hundred" || (next !== undefined && next in SCALE_WORDS);
+    if (w in UNIT_WORDS) {
+      const v = UNIT_WORDS[w];
+      // "twenty one" is 21; "one two" are two numbers.
+      if (prevUnit !== null && !(prevUnit >= 20 && prevUnit % 10 === 0 && v < 10)) flush();
+      current += v;
+      has = true;
+      prevUnit = v;
+      afterBig = false;
+    } else if (w === "hundred" && has) {
+      current = (current || 1) * 100;
+      prevUnit = null;
+      afterBig = true;
+    } else if (w in SCALE_WORDS && (has || half)) {
+      // "half a million" is 500,000.
+      total += (current || 1) * (half ? 0.5 : 1) * SCALE_WORDS[w];
+      current = 0;
+      half = false;
+      has = true;
+      prevUnit = null;
+      afterBig = true;
+    } else if ((w === "a" || w === "an") && bigNext) {
+      if (!half) flush();
+      current = 1;
+      has = true;
+      prevUnit = null;
+    } else if (w === "half" && (next === "a" || next === "an" || bigNext)) {
+      flush();
+      half = true;
+    } else if (w === "and" && has && afterBig && next !== undefined && (next in UNIT_WORDS || next === "hundred")) {
+      continue;
+    } else {
+      // Not part of a number here ("a lot", "and", a scale after digits like "50 thousand").
+      flush();
+      out.push(orig[i]);
+    }
+  }
+  flush();
+  return out.join(" ");
+}
+
+/**
+ * Number words to digits: "two out of five" -> "2 out of 5", "nine hundred and sixty
+ * thousand" -> "960000", "half a million" -> "500000", "three lakh" -> "300000".
+ */
 export function wordsToDigits(text: string): string {
-  return text.replace(
-    /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred)\b/gi,
-    (w) => String(WORD_NUMBERS[w.toLowerCase()]),
-  );
+  return text.replace(RUN_RE, (run) => spelledRun(run));
 }
 
 function validRatio(won: number, of: number): Ratio | null {
@@ -90,11 +136,14 @@ export function isBareNumber(raw: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-const NUM_RE = /(\d+(?:\.\d+)?)\s*(k\b|thousand|mil\b|million|m\b|bn\b|b\b|billion)?/g;
+const NUM_RE = /(\d+(?:\.\d+)?)\s*(k\b|thousand|hundred\b|lakhs?\b|lacs?\b|crores?\b|mil\b|million|m\b|bn\b|b\b|billion)?/g;
 
 function scaleFor(suffix: string | undefined): number {
   const s = (suffix ?? "").toLowerCase();
   if (s.startsWith("k") || s.startsWith("thousand")) return 1e3;
+  if (s.startsWith("hundred")) return 100;
+  if (s.startsWith("lak") || s.startsWith("lac")) return 1e5;
+  if (s.startsWith("crore")) return 1e7;
   if (s.startsWith("bn") || s === "b" || s.startsWith("billion")) return 1e9;
   if (s.startsWith("m")) return 1e6;
   return 1;
@@ -105,6 +154,13 @@ function numbersIn(t: string): number[] {
   // "50 to 200k" — the first number borrows the second's scale.
   if (tokens.length >= 2 && tokens[0].scale === 1 && tokens[1].scale > 1 && tokens[0].value < 1000) {
     tokens[0].scale = tokens[1].scale;
+  } else if (tokens.length >= 2 && tokens[0].scale === 1 && tokens[0].value < 1000) {
+    // "fifty to seventy thousand" arrives as "50 to 70000": the same borrowing, when it fits
+    // (50 thousand is below 70 thousand, and close to it) — "₦500 to ₦70,000" is left alone.
+    const second = tokens[1].value * tokens[1].scale;
+    const s = second >= 1e9 ? 1e9 : second >= 1e6 ? 1e6 : second >= 1e3 ? 1e3 : 1;
+    const first = tokens[0].value * s;
+    if (s > 1 && first <= second && first * 100 >= second) tokens[0].scale = s;
   }
   return tokens.map((x) => x.value * x.scale).filter((v) => Number.isFinite(v));
 }
@@ -409,4 +465,64 @@ export function shorten(text: string, cap: number): string {
   const cut = clean.slice(0, cap - 1);
   const space = cut.lastIndexOf(" ");
   return `${(space > cap * 0.5 ? cut.slice(0, space) : cut).replace(/[\s,;:–-]+$/, "")}…`;
+}
+
+/**
+ * Amounts in a piece of text written out in full, so the owner sees exactly what was understood:
+ * "300k" -> "₦300,000", "₦3.6m, in 9 days" -> "₦3,600,000, in 9 days", "fifty to seventy
+ * thousand a day" -> "₦50,000 to ₦70,000 a day". Counts and percentages ("26 days", "20%")
+ * are left alone. For display only — what the owner typed is what is stored.
+ */
+export function amountInFull(text: string, cur: string): string {
+  const t = wordsToDigits(text);
+  const re = /(?:([₦$£€₵¥₹])\s?|\b([Nn])(?=\d))?(\d[\d,]*(?:\.\d+)?)(\s?(?:k|m|bn|b|thousand|hundred|lakhs?|lacs?|crores?|million|billion)\b)?(\s+(?:naira|ngn|cedis?|ghs|kes|shillings?|rand|zar|usd|dollars?|pounds?|euros?)\b)?/gi;
+  const toks: { start: number; end: number; value: number; sign?: string; money: boolean }[] = [];
+  for (const m of t.matchAll(re)) {
+    const raw = Number(m[3].replace(/,/g, ""));
+    if (!Number.isFinite(raw)) continue;
+    const value = raw * (m[4] ? scaleFor(m[4].trim()) : 1);
+    // "%" right after means a percentage, never money.
+    if (t[(m.index ?? 0) + m[0].length] === "%") continue;
+    toks.push({ start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, value, sign: m[1], money: Boolean(m[1] || m[2] || m[4] || m[5]) || value >= 1000 });
+  }
+  // "50 to 70000" (from "fifty to seventy thousand"): the first borrows the second's scale when it fits.
+  for (let i = 0; i + 1 < toks.length; i++) {
+    const a = toks[i];
+    const b = toks[i + 1];
+    if (a.money || !b.money || !/^\s*(?:to|-|–|and|or)\s*$/i.test(t.slice(a.end, b.start))) continue;
+    const s = b.value >= 1e9 ? 1e9 : b.value >= 1e6 ? 1e6 : b.value >= 1e3 ? 1e3 : 1;
+    if (s > 1 && a.value * s <= b.value && a.value * s * 100 >= b.value) Object.assign(a, { value: a.value * s, money: true, sign: b.sign });
+  }
+  let out = "";
+  let pos = 0;
+  for (const k of toks) {
+    if (!k.money) continue;
+    out += `${t.slice(pos, k.start)}${k.sign ?? cur}${Math.round(k.value).toLocaleString("en-US")}`;
+    pos = k.end;
+  }
+  return out + t.slice(pos);
+}
+
+// How each currency is written: its sign, codes and words. "N960k" is naira, "R500" is rand.
+const CURRENCY_MARKS: { sign: string; re: RegExp }[] = [
+  { sign: "₦", re: /₦|\bngn\b|\bnaira\b|(?:^|[^a-z])n(?=\d)/i },
+  { sign: "₵", re: /₵|gh¢|\bghs\b|\bcedis?\b/i },
+  { sign: "$", re: /\$|\busd\b|\bdollars?\b/i },
+  { sign: "£", re: /£|\bgbp\b|\bpounds?\b/i },
+  { sign: "€", re: /€|\beur\b|\beuros?\b/i },
+  { sign: "KSh", re: /\bksh\b|\bkes\b|\bshillings?\b/i },
+  { sign: "R", re: /\bzar\b|\brand\b|(?:^|\s)r(?=\d)/i },
+  { sign: "₹", re: /₹|\binr\b|\brupees?\b/i },
+];
+
+/**
+ * A currency other than the business's own in this text ("$960,000" in a naira business), or
+ * null. Amounts are only ever added up in the business's own currency — Nellovia never converts
+ * (that would mean guessing a rate), so a figure in another currency is asked about, not used.
+ */
+export function foreignCurrency(text: string | null | undefined, cur: string): string | null {
+  if (!text) return null;
+  const home = CURRENCY_MARKS.find((m) => m.sign === cur || m.re.test(cur))?.sign ?? cur;
+  for (const m of CURRENCY_MARKS) if (m.sign !== home && m.re.test(text)) return m.sign;
+  return null;
 }

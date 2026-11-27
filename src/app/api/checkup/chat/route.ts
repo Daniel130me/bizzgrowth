@@ -21,7 +21,7 @@ import {
   type TranscriptTurn,
   type TrendDirection,
 } from "@/lib/checkup";
-import { currencySymbol, isBareNumber, parseCloseRate, plainify, shorten, tidyOwnerText, wordsToDigits } from "@/lib/checkup-math";
+import { amountInFull, currencySymbol, isBareNumber, parseCloseRate, plainify, shorten, tidyOwnerText, wordsToDigits } from "@/lib/checkup-math";
 import { amountFromOwner, classifyQuestion, countFromOwner, listenOnly, neutralReply, ownerSpokeOfChange, usableChip } from "@/lib/checkup-turn";
 import { isMoneyTrouble, moneyClauses, speaksOfCosts } from "@/lib/checkup-money";
 import { HONESTY_RULES, I_VOICE } from "@/lib/ai-voice";
@@ -329,6 +329,7 @@ WHAT EACH SLOT MEANS
   - coverPlan: how they were planning to cover the gap — borrowing, selling something, family, talking to whoever is owed. Ask plainly and without judging; the diagnosis weighs it.
   - pricesChanged: when they last changed prices, and whether costs went up since. platformFees: whether an app, platform or card machine they sell through takes a fee or cut. owedFlex: whether whoever they owe has ever agreed to part payment or a plan before.
   Record every amount exactly as they said it; never add up, convert or estimate anything.
+- AMOUNTS YOU ARE NOT SURE OF: if an amount could be read more than one way — a number with no unit where the size matters ("300" for a rent), a word or shorthand for a number you don't recognise or that may mean something else where they are, an amount in a different currency from the business's own (never convert it — ask whether that is right, or what it is in their own currency), or two figures that don't fit together — don't record it yet. Ask one short question that writes it out in full ("Just to check — is that 300,000?") and record it once they confirm. Usual shorthand that is clear (k for thousand, m for million) needs no check: what you understood is shown to them written in full.
 
 CHOOSING WHAT TO ASK NEXT
 - Look at COVERAGE: what is KNOWN, MISSING, how often it was ASKED, or DECLINED. Never ask about anything KNOWN or DECLINED. Never reuse a question's wording.
@@ -1324,6 +1325,12 @@ export async function POST(request: NextRequest) {
         const label = c.replace(/^Updated:\s*/, "").split(":")[0].trim();
         const slot = LABEL_SLOT[label];
         return !slot || read === "correction" || newThisTurn.has(slot);
+      })
+      // Money they gave is shown written out in full ("Cash now: ₦300,000" for "300k"), so they
+      // see exactly what was understood and can correct it before it is used.
+      .map((c) => {
+        const slot = LABEL_SLOT[c.replace(/^Updated:\s*/, "").split(":")[0].trim()];
+        return slot && (slot === "jobValue" || (MONEY_SLOTS as string[]).includes(slot)) ? amountInFull(c, cur) : c;
       })
       .slice(0, 3);
 

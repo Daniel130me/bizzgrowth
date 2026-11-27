@@ -720,7 +720,7 @@ export async function POST(request: NextRequest) {
         ? `COMPUTED FROM THEIR OWN ESTIMATES (you may quote these exactly; do not change them or add other numbers):\n${computed.map((c) => `- ${c}`).join("\n")}`
         : "COMPUTED: none — nothing was worked out for this. Do no maths of your own; you may still quote the owner's own figures exactly as they said them.",
       // Their figures challenge their own explanation: rule 1c's exception applies — say it.
-      moneyFindingsBlock(facts.money) ? `\n${moneyFindingsBlock(facts.money)}\nThis is a case where their answers clearly show a bigger problem than the one they named (rule 1c): the insight leads with it, and the headline names both the payment due and this. If it says a figure they stated doesn't add up, say so kindly in "meaning" and ask which months it came from.` : "",
+      moneyFindingsBlock(facts.money, cur) ? `\n${moneyFindingsBlock(facts.money, cur)}\nThis is a case where their answers clearly show a bigger problem than the one they named (rule 1c): the insight leads with it, and the headline names both the payment due and this. If it says a figure they stated doesn't add up, say so kindly in "meaning" and ask which months it came from.` : "",
       // Money trouble: every tool earns its place against the payments due.
       facts.money?.due?.length
         ? `\nMONEY TROUBLE — TOOLS: each tool helps with a payment that is due: the words for one person they owe (one tool per person they must talk to this week, not only the biggest), or a way to bring cash in before the due date. No menus, packages or marketing tools. "working" names something that helps with the money (someone who has been flexible before, a part they can pay now), not how customers find them.`

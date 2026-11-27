@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { BusinessFacts } from "./checkup";
-import { appendNumbers, diffNumbers, editableNumber, logChanges, missingNumbers, NUMBER_LOG_CAP, setNumber, numberRows, numbersFromFacts, sourceLabel, type NumberEntry } from "./number-log";
+import { appendNumbers, diffNumbers, editableNumber, logChanges, logCorrection, logRemoval, missingNumbers, NUMBER_LOG_CAP, removeNumber, setNumber, numberRows, numbersFromFacts, sourceLabel, type NumberEntry } from "./number-log";
 
 const base = {
   businessType: "service",
@@ -166,5 +166,51 @@ describe("logChanges: the old value is never lost", () => {
   test("a capitalised date after an amount reads naturally", () => {
     const f: BusinessFacts = { ...money, money: { ...money.money!, due: [{ what: "Rent", amount: "₵9,000", when: "In 9 days" }, { what: "Tax", when: "Overdue" }] } };
     expect(numbersFromFacts(f).slice(0, 2).map((n) => n.value)).toEqual(["₵9,000, in 9 days", "Overdue"]);
+  });
+});
+
+describe("a fixed mistake is not a change in the business", () => {
+  test("the wrong value disappears from the history; the fix is marked a correction", () => {
+    const typo: BusinessFacts = { ...money, money: { ...money.money!, cashNow: "₵20,000" } }; // meant ₵2,500
+    const fixed: BusinessFacts = { ...money, money: { ...money.money!, cashNow: "₵2,500" } };
+    let log = logChanges(diffNumbers(null, money, "checkup", "t1"), money, typo, "you", "t2");
+    log = logCorrection(log, typo, fixed, "t3");
+    const row = numberRows(fixed, log).find((r) => r.key === "cashNow")!;
+    expect(row).toMatchObject({ value: "₵2,500", source: "you", at: "t3", corrected: true });
+    // "Was ₵2,000" from the checkup stays; the typo never appears, so nothing reads as a jump and a fall.
+    expect(row.history).toEqual([{ value: "₵2,000", at: "t1", source: "checkup" }]);
+    expect(log.filter((e) => e.key === "cashNow" && e.wrong).map((e) => e.value)).toEqual(["₵20,000"]);
+    expect(log[log.length - 1]).toMatchObject({ value: "₵2,500", correction: true });
+  });
+  test("a first figure that was wrong (in an older workspace) is replaced with no trace in the history", () => {
+    const fixed: BusinessFacts = { ...money, money: { ...money.money!, cashNow: "₵2,500" } };
+    const row = numberRows(fixed, logCorrection(undefined, money, fixed, "t2")).find((r) => r.key === "cashNow")!;
+    expect(row).toMatchObject({ value: "₵2,500", corrected: true, history: [] });
+  });
+  test("a real change keeps what it was", () => {
+    const later: BusinessFacts = { ...money, money: { ...money.money!, cashNow: "₵2,500" } };
+    const row = numberRows(later, logChanges(undefined, money, later, "you", "t2")).find((r) => r.key === "cashNow")!;
+    expect(row.corrected).toBeUndefined();
+    expect(row.history.map((h) => h.value)).toEqual(["₵2,000"]);
+  });
+});
+
+describe("removing a number", () => {
+  test("a payment or cost leaves the list; a single figure is cleared", () => {
+    expect(removeNumber(money, "due:shop lease")!.money!.due).toEqual([]);
+    expect(removeNumber(money, "cost:products")!.money!.costs).toEqual([]);
+    expect(removeNumber(money, "moneyIn")!.money!.moneyIn).toBeUndefined();
+    expect(removeNumber(money, "closeRate")!.closeRate).toBeUndefined();
+    expect(numbersFromFacts(removeNumber(money, "cashNow")).some((n) => n.key === "cashNow")).toBe(false);
+  });
+  test("nothing to remove changes nothing; a removal is recorded, never shown as history", () => {
+    expect(removeNumber(money, "nope")).toBeNull();
+    expect(removeNumber(base, "cashNow")).toBeNull();
+    const log = logRemoval(diffNumbers(null, money, "checkup", "t1"), money, "cashNow", "t2");
+    expect(log[log.length - 1]).toMatchObject({ key: "cashNow", value: "₵2,000", removed: true });
+    // Given again later: the old value is its history, the removal is not.
+    const again: BusinessFacts = { ...money, money: { ...money.money!, cashNow: "₵900" } };
+    const row = numberRows(again, logChanges(log, removeNumber(money, "cashNow"), again, "check-in", "t3")).find((r) => r.key === "cashNow")!;
+    expect(row.history.map((h) => h.value)).toEqual(["₵2,000"]);
   });
 });

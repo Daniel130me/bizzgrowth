@@ -247,3 +247,18 @@ describe("money that changed in a check-in", () => {
     expect(moneyLinesForPrompt(plan, "₵")[0]).toContain("Shop lease ₵1k (on a plan they agreed, every month)");
   });
 });
+
+describe("money in another currency is left out of the sums, never converted", () => {
+  test("named, not added up", () => {
+    const m: MoneyFacts = { due: [{ what: "Rent", amount: "₦3.6m" }, { what: "Equipment loan", amount: "$500" }], cashNow: "$960,000", costs: [{ what: "Stock", amount: "₦800k", per: "month" }] };
+    const lines = moneyLinesForPrompt(m, "₦");
+    expect(lines[0]).toBe("Not added up, because it is not in ₦ (Nellovia never converts currencies): Equipment loan $500; Cash now $960,000.");
+    expect(lines[1]).toBe("Due, from what they told you: Rent ₦3.6m.");
+    expect(lines.some((l) => l.startsWith("Cash they have now"))).toBe(false);
+  });
+  test("a check-in amount in another currency is not recorded", () => {
+    const m: MoneyFacts = { due: [{ what: "Rent", amount: "₦3.6m" }], costs: [] };
+    expect(cleanMoneyUpdates({ cashNow: "$900" }, m, "I have $900 now", "₦")).toBeNull();
+    expect(cleanMoneyUpdates({ cashNow: "₦900k" }, m, "I have ₦900k now", "₦")?.cashNow).toBe("₦900k");
+  });
+});

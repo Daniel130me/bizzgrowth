@@ -16,7 +16,8 @@ import type { EvidenceItem } from "@/lib/types";
 import { diagnosisReturnRoute } from "@/lib/diagnosis-route";
 import { improveHelps } from "@/lib/checkup";
 import { fmtDateShort } from "@/lib/format";
-import { missingNumbers, numberRows, sourceLabel } from "@/lib/number-log";
+import { isMoneyNumber, missingNumbers, numberRows, sourceLabel } from "@/lib/number-log";
+import { amountInFull, currencySymbol } from "@/lib/checkup-math";
 
 import type { ScreenProps } from "../view-types";
 
@@ -54,6 +55,7 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
   const improved = useBizz((s) => s.checkup.improved);
   const numberLog = useBizz((s) => s.checkup.numberLog);
   const focus = useFocusChallenge();
+  const cur = currencySymbol(useBizz((s) => s.userWorkspace?.currency));
 
   const isPersonalized = Boolean(facts);
   const confidence = improved?.confidence ?? diagnosis?.confidence ?? 62;
@@ -61,7 +63,8 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
   // Built only from what the owner really gave: their numbers (with where each came from),
   // the directions they actually knew, the changes they mentioned. "Don't know" is never
   // listed as something we know.
-  const rows = numberRows(facts, numberLog);
+  // Money written out in full, so what was understood is plain to see.
+  const rows = numberRows(facts, numberLog).map((r) => (isMoneyNumber(r.key) ? { ...r, value: amountInFull(r.value, cur), history: r.history.map((h) => ({ ...h, value: amountInFull(h.value, cur) })) } : r));
   const knownTrends = facts
     ? ([
         ["Enquiries", facts.trends.enquiries],
@@ -75,7 +78,7 @@ export default function FirstDiagnosisEvidence(_props: ScreenProps) {
   const figuresIn = (t: string) => t.match(/[₦$€£₵]?\d[\d,.]*\s?(?:k|m|bn)?/gi) ?? [];
   const recent = (facts?.recentChanges ?? [])
     .filter((c) => {
-      const figs = figuresIn(c);
+      const figs = figuresIn(amountInFull(c, cur));
       return !figs.length || !figs.every((f) => shownFigures.includes(f.trim()));
     })
     .slice(0, 2);

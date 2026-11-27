@@ -145,7 +145,7 @@ export function formatBusinessContext(ctx: BusinessContextPayload | null | undef
         lines.push("", "COMPUTED FROM THEIR OWN FIGURES (you may quote these exactly; do no other maths):");
         worked.forEach((w) => lines.push(`- ${w}`));
       }
-      const findings = moneyFindingsBlock(m);
+      const findings = moneyFindingsBlock(m, cur);
       if (findings) lines.push("", findings);
     }
   }
