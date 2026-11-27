@@ -410,6 +410,10 @@ const ADMIN_NAV = [
   { id: "admin/support", label: "Support inbox", icon: LifeBuoy },
 ];
 
+function adminSignOut() {
+  void signOut().finally(() => navigate("signin"));
+}
+
 function AdminSidebarContent({ route, onNavigate }: { route: string; onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
@@ -440,9 +444,15 @@ function AdminSidebarContent({ route, onNavigate }: { route: string; onNavigate?
           );
         })}
       </nav>
+      {/* Platform admins are always kept in this area (app-root), so "back to the app" only
+          bounced back here — signing out is the way out. */}
       <div className="border-t border-slate-800 p-3">
-        <button onClick={() => navigate("home")} className="w-full rounded-lg px-3 py-1.5 text-left text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200">
-          ← Back to app
+        <button
+          onClick={adminSignOut}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+        >
+          <LogOut className="size-4" aria-hidden />
+          Sign out
         </button>
       </div>
     </div>
@@ -463,6 +473,10 @@ export function AdminShell({ children, route }: { children: React.ReactNode; rou
           </Button>
           <p className="text-sm font-semibold">Platform administration</p>
           <Badge variant="outline" className="border-slate-300 bg-slate-50 text-[10px] font-medium text-slate-600">Restricted access</Badge>
+          <Button variant="ghost" size="sm" className="ml-auto text-slate-600" onClick={adminSignOut}>
+            <LogOut className="size-4" aria-hidden />
+            Sign out
+          </Button>
         </header>
         {mobileOpen && (
           <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">

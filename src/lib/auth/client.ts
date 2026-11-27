@@ -180,11 +180,17 @@ export async function signUp(name: string, email: string, password: string, acco
 }
 
 export async function signOut(): Promise<void> {
-  // Save what's still only in this browser to the account before the session ends.
-  await flushWorkspaceSync();
+  // Save what's still only in this browser to the account before the session ends — but a
+  // failed save must never stop the sign-out itself.
+  try {
+    await flushWorkspaceSync();
+  } catch {}
   stopWorkspaceSync();
-  await post("/api/auth/logout");
-  useBizz.getState().setSession(null);
+  try {
+    await post("/api/auth/logout");
+  } finally {
+    useBizz.getState().setSession(null);
+  }
 }
 
 export async function saveWorkspace(input: {
